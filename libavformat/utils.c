@@ -91,7 +91,7 @@ int ff_unlock_avformat(void)
 }
 
 #define RELATIVE_TS_BASE (INT64_MAX - (1LL<<48))
-
+//tiger
 static int is_relative(int64_t ts) {
     return ts > (RELATIVE_TS_BASE - (1LL<<48));
 }
@@ -840,7 +840,7 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
             *pkt = pktl->pkt;
             st   = s->streams[pkt->stream_index];
             if (s->internal->raw_packet_buffer_remaining_size <= 0)
-                if ((err = probe_codec(s, st, NULL)) < 0)
+                if ((err = probe_codec(s, st, NULL)) < 0)//怎么理解？
                     return err;
             if (st->request_probe <= 0) {
                 s->internal->raw_packet_buffer                 = pktl->next;
@@ -853,7 +853,7 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
         pkt->data = NULL;
         pkt->size = 0;
         av_init_packet(pkt);
-        ret = s->iformat->read_packet(s, pkt);
+        ret = s->iformat->read_packet(s, pkt);//TIGER flv_read_packet
         if (ret < 0) {
             /* Some demuxers return FFERROR_REDO when they consume
                data and discard it (ignored streams, junk, extradata).
@@ -1572,14 +1572,14 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
     int ret = 0, i, got_packet = 0;
     AVDictionary *metadata = NULL;
 
-    av_init_packet(pkt);
+    av_init_packet(pkt);//这里已经初始化，所有ffmpeg里面的初始化是不必要的
 
     while (!got_packet && !s->internal->parse_queue) {
         AVStream *st;
         AVPacket cur_pkt;
 
         /* read next packet */
-        ret = ff_read_packet(s, &cur_pkt);
+        ret = ff_read_packet(s, &cur_pkt);//实际读入口
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN))
                 return ret;
@@ -1587,7 +1587,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
             for (i = 0; i < s->nb_streams; i++) {
                 st = s->streams[i];
                 if (st->parser && st->need_parsing)
-                    parse_packet(s, NULL, st->index);
+                    parse_packet(s, NULL, st->index);//解析
             }
             /* all remaining packets are now in parse_queue =>
              * really terminate parsing */
@@ -1610,7 +1610,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
                 st->parser = NULL;
             }
 
-            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
+            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);//复制出参数
             if (ret < 0)
                 return ret;
 
@@ -1645,7 +1645,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                    cur_pkt.size, cur_pkt.duration, cur_pkt.flags);
 
         if (st->need_parsing && !st->parser && !(s->flags & AVFMT_FLAG_NOPARSE)) {
-            st->parser = av_parser_init(st->codecpar->codec_id);
+            st->parser = av_parser_init(st->codecpar->codec_id);//找到parser
             if (!st->parser) {
                 av_log(s, AV_LOG_VERBOSE, "parser not found for codec "
                        "%s, packets or times may be invalid.\n",
@@ -1653,7 +1653,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 /* no parser available: just output the raw packets */
                 st->need_parsing = AVSTREAM_PARSE_NONE;
             } else if (st->need_parsing == AVSTREAM_PARSE_HEADERS)
-                st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
+                st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;//TIGER TODO 理解多个flag
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_ONCE)
                 st->parser->flags |= PARSER_FLAG_ONCE;
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_RAW)
@@ -1697,7 +1697,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     if (!got_packet && s->internal->parse_queue)
         ret = ff_packet_list_get(&s->internal->parse_queue, &s->internal->parse_queue_end, pkt);
 
-    if (ret >= 0) {
+    if (ret >= 0) {//
         AVStream *st = s->streams[pkt->stream_index];
         int discard_padding = 0;
         if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {
@@ -1741,8 +1741,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
     }
 
-    av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);
-    if (metadata) {
+    av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);//TIGER 元数据
+    if (metadata) {//TIGER 是否更新meta， 设置一个事件
         s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;
         av_dict_copy(&s->metadata, metadata, 0);
         av_dict_free(&metadata);
@@ -1753,8 +1753,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
     update_stream_avctx(s);
 #endif
 
-    if (s->debug & FF_FDEBUG_TS)
-        av_log(s, AV_LOG_DEBUG,
+    if (s->debug & FF_FDEBUG_TS)//TIGER 编程参考 可以增加日志
+        av_log(s, AV_LOG_DEBUG,//日志输出
                "read_frame_internal stream=%d, pts=%s, dts=%s, "
                "size=%d, duration=%"PRId64", flags=%d\n",
                pkt->stream_index,
@@ -1764,7 +1764,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     return ret;
 }
-
+//TIGER 
 int av_read_frame(AVFormatContext *s, AVPacket *pkt)
 {
     const int genpts = s->flags & AVFMT_FLAG_GENPTS;
@@ -1772,14 +1772,14 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     int ret;
     AVStream *st;
 
-    if (!genpts) {
-        ret = s->internal->packet_buffer
+    if (!genpts) {//如果不是自动产生时间戳
+        ret = s->internal->packet_buffer//见注释:如果队列里有数据，比如get the codec parameters in MPEG解析后的
               ? ff_packet_list_get(&s->internal->packet_buffer,
                                         &s->internal->packet_buffer_end, pkt)
               : read_frame_internal(s, pkt);
         if (ret < 0)
-            return ret;
-        goto return_packet;
+            return ret;//
+        goto return_packet;//如果读到packet,处理一下
     }
 
     for (;;) {
@@ -1803,7 +1803,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                         }
                         if (last_dts != AV_NOPTS_VALUE) {
                             // Once last dts was set to AV_NOPTS_VALUE, we don't change it.
-                            last_dts = pktl->pkt.dts;
+                            last_dts = pktl->pkt.dts;//只有在没有的时候才填上dts
                         }
                     }
                     pktl = pktl->next;
@@ -1814,7 +1814,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                     // 1. eof.
                     // 2. we are not able to resolve a pts value for current packet.
                     // 3. the packets for this stream at the end of the files had valid dts.
-                    next_pkt->pts = last_dts + next_pkt->duration;
+                    next_pkt->pts = last_dts + next_pkt->duration;////只有在没有的时候才填上pts
                 }
                 pktl = s->internal->packet_buffer;
             }
@@ -1828,8 +1828,8 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                 goto return_packet;
             }
         }
-
-        ret = read_frame_internal(s, pkt);
+        //真正的read_frame
+        ret = read_frame_internal(s, pkt);//读frame
         if (ret < 0) {
             if (pktl && ret != AVERROR(EAGAIN)) {
                 eof = 1;
@@ -1838,7 +1838,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                 return ret;
         }
 
-        ret = ff_packet_list_put(&s->internal->packet_buffer,
+        ret = ff_packet_list_put(&s->internal->packet_buffer,//放入list
                                  &s->internal->packet_buffer_end,
                                  pkt, FF_PACKETLIST_FLAG_REF_PACKET);
         av_packet_unref(pkt);
@@ -1847,15 +1847,15 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     }
 
 return_packet:
-
+    //tiger
     st = s->streams[pkt->stream_index];
     if ((s->iformat->flags & AVFMT_GENERIC_INDEX) && pkt->flags & AV_PKT_FLAG_KEY) {
         ff_reduce_index(s, st->index);
-        av_add_index_entry(st, pkt->pos, pkt->dts, 0, 0, AVINDEX_KEYFRAME);
+        av_add_index_entry(st, pkt->pos, pkt->dts, 0, 0, AVINDEX_KEYFRAME);//TIGER TODO5:啥意思？ 
     }
 
-    if (is_relative(pkt->dts))
-        pkt->dts -= RELATIVE_TS_BASE;
+    if (is_relative(pkt->dts))//TIGER TODO
+        pkt->dts -= RELATIVE_TS_BASE;//为什么为负数
     if (is_relative(pkt->pts))
         pkt->pts -= RELATIVE_TS_BASE;
 

@@ -797,7 +797,7 @@ enum AVStreamParseType {
                                     just codec level data, otherwise position generation would fail */
 };
 
-typedef struct AVIndexEntry {
+typedef struct AVIndexEntry {//TIGER 这里的timestamp 见注释，解码器demuxers可以自己定义时间戳
     int64_t pos;
     int64_t timestamp;        /**<
                                * Timestamp in AVStream.time_base units, preferably the time from which on correctly decoded frames are available
