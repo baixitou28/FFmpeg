@@ -443,7 +443,7 @@ static int init_input(AVFormatContext *s, const char *filename,
     return av_probe_input_buffer2(s->pb, &s->iformat, filename,
                                  s, 0, s->format_probesize);
 }
-
+//单向列表而已
 int ff_packet_list_put(AVPacketList **packet_buffer,
                        AVPacketList **plast_pktl,
                        AVPacket      *pkt, int flags)
@@ -1572,9 +1572,9 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
     int ret = 0, i, got_packet = 0;
     AVDictionary *metadata = NULL;
 
-    av_init_packet(pkt);//这里已经初始化，所有ffmpeg里面的初始化是不必要的
+    av_init_packet(pkt);//ffmpeg内部已经初始化，所以使用ffmpeg api中，再次初始化是不必要的
 
-    while (!got_packet && !s->internal->parse_queue) {
+    while (!got_packet && !s->internal->parse_queue) {//如果没有获取packet且parse_queue还没创建
         AVStream *st;
         AVPacket cur_pkt;
 
@@ -1597,7 +1597,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
         st  = s->streams[cur_pkt.stream_index];
 
         /* update context if required */
-        if (st->internal->need_context_update) {
+        if (st->internal->need_context_update) {//更新参数//tiger TODO need_context_update这个参数需要考虑吗？
             if (avcodec_is_open(st->internal->avctx)) {
                 av_log(s, AV_LOG_DEBUG, "Demuxer context update while decoder is open, closing and trying to re-open\n");
                 avcodec_close(st->internal->avctx);
@@ -1623,9 +1623,9 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-            st->internal->need_context_update = 0;
+            st->internal->need_context_update = 0;//标记已处理
         }
-
+        //如果pts <dts,提示错误
         if (cur_pkt.pts != AV_NOPTS_VALUE &&
             cur_pkt.dts != AV_NOPTS_VALUE &&
             cur_pkt.pts < cur_pkt.dts) {
@@ -1651,7 +1651,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                        "%s, packets or times may be invalid.\n",
                        avcodec_get_name(st->codecpar->codec_id));
                 /* no parser available: just output the raw packets */
-                st->need_parsing = AVSTREAM_PARSE_NONE;
+                st->need_parsing = AVSTREAM_PARSE_NONE;//已经有parser了
             } else if (st->need_parsing == AVSTREAM_PARSE_HEADERS)
                 st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;//TIGER TODO 理解多个flag
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_ONCE)
@@ -1764,7 +1764,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     return ret;
 }
-//TIGER 
+//TIGER av_read_frame对av_read_packet进行了封装，使读出的数据总是完整的帧。 Vs av_read_packet的区别是读出的是包，它可能是半帧或多帧，不保证帧的完整性。
 int av_read_frame(AVFormatContext *s, AVPacket *pkt)
 {
     const int genpts = s->flags & AVFMT_FLAG_GENPTS;
@@ -1838,7 +1838,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
                 return ret;
         }
 
-        ret = ff_packet_list_put(&s->internal->packet_buffer,//放入list
+        ret = ff_packet_list_put(&s->internal->packet_buffer,//放入单向列表list
                                  &s->internal->packet_buffer_end,
                                  pkt, FF_PACKETLIST_FLAG_REF_PACKET);
         av_packet_unref(pkt);

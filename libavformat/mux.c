@@ -681,7 +681,7 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
 
     // If the timestamp offsetting below is adjusted, adjust
     // ff_interleaved_peek similarly.
-    if (s->output_ts_offset) {
+    if (s->output_ts_offset) {//如果
         AVStream *st = s->streams[pkt->stream_index];
         int64_t offset = av_rescale_q(s->output_ts_offset, AV_TIME_BASE_Q, st->time_base);
 
@@ -691,7 +691,7 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
             pkt->pts += offset;
     }
 
-    if (s->avoid_negative_ts > 0) {
+    if (s->avoid_negative_ts > 0) {//如果
         AVStream *st = s->streams[pkt->stream_index];
         int64_t offset = st->mux_ts_offset;
         int64_t ts = s->internal->avoid_negative_ts_use_pts ? pkt->pts : pkt->dts;
@@ -709,25 +709,25 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
                                  st->time_base,
                                  AV_ROUND_UP);
         }
-
+        //不为0，累加，如果是负的就麻烦了，所以一定要递增的才行
         if (pkt->dts != AV_NOPTS_VALUE)
             pkt->dts += offset;
         if (pkt->pts != AV_NOPTS_VALUE)
             pkt->pts += offset;
-
-        if (s->internal->avoid_negative_ts_use_pts) {
+        //
+        if (s->internal->avoid_negative_ts_use_pts) {//如果
             if (pkt->pts != AV_NOPTS_VALUE && pkt->pts < 0) {
-                av_log(s, AV_LOG_WARNING, "failed to avoid negative "
+                av_log(s, AV_LOG_WARNING, "failed to avoid negative "//告警提示
                     "pts %s in stream %d.\n"
                     "Try -avoid_negative_ts 1 as a possible workaround.\n",
                     av_ts2str(pkt->pts),
                     pkt->stream_index
                 );
             }
-        } else {
+        } else {//否则
             av_assert2(pkt->dts == AV_NOPTS_VALUE || pkt->dts >= 0 || s->max_interleave_delta > 0);
             if (pkt->dts != AV_NOPTS_VALUE && pkt->dts < 0) {
-                av_log(s, AV_LOG_WARNING,
+                av_log(s, AV_LOG_WARNING,//告警有负数
                     "Packets poorly interleaved, failed to avoid negative "
                     "timestamp %s in stream %d.\n"
                     "Try -max_interleave_delta 0 as a possible workaround.\n",
@@ -738,29 +738,29 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
         }
     }
 
-    if ((pkt->flags & AV_PKT_FLAG_UNCODED_FRAME)) {
+    if ((pkt->flags & AV_PKT_FLAG_UNCODED_FRAME)) {//如果
         AVFrame *frame = (AVFrame *)pkt->data;
         av_assert0(pkt->size == UNCODED_FRAME_PACKET_SIZE);
-        ret = s->oformat->write_uncoded_frame(s, pkt->stream_index, &frame, 0);
+        ret = s->oformat->write_uncoded_frame(s, pkt->stream_index, &frame, 0);//写入B1
         av_frame_free(&frame);
     } else {
-        ret = s->oformat->write_packet(s, pkt);
+        ret = s->oformat->write_packet(s, pkt);//写入B2
     }
 
     if (s->pb && ret >= 0) {
-        flush_if_needed(s);
+        flush_if_needed(s);//真需要flush？
         if (s->pb->error < 0)
             ret = s->pb->error;
     }
 
     if (ret < 0) {
-        pkt->pts = pts_backup;
+        pkt->pts = pts_backup;//恢复到以前的
         pkt->dts = dts_backup;
     }
 
     return ret;
 }
-
+//校验数据合法性
 static int check_packet(AVFormatContext *s, AVPacket *pkt)
 {
     if (!pkt)
@@ -779,12 +779,12 @@ static int check_packet(AVFormatContext *s, AVPacket *pkt)
 
     return 0;
 }
-
+////校验数据合法性
 static int prepare_input_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int ret;
 
-    ret = check_packet(s, pkt);
+    ret = check_packet(s, pkt);//校验
     if (ret < 0)
         return ret;
 
@@ -1180,41 +1180,41 @@ int ff_interleaved_peek(AVFormatContext *s, int stream,
  */
 static int interleave_packet(AVFormatContext *s, AVPacket *out, AVPacket *in, int flush)
 {
-    if (s->oformat->interleave_packet) {
+    if (s->oformat->interleave_packet) {//如果输出s->oformat已经有自定义函数
         int ret = s->oformat->interleave_packet(s, out, in, flush);
-        if (in)
+        if (in)//主动释放
             av_packet_unref(in);
         return ret;
     } else
-        return ff_interleave_packet_per_dts(s, out, in, flush);
+        return ff_interleave_packet_per_dts(s, out, in, flush);//采用通用的
 }
-
+//tiger 功能看定义里面的注释
 int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, flush = 0;
-
+    //校验数据合法性
     ret = prepare_input_packet(s, pkt);
     if (ret < 0)
         goto fail;
 
     if (pkt) {
         AVStream *st = s->streams[pkt->stream_index];
-
+        //添加 BSF(bitstream filters)
         ret = do_packet_auto_bsf(s, pkt);
         if (ret == 0)
             return 0;
         else if (ret < 0)
             goto fail;
-
+        //打印更多
         if (s->debug & FF_FDEBUG_TS)
             av_log(s, AV_LOG_DEBUG, "av_interleaved_write_frame size:%d dts:%s pts:%s\n",
                 pkt->size, av_ts2str(pkt->dts), av_ts2str(pkt->pts));
-
+        //高版本打印更多，保守做法，只59以上，目前是58版本
 #if FF_API_COMPUTE_PKT_FIELDS2 && FF_API_LAVF_AVCTX
         if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS))
             goto fail;
 #endif
-
+        //如果没有时间戳
         if (pkt->dts == AV_NOPTS_VALUE && !(s->oformat->flags & AVFMT_NOTIMESTAMPS)) {
             ret = AVERROR(EINVAL);
             goto fail;
@@ -1226,8 +1226,8 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 
     for (;; ) {
         AVPacket opkt;
-        int ret = interleave_packet(s, &opkt, pkt, flush);
-        if (pkt) {
+        int ret = interleave_packet(s, &opkt, pkt, flush);//方式A写
+        if (pkt) {//如果pkt没有释放
             memset(pkt, 0, sizeof(*pkt));
             av_init_packet(pkt);
             pkt = NULL;
@@ -1235,11 +1235,11 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
         if (ret <= 0) //FIXME cleanup needed for ret<0 ?
             return ret;
 
-        ret = write_packet(s, &opkt);
+        ret = write_packet(s, &opkt);//方式B写:将复制后的opkt，放入内部队列
         if (ret >= 0)
-            s->streams[opkt.stream_index]->nb_frames++;
+            s->streams[opkt.stream_index]->nb_frames++;//T统计
 
-        av_packet_unref(&opkt);
+        av_packet_unref(&opkt);//释放
 
         if (ret < 0)
             return ret;
