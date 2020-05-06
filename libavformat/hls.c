@@ -2204,7 +2204,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
     return AVERROR_EOF;
 }
-//TIGER HLS
+//TIGER HLS https://www.cnblogs.com/fpzeng/archive/2012/07/26/dts_pts.html
 static int hls_read_seek(AVFormatContext *s, int stream_index,//什么时候需要seek？
                                int64_t timestamp, int flags)
 {
