@@ -310,7 +310,7 @@ retry:
     goto start;
 }
 
-const URLProtocol ff_hls_protocol = {
+const URLProtocol ff_hls_protocol = {//TIGER HLS
     .name           = "hls",
     .url_open       = hls_open,
     .url_read       = hls_read,
