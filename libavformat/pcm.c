@@ -25,30 +25,30 @@
 #include "pcm.h"
 
 #define RAW_SAMPLES     1024
-
+//TIGER PCM 
 int ff_pcm_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    AVCodecParameters *par = s->streams[0]->codecpar;
+    AVCodecParameters *par = s->streams[0]->codecpar;//获取stream 解码器的参数
     int ret, size;
 
-    if (par->block_align <= 0)
+    if (par->block_align <= 0)//调试一下block_align是多少 tiger TODO:
         return AVERROR(EINVAL);
 
     /*
      * Compute read size to complete a read every 62ms.
      * Clamp to RAW_SAMPLES if larger.
      */
-    size = FFMAX(par->sample_rate/25, 1);
-    size = FFMIN(size, RAW_SAMPLES) * par->block_align;
+    size = FFMAX(par->sample_rate/25, 1);//至少大于等于1  //为什么是除25？
+    size = FFMIN(size, RAW_SAMPLES) * par->block_align;//最多是1024
 
-    ret = av_get_packet(s->pb, pkt, size);
+    ret = av_get_packet(s->pb, pkt, size);//取一固定长度
 
-    pkt->flags &= ~AV_PKT_FLAG_CORRUPT;
+    pkt->flags &= ~AV_PKT_FLAG_CORRUPT;//没有corrupt的概念
     pkt->stream_index = 0;
 
     return ret;
 }
-
+//TIGER PCM TODO为什么seek和read 不大一样的算法？
 int ff_pcm_read_seek(AVFormatContext *s,
                      int stream_index, int64_t timestamp, int flags)
 {
@@ -57,26 +57,26 @@ int ff_pcm_read_seek(AVFormatContext *s,
     int64_t pos, ret;
 
     st = s->streams[0];
-
-    block_align = st->codecpar->block_align ? st->codecpar->block_align :
-        (av_get_bits_per_sample(st->codecpar->codec_id) * st->codecpar->channels) >> 3;
+    //设alaw 8k单声道
+    block_align = st->codecpar->block_align ? st->codecpar->block_align ://如果block_align 为0，则
+        (av_get_bits_per_sample(st->codecpar->codec_id) * st->codecpar->channels) >> 3;//av_get_bits_per_sample ALAW 返回8， block_align= (8*1)>>3 = 1
     byte_rate = st->codecpar->bit_rate ? st->codecpar->bit_rate >> 3 :
-        block_align * st->codecpar->sample_rate;
+        block_align * st->codecpar->sample_rate;//aALaw为1*8K=8K
 
     if (block_align <= 0 || byte_rate <= 0)
         return -1;
-    if (timestamp < 0) timestamp = 0;
+    if (timestamp < 0) timestamp = 0;//什么时候会负?
 
     /* compute the position by aligning it to block_align */
-    pos = av_rescale_rnd(timestamp * byte_rate,
-                         st->time_base.num,
-                         st->time_base.den * (int64_t)block_align,
+    pos = av_rescale_rnd(timestamp * byte_rate,//TIGER PCM TODO:
+                         st->time_base.num,//time_base.num:
+                         st->time_base.den * (int64_t)block_align,//den:
                          (flags & AVSEEK_FLAG_BACKWARD) ? AV_ROUND_DOWN : AV_ROUND_UP);
     pos *= block_align;
 
     /* recompute exact position */
-    st->cur_dts = av_rescale(pos, st->time_base.den, byte_rate * (int64_t)st->time_base.num);
-    if ((ret = avio_seek(s->pb, pos + s->internal->data_offset, SEEK_SET)) < 0)
+    st->cur_dts = av_rescale(pos, st->time_base.den, byte_rate * (int64_t)st->time_base.num);//这里没有pts
+    if ((ret = avio_seek(s->pb, pos + s->internal->data_offset, SEEK_SET)) < 0)//定位到下一帧
         return ret;
     return 0;
 }

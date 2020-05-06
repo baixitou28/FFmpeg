@@ -97,13 +97,13 @@ static int pcm_read_header(AVFormatContext *s)
     avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
     return 0;
 }
-
+//可以设置pcm的参数，在sdp中读取，设置到pcm中去，可以检验一下。//TODO:检验
 static const AVOption pcm_options[] = {
     { "sample_rate", "", offsetof(PCMAudioDemuxerContext, sample_rate), AV_OPT_TYPE_INT, {.i64 = 44100}, 0, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
     { "channels",    "", offsetof(PCMAudioDemuxerContext, channels),    AV_OPT_TYPE_INT, {.i64 = 1}, 0, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
     { NULL },
 };
-
+//tiger pcm 最简单的音频，尝试理解读取数据的机制
 #define PCMDEF(name_, long_name_, ext, codec, ...)          \
 static const AVClass name_ ## _demuxer_class = {            \
     .class_name = #name_ " demuxer",                        \
@@ -114,10 +114,10 @@ static const AVClass name_ ## _demuxer_class = {            \
 AVInputFormat ff_pcm_ ## name_ ## _demuxer = {              \
     .name           = #name_,                               \
     .long_name      = NULL_IF_CONFIG_SMALL(long_name_),     \
-    .priv_data_size = sizeof(PCMAudioDemuxerContext),       \
+    .priv_data_size = sizeof(PCMAudioDemuxerContext),       \//首先需要一个实例，来保存AVClass，sample_rate，channel
     .read_header    = pcm_read_header,                      \
-    .read_packet    = ff_pcm_read_packet,                   \
-    .read_seek      = ff_pcm_read_seek,                     \
+    .read_packet    = ff_pcm_read_packet,                   \//最简单的读取
+    .read_seek      = ff_pcm_read_seek,                     \//最简单的seek
     .flags          = AVFMT_GENERIC_INDEX,                  \
     .extensions     = ext,                                  \
     .raw_codec_id   = codec,                                \
