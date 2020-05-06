@@ -3563,7 +3563,7 @@ static int extract_extradata(AVStream *st, AVPacket *pkt)
 
     return 0;
 }
-
+//tiger 重要，理解各个函数的使用
 int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 {
     int i, count = 0, ret = 0, j;
@@ -3580,12 +3580,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
     int64_t max_subtitle_analyze_duration;
     int64_t probesize = ic->probesize;
     int eof_reached = 0;
-    int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");
+    int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");//这个选项？
 
     flush_codecs = probesize > 0;
-
+    //增加一个选项
     av_opt_set(ic, "skip_clear", "1", AV_OPT_SEARCH_CHILDREN);
-
+    //设置默认的一些时间
     max_stream_analyze_duration = max_analyze_duration;
     max_subtitle_analyze_duration = max_analyze_duration;
     if (!max_analyze_duration) {
@@ -3597,12 +3597,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         if (!strcmp(ic->iformat->name, "mpeg") || !strcmp(ic->iformat->name, "mpegts"))
             max_stream_analyze_duration = 7*AV_TIME_BASE;
     }
-
+    //如果是自定义IO，则打印当前位置
     if (ic->pb)
         av_log(ic, AV_LOG_DEBUG, "Before avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d nb_streams:%d\n",
                avio_tell(ic->pb), ic->pb->bytes_read, ic->pb->seek_count, ic->nb_streams);
 
-    for (i = 0; i < ic->nb_streams; i++) {
+    for (i = 0; i < ic->nb_streams; i++) {//逐一分析
         const AVCodec *codec;
         AVDictionary *thread_opt = NULL;
         st = ic->streams[i];
@@ -3612,7 +3612,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
 /*            if (!st->time_base.num)
                 st->time_base = */
-            if (!avctx->time_base.num)
+            if (!avctx->time_base.num)//这个？
                 avctx->time_base = st->time_base;
         }
 
@@ -3628,7 +3628,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
         // only for the split stuff
         if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {
-            st->parser = av_parser_init(st->codecpar->codec_id);
+            st->parser = av_parser_init(st->codecpar->codec_id);//如果没有解析器就初始化一个
             if (st->parser) {
                 if (st->need_parsing == AVSTREAM_PARSE_HEADERS) {
                     st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;
@@ -3690,7 +3690,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     read_size = 0;
     for (;;) {
         int analyzed_all_streams;
-        if (ff_check_interrupt(&ic->interrupt_callback)) {
+        if (ff_check_interrupt(&ic->interrupt_callback)) {//tiger 是否可以从这里强行退出
             ret = AVERROR_EXIT;
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
             break;

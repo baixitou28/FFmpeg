@@ -88,7 +88,7 @@ int ff_mpeg4audio_get_config_gb(MPEG4AudioConfig *c, GetBitContext *gb,
 {
     int specific_config_bitindex, ret;
     int start_bit_index = get_bits_count(gb);
-    c->object_type = get_object_type(gb);
+    c->object_type = get_object_type(gb);//TIGER AAC config 配置 找到这个不容易
     c->sample_rate = get_sample_rate(gb, &c->sampling_index);
     c->chan_config = get_bits(gb, 4);
     if (c->chan_config < FF_ARRAY_ELEMS(ff_mpeg4audio_channels))

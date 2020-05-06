@@ -75,7 +75,7 @@ typedef struct AttrNameMap {
 /* All known fmtp parameters and the corresponding RTPAttrTypeEnum */
 #define ATTR_NAME_TYPE_INT 0
 #define ATTR_NAME_TYPE_STR 1
-static const AttrNameMap attr_names[] = {
+static const AttrNameMap attr_names[] = {//Õâ¸öÊÇaac
     { "SizeLength",       ATTR_NAME_TYPE_INT,
       offsetof(PayloadContext, sizelength) },
     { "IndexLength",      ATTR_NAME_TYPE_INT,

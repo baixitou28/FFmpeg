@@ -329,7 +329,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             break;
         case AVMEDIA_TYPE_VIDEO:
             if ((par->width <= 0 || par->height <= 0) &&
-                !(of->flags & AVFMT_NODIMENSIONS)) {
+                !(of->flags & AVFMT_NODIMENSIONS)) {//TIGER 自定义时 不设置会报错
                 av_log(s, AV_LOG_ERROR, "dimensions not set\n");
                 ret = AVERROR(EINVAL);
                 goto fail;
