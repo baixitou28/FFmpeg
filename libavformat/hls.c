@@ -688,7 +688,7 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
 
     return ret;
 }
-
+//TIGER HLS 读取并解析m3u8文件 参看https://www.cnblogs.com/fpzeng/archive/2012/07/26/dts_pts.html//HTTP Live Streaming标准草案可以从这里http://tools.ietf.org/html/draft-pantos-http-live-streaming-08
 static int parse_playlist(HLSContext *c, const char *url,
                           struct playlist *pls, AVIOContext *in)
 {
@@ -714,7 +714,7 @@ static int parse_playlist(HLSContext *c, const char *url,
 
     if (is_http && !in && c->http_persistent && c->playlist_pb) {
         in = c->playlist_pb;
-        ret = open_url_keepalive(c->ctx, &c->playlist_pb, url);
+        ret = open_url_keepalive(c->ctx, &c->playlist_pb, url);//协议需要吗？
         if (ret == AVERROR_EXIT) {
             return ret;
         } else if (ret < 0) {
@@ -733,7 +733,7 @@ static int parse_playlist(HLSContext *c, const char *url,
         if (c->http_persistent)
             av_dict_set(&opts, "multiple_requests", "1", 0);
 
-        ret = c->ctx->io_open(c->ctx, &in, url, AVIO_FLAG_READ, &opts);
+        ret = c->ctx->io_open(c->ctx, &in, url, AVIO_FLAG_READ, &opts);//打开
         av_dict_free(&opts);
         if (ret < 0)
             return ret;
@@ -744,7 +744,7 @@ static int parse_playlist(HLSContext *c, const char *url,
             close_in = 1;
     }
 
-    if (av_opt_get(in, "location", AV_OPT_SEARCH_CHILDREN, &new_url) >= 0)
+    if (av_opt_get(in, "location", AV_OPT_SEARCH_CHILDREN, &new_url) >= 0)//
         url = new_url;
 
     ff_get_chomp_line(in, line, sizeof(line));
@@ -764,8 +764,8 @@ static int parse_playlist(HLSContext *c, const char *url,
         pls->type = PLS_TYPE_UNSPECIFIED;
     }
     while (!avio_feof(in)) {
-        ff_get_chomp_line(in, line, sizeof(line));
-        if (av_strstart(line, "#EXT-X-STREAM-INF:", &ptr)) {
+        ff_get_chomp_line(in, line, sizeof(line));//获取重要参数
+        if (av_strstart(line, "#EXT-X-STREAM-INF:", &ptr)) {//
             is_variant = 1;
             memset(&variant_info, 0, sizeof(variant_info));
             ff_parse_key_value(ptr, (ff_parse_key_val_cb) handle_variant_args,
@@ -790,12 +790,12 @@ static int parse_playlist(HLSContext *c, const char *url,
             ff_parse_key_value(ptr, (ff_parse_key_val_cb) handle_rendition_args,
                                &info);
             new_rendition(c, &info, url);
-        } else if (av_strstart(line, "#EXT-X-TARGETDURATION:", &ptr)) {
+        } else if (av_strstart(line, "#EXT-X-TARGETDURATION:", &ptr)) {//M3U8文件里面的?
             ret = ensure_playlist(c, &pls, url);
             if (ret < 0)
                 goto fail;
             pls->target_duration = strtoll(ptr, NULL, 10) * AV_TIME_BASE;
-        } else if (av_strstart(line, "#EXT-X-MEDIA-SEQUENCE:", &ptr)) {
+        } else if (av_strstart(line, "#EXT-X-MEDIA-SEQUENCE:", &ptr)) {//M3U8文件里面的起始序号
             ret = ensure_playlist(c, &pls, url);
             if (ret < 0)
                 goto fail;
@@ -840,7 +840,7 @@ static int parse_playlist(HLSContext *c, const char *url,
         } else if (av_strstart(line, "#EXT-X-ENDLIST", &ptr)) {
             if (pls)
                 pls->finished = 1;
-        } else if (av_strstart(line, "#EXTINF:", &ptr)) {
+        } else if (av_strstart(line, "#EXTINF:", &ptr)) {//M3U8文件里面有
             is_segment = 1;
             duration   = atof(ptr) * AV_TIME_BASE;
         } else if (av_strstart(line, "#EXT-X-BYTERANGE:", &ptr)) {
@@ -851,7 +851,7 @@ static int parse_playlist(HLSContext *c, const char *url,
         } else if (av_strstart(line, "#", NULL)) {
             av_log(c->ctx, AV_LOG_INFO, "Skip ('%s')\n", line);
             continue;
-        } else if (line[0]) {
+        } else if (line[0]) {//实际内容
             if (is_variant) {
                 if (!new_variant(c, &variant_info, line, url)) {
                     ret = AVERROR(ENOMEM);
@@ -873,7 +873,7 @@ static int parse_playlist(HLSContext *c, const char *url,
                     ret = AVERROR(ENOMEM);
                     goto fail;
                 }
-                seg->duration = duration;
+                seg->duration = duration;//时长 M3U8里面读取
                 seg->key_type = key_type;
                 if (has_iv) {
                     memcpy(seg->iv, iv, sizeof(iv));
@@ -895,7 +895,7 @@ static int parse_playlist(HLSContext *c, const char *url,
                     seg->key = NULL;
                 }
 
-                ff_make_absolute_url(tmp_str, sizeof(tmp_str), url, line);
+                ff_make_absolute_url(tmp_str, sizeof(tmp_str), url, line);//绝对路径
                 seg->url = av_strdup(tmp_str);
                 if (!seg->url) {
                     av_free(seg->key);
@@ -2062,7 +2062,7 @@ static int compare_ts_with_wrapdetect(int64_t ts_a, struct playlist *pls_a,
 
     return av_compare_mod(scaled_ts_a, scaled_ts_b, 1LL << 33);
 }
-
+//TIGER HLS 
 static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     HLSContext *c = s->priv_data;
@@ -2071,7 +2071,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
     recheck_discard_flags(s, c->first_packet);
     c->first_packet = 0;
 
-    for (i = 0; i < c->n_playlists; i++) {
+    for (i = 0; i < c->n_playlists; i++) {//m3u8的列表里面读取
         struct playlist *pls = c->playlists[i];
         /* Make sure we've got one buffered packet from each open playlist
          * stream */
@@ -2079,7 +2079,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
             while (1) {
                 int64_t ts_diff;
                 AVRational tb;
-                ret = av_read_frame(pls->ctx, &pls->pkt);
+                ret = av_read_frame(pls->ctx, &pls->pkt);//读取
                 if (ret < 0) {
                     if (!avio_feof(&pls->pb) && ret != AVERROR_EOF)
                         return ret;
@@ -2087,7 +2087,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
                     break;
                 } else {
                     /* stream_index check prevents matching picture attachments etc. */
-                    if (pls->is_id3_timestamped && pls->pkt.stream_index == 0) {
+                    if (pls->is_id3_timestamped && pls->pkt.stream_index == 0) {//这个id3
                         /* audio elementary streams are id3 timestamped */
                         fill_timing_for_id3_timestamped_stream(pls);
                     }
@@ -2098,13 +2098,13 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
                             get_timebase(pls), AV_TIME_BASE_Q);
                 }
 
-                if (pls->seek_timestamp == AV_NOPTS_VALUE)
+                if (pls->seek_timestamp == AV_NOPTS_VALUE)//这个何解？
                     break;
 
                 if (pls->seek_stream_index < 0 ||
                     pls->seek_stream_index == pls->pkt.stream_index) {
 
-                    if (pls->pkt.dts == AV_NOPTS_VALUE) {
+                    if (pls->pkt.dts == AV_NOPTS_VALUE) {//这个何解？
                         pls->seek_timestamp = AV_NOPTS_VALUE;
                         break;
                     }
@@ -2192,7 +2192,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
 
         /* There may be more situations where this would be useful, but this at least
          * handles newly probed codecs properly (i.e. request_probe by mpegts). */
-        if (ist->codecpar->codec_id != st->codecpar->codec_id) {
+        if (ist->codecpar->codec_id != st->codecpar->codec_id) {//这个怕配置改变？
             ret = set_stream_info_from_input_stream(st, pls, ist);
             if (ret < 0) {
                 av_packet_unref(pkt);
@@ -2204,8 +2204,8 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
     return AVERROR_EOF;
 }
-
-static int hls_read_seek(AVFormatContext *s, int stream_index,
+//TIGER HLS
+static int hls_read_seek(AVFormatContext *s, int stream_index,//什么时候需要seek？
                                int64_t timestamp, int flags)
 {
     HLSContext *c = s->priv_data;
@@ -2329,7 +2329,7 @@ static const AVClass hls_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-AVInputFormat ff_hls_demuxer = {
+AVInputFormat ff_hls_demuxer = {//TIGER HLS
     .name           = "hls",
     .long_name      = NULL_IF_CONFIG_SMALL("Apple HTTP Live Streaming"),
     .priv_class     = &hls_class,
