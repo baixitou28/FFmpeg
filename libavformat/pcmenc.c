@@ -21,7 +21,7 @@
 
 #include "avformat.h"
 #include "rawenc.h"
-
+//PCM 编码的宏
 #define PCMDEF(name_, long_name_, ext, codec)               \
 AVOutputFormat ff_pcm_ ## name_ ## _muxer = {               \
     .name         = #name_,                                 \
@@ -29,10 +29,10 @@ AVOutputFormat ff_pcm_ ## name_ ## _muxer = {               \
     .extensions   = ext,                                    \
     .audio_codec  = codec,                                  \
     .video_codec  = AV_CODEC_ID_NONE,                          \
-    .write_packet = ff_raw_write_packet,                    \
+    .write_packet = ff_raw_write_packet,                    \//主函数，简单的写就可以了
     .flags        = AVFMT_NOTIMESTAMPS,                     \
 };
-
+//这是这么多类型
 PCMDEF(f64be, "PCM 64-bit floating-point big-endian",
        NULL, AV_CODEC_ID_PCM_F64BE)
 
@@ -86,7 +86,7 @@ PCMDEF(u16le, "PCM unsigned 16-bit little-endian",
 
 PCMDEF(u8, "PCM unsigned 8-bit",
        "ub", AV_CODEC_ID_PCM_U8)
-
+//现在用的alaw最多
 PCMDEF(alaw, "PCM A-law",
        "al", AV_CODEC_ID_PCM_ALAW)
 
