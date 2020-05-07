@@ -628,7 +628,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)
-        if ((ret = s->iformat->read_header(s)) < 0)
+        if ((ret = s->iformat->read_header(s)) < 0)//TIGER SDP µ÷ÓÃsdp_read_header-->ff_sdp_parse-->payload_type-->sdp_parse_line-->ff_parse_fmtp-->parse_fmtp-->parse_fmtp_config
             goto fail;
 
     if (!s->metadata) {
@@ -658,7 +658,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
     ff_id3v2_free_extra_meta(&id3v2_extra_meta);
 
-    if ((ret = avformat_queue_attached_pictures(s)) < 0)
+    if ((ret = avformat_queue_attached_pictures(s)) < 0)//TIGER 
         goto fail;
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->pb && !s->internal->data_offset)
