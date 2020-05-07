@@ -31,13 +31,13 @@ typedef struct PCMAudioDemuxerContext {
     int sample_rate;
     int channels;
 } PCMAudioDemuxerContext;
-
+//TIGER PCM
 static int pcm_read_header(AVFormatContext *s)
 {
     PCMAudioDemuxerContext *s1 = s->priv_data;
     AVStream *st;
     uint8_t *mime_type = NULL;
-
+    //创建一个流
     st = avformat_new_stream(s, NULL);
     if (!st)
         return AVERROR(ENOMEM);

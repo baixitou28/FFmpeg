@@ -3361,7 +3361,7 @@ static int opt_progress(void *optctx, const char *opt, const char *arg)
 }
 
 #define OFFSET(x) offsetof(OptionsContext, x)
-const OptionDef options[] = {
+const OptionDef options[] = {//TIGER OPTIONS 
     /* main options */
     CMDUTILS_COMMON_OPTIONS
     { "f",              HAS_ARG | OPT_STRING | OPT_OFFSET |
