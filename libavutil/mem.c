@@ -228,7 +228,7 @@ void av_freep(void *arg)
 {
     void *val;
 
-    memcpy(&val, arg, sizeof(val));
+    memcpy(&val, arg, sizeof(val));//tiger 这样操作特别安全吗？还是平台无关好？
     memcpy(arg, &(void *){ NULL }, sizeof(val));
     av_free(val);
 }

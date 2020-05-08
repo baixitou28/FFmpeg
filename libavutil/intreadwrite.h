@@ -515,8 +515,8 @@ union unaligned_16 { uint16_t l; } __attribute__((packed)) av_alias;
  * in a type-safe way.
  */
 
-#define AV_RNA(s, p)    (((const av_alias##s*)(p))->u##s)
-#define AV_WNA(s, p, v) (((av_alias##s*)(p))->u##s = (v))
+#define AV_RNA(s, p)    (((const av_alias##s*)(p))->u##s)//只读
+#define AV_WNA(s, p, v) (((av_alias##s*)(p))->u##s = (v))//读写 tiger pcm写得比较隐含 s为16,av_alias16->u16 = v
 
 #ifndef AV_RN16A
 #   define AV_RN16A(p) AV_RNA(16, p)

@@ -42,7 +42,7 @@ static int pcm_read_header(AVFormatContext *s)
     if (!st)
         return AVERROR(ENOMEM);
 
-
+    //
     st->codecpar->codec_type  = AVMEDIA_TYPE_AUDIO;
     st->codecpar->codec_id    = s->iformat->raw_codec_id;
     st->codecpar->sample_rate = s1->sample_rate;

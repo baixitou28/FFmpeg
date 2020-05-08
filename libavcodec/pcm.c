@@ -37,7 +37,7 @@ static av_cold int pcm_encode_init(AVCodecContext *avctx)
     avctx->frame_size = 0;
     switch (avctx->codec->id) {
     case AV_CODEC_ID_PCM_ALAW:
-        pcm_alaw_tableinit();
+        pcm_alaw_tableinit();//line转alaw的表初始化
         break;
     case AV_CODEC_ID_PCM_MULAW:
         pcm_ulaw_tableinit();
@@ -48,10 +48,10 @@ static av_cold int pcm_encode_init(AVCodecContext *avctx)
     default:
         break;
     }
-
-    avctx->bits_per_coded_sample = av_get_bits_per_sample(avctx->codec->id);
-    avctx->block_align           = avctx->channels * avctx->bits_per_coded_sample / 8;
-    avctx->bit_rate              = avctx->block_align * 8LL * avctx->sample_rate;
+    //alaw 的话编码后，8bit，8k，mon的话，64kbit
+    avctx->bits_per_coded_sample = av_get_bits_per_sample(avctx->codec->id);//每次sample后是8bit
+    avctx->block_align           = avctx->channels * avctx->bits_per_coded_sample / 8;//block_align为1
+    avctx->bit_rate              = avctx->block_align * 8LL * avctx->sample_rate;//block_align一般为1，8k，所以比特率是64kit
 
     return 0;
 }
@@ -207,10 +207,10 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
             bytestream_put_buffer(&dst, src, n * sample_size);
         }
         break;
-    case AV_CODEC_ID_PCM_ALAW:
+    case AV_CODEC_ID_PCM_ALAW://TIGER PCM ALAW
         for (; n > 0; n--) {
-            v      = *samples++;
-            *dst++ = linear_to_alaw[(v + 32768) >> 2];
+            v      = *samples++;//注意这个samples的单位是short，数据是13位
+            *dst++ = linear_to_alaw[(v + 32768) >> 2];//映射//TIGER PCM ALAW 关键代码
         }
         break;
     case AV_CODEC_ID_PCM_MULAW:
@@ -229,13 +229,13 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
         return -1;
     }
 
-    *got_packet_ptr = 1;
+    *got_packet_ptr = 1;//标记编码成功
     return 0;
 }
 
 typedef struct PCMDecode {
     short   table[256];
-    AVFloatDSPContext *fdsp;
+    AVFloatDSPContext *fdsp;//浮点运算，不同硬件平台，不同处理函数
     float   scale;
 } PCMDecode;
 
@@ -252,7 +252,7 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
     switch (avctx->codec_id) {
     case AV_CODEC_ID_PCM_ALAW:
         for (i = 0; i < 256; i++)
-            s->table[i] = alaw2linear(i);
+            s->table[i] = alaw2linear(i);//TIGER PCM 初始化
         break;
     case AV_CODEC_ID_PCM_MULAW:
         for (i = 0; i < 256; i++)
@@ -268,7 +268,7 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
             return AVERROR_INVALIDDATA;
 
         s->scale = 1. / (1 << (avctx->bits_per_coded_sample - 1));
-        s->fdsp = avpriv_float_dsp_alloc(0);
+        s->fdsp = avpriv_float_dsp_alloc(0);//针对不同的硬件平台，不同的浮点处理函数
         if (!s->fdsp)
             return AVERROR(ENOMEM);
         break;
@@ -278,7 +278,7 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
 
     avctx->sample_fmt = avctx->codec->sample_fmts[0];
 
-    if (avctx->sample_fmt == AV_SAMPLE_FMT_S32)
+    if (avctx->sample_fmt == AV_SAMPLE_FMT_S32)//这个不解？
         avctx->bits_per_raw_sample = av_get_bits_per_sample(avctx->codec_id);
 
     return 0;
@@ -288,7 +288,7 @@ static av_cold int pcm_decode_close(AVCodecContext *avctx)
 {
     PCMDecode *s = avctx->priv_data;
 
-    av_freep(&s->fdsp);
+    av_freep(&s->fdsp);//浮点需要额外处理
 
     return 0;
 }
@@ -333,7 +333,7 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
     uint8_t *samples;
     int32_t *dst_int32_t;
 
-    sample_size = av_get_bits_per_sample(avctx->codec_id) / 8;
+    sample_size = av_get_bits_per_sample(avctx->codec_id) / 8;//如果是alaw，编码是13位的pcm转成8位的alaw，所以都是8，所以这里的sample_size=1
 
     /* av_get_bits_per_sample returns 0 for AV_CODEC_ID_PCM_DVD */
     samples_per_block = 1;
@@ -342,7 +342,7 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
         samples_per_block = 2;
         sample_size       = 5;
     }
-
+    //验证参数是否完全
     if (sample_size == 0) {
         av_log(avctx, AV_LOG_ERROR, "Invalid sample_size\n");
         return AVERROR(EINVAL);
@@ -357,26 +357,26 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
         av_log(avctx, AV_LOG_ERROR, "codec ids mismatch\n");
         return AVERROR(EINVAL);
     }
-
+    //每次读多少，如果是双声道，就要读2倍。
     n = avctx->channels * sample_size;
 
-    if (n && buf_size % n) {
-        if (buf_size < n) {
+    if (n && buf_size % n) {//要保证每次完整的采样值。
+        if (buf_size < n) {//太小了，无法保证解析
             av_log(avctx, AV_LOG_ERROR,
                    "Invalid PCM packet, data has size %d but at least a size of %d was expected\n",
                    buf_size, n);
             return AVERROR_INVALIDDATA;
         } else
-            buf_size -= buf_size % n;
+            buf_size -= buf_size % n;//抹掉零头，特别是对于截断或者正在写的文件，很重要。
     }
 
-    n = buf_size / sample_size;
+    n = buf_size / sample_size;//有多少个采样个数，双通道，算两次
 
     /* get output buffer */
-    frame->nb_samples = n * samples_per_block / avctx->channels;
-    if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
+    frame->nb_samples = n * samples_per_block / avctx->channels;//采样值，从时间维度看，和通道数无关
+    if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)//读取
         return ret;
-    samples = frame->data[0];
+    samples = frame->data[0];//得到初始地址samples
 
     switch (avctx->codec_id) {
     case AV_CODEC_ID_PCM_U32LE:
@@ -499,12 +499,12 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
             *samples++ = v;
         }
         break;
-    case AV_CODEC_ID_PCM_ALAW:
+    case AV_CODEC_ID_PCM_ALAW://TIGER PCM 实际解码的地方
     case AV_CODEC_ID_PCM_MULAW:
     case AV_CODEC_ID_PCM_VIDC:
-        for (; n > 0; n--) {
-            AV_WN16A(samples, s->table[*src++]);
-            samples += 2;
+        for (; n > 0; n--) {//循环n次
+            AV_WN16A(samples, s->table[*src++]);//s->table，存放着映射alaw2linear关系在pcm_decode_init中初始化，AV_WN16A只是把13位的复制到16位，临时存放， 所以不需要考虑大小端
+            samples += 2;//因为src是8bit只加1，samples 是13位，所以占用16bit即2Byte。
         }
         break;
     case AV_CODEC_ID_PCM_LXF:
@@ -536,21 +536,21 @@ static int pcm_decode_frame(AVCodecContext *avctx, void *data,
     }
 
     if (avctx->codec_id == AV_CODEC_ID_PCM_F16LE ||
-        avctx->codec_id == AV_CODEC_ID_PCM_F24LE) {
+        avctx->codec_id == AV_CODEC_ID_PCM_F24LE) {//浮点专用
         s->fdsp->vector_fmul_scalar((float *)frame->extended_data[0],
                                     (const float *)frame->extended_data[0],
                                     s->scale, FFALIGN(frame->nb_samples * avctx->channels, 4));
         emms_c();
     }
 
-    *got_frame_ptr = 1;
+    *got_frame_ptr = 1;//标记获取一帧
 
     return buf_size;
 }
 
 #define PCM_ENCODER_0(id_, sample_fmt_, name_, long_name_)
 #define PCM_ENCODER_1(id_, sample_fmt_, name_, long_name_)                  \
-AVCodec ff_ ## name_ ## _encoder = {                                        \
+AVCodec ff_ ## name_ ## _encoder = {                                        \//TIGER PCM 编码
     .name         = #name_,                                                 \
     .long_name    = NULL_IF_CONFIG_SMALL(long_name_),                       \
     .type         = AVMEDIA_TYPE_AUDIO,                                     \
@@ -571,15 +571,15 @@ AVCodec ff_ ## name_ ## _encoder = {                                        \
 
 #define PCM_DECODER_0(id, sample_fmt, name, long_name)
 #define PCM_DECODER_1(id_, sample_fmt_, name_, long_name_)                  \
-AVCodec ff_ ## name_ ## _decoder = {                                        \
+AVCodec ff_ ## name_ ## _decoder = {                                        \//TIGER PCM ALAW  为:ff_pcm_alaw_decoder
     .name           = #name_,                                               \
     .long_name      = NULL_IF_CONFIG_SMALL(long_name_),                     \
-    .type           = AVMEDIA_TYPE_AUDIO,                                   \
-    .id             = AV_CODEC_ID_ ## id_,                                  \
+    .type           = AVMEDIA_TYPE_AUDIO,                                   \//音频
+    .id             = AV_CODEC_ID_ ## id_,                                  \//通过ID来区分不同的pcm
     .priv_data_size = sizeof(PCMDecode),                                    \
-    .init           = pcm_decode_init,                                      \
+    .init           = pcm_decode_init,                                      \//TIGER PCM ALAW 解码初始化 ：核心是：s->table[i] = alaw2linear(i);
     .close          = pcm_decode_close,                                     \
-    .decode         = pcm_decode_frame,                                     \
+    .decode         = pcm_decode_frame,                                     \//TIGER PCM ALAW 解码： 核心是AV_WN16A(samples, s->table[*src++])
     .capabilities   = AV_CODEC_CAP_DR1,                                     \
     .sample_fmts    = (const enum AVSampleFormat[]){ sample_fmt_,           \
                                                      AV_SAMPLE_FMT_NONE },  \
@@ -589,16 +589,16 @@ AVCodec ff_ ## name_ ## _decoder = {                                        \
     PCM_DECODER_ ## cf(id, sample_fmt, name, long_name)
 #define PCM_DECODER_3(cf, id, sample_fmt, name, long_name)                  \
     PCM_DECODER_2(cf, id, sample_fmt, name, long_name)
-#define PCM_DECODER(id, sample_fmt, name, long_name)                        \
+#define PCM_DECODER(id, sample_fmt, name, long_name)                        \//定义解码
     PCM_DECODER_3(CONFIG_ ## id ## _DECODER, id, sample_fmt, name, long_name)
 
-#define PCM_CODEC(id, sample_fmt_, name, long_name_)                    \
+#define PCM_CODEC(id, sample_fmt_, name, long_name_)                    \//定义编解码
     PCM_ENCODER(id, sample_fmt_, name, long_name_);                     \
     PCM_DECODER(id, sample_fmt_, name, long_name_)
 
 /* Note: Do not forget to add new entries to the Makefile as well. */
-PCM_CODEC  (PCM_ALAW,         AV_SAMPLE_FMT_S16, pcm_alaw,         "PCM A-law / G.711 A-law");
-PCM_DECODER(PCM_F16LE,        AV_SAMPLE_FMT_FLT, pcm_f16le,        "PCM 16.8 floating point little-endian");
+PCM_CODEC  (PCM_ALAW,         AV_SAMPLE_FMT_S16, pcm_alaw,         "PCM A-law / G.711 A-law");//TIGER PCM ALAW  定义了ff_pcm_alaw_decoder，ff_pcm_alaw_encoder，注意AV_SAMPLE_FMT_S16 原始数据13位，但定义采用的是16位
+PCM_DECODER(PCM_F16LE,        AV_SAMPLE_FMT_FLT, pcm_f16le,        "PCM 16.8 floating point little-endian");//这个只是解码
 PCM_DECODER(PCM_F24LE,        AV_SAMPLE_FMT_FLT, pcm_f24le,        "PCM 24.0 floating point little-endian");
 PCM_CODEC  (PCM_F32BE,        AV_SAMPLE_FMT_FLT, pcm_f32be,        "PCM 32-bit floating point big-endian");
 PCM_CODEC  (PCM_F32LE,        AV_SAMPLE_FMT_FLT, pcm_f32le,        "PCM 32-bit floating point little-endian");

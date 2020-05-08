@@ -25,26 +25,26 @@
 #include "pcm.h"
 
 #define RAW_SAMPLES     1024
-//TIGER PCM 
+//TIGER PCM 特点，最简单，只有alaw转换，但没有pts，dts处理。
 int ff_pcm_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVCodecParameters *par = s->streams[0]->codecpar;//获取stream 解码器的参数
     int ret, size;
 
-    if (par->block_align <= 0)//调试一下block_align是多少 tiger TODO:
+    if (par->block_align <= 0)//调试一下block_align是多少 ==>block_align为1
         return AVERROR(EINVAL);
 
     /*
      * Compute read size to complete a read every 62ms.
      * Clamp to RAW_SAMPLES if larger.
      */
-    size = FFMAX(par->sample_rate/25, 1);//至少大于等于1  //为什么是除25？
+    size = FFMAX(par->sample_rate/25, 1);//par->sample_rate 44100，44100/25=1764，但我测试的8k，8*1024/25
     size = FFMIN(size, RAW_SAMPLES) * par->block_align;//最多是1024
 
     ret = av_get_packet(s->pb, pkt, size);//取一固定长度
 
-    pkt->flags &= ~AV_PKT_FLAG_CORRUPT;//没有corrupt的概念
-    pkt->stream_index = 0;
+    pkt->flags &= ~AV_PKT_FLAG_CORRUPT;//正常读取，没有坏损
+    pkt->stream_index = 0;//肯定是0吗？
 
     return ret;
 }
