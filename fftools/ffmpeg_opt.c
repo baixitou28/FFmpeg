@@ -1190,7 +1190,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
     add_input_streams(o, ic);
 
     /* dump the file content */
-    av_dump_format(ic, nb_input_files, filename, 0);
+    av_dump_format(ic, nb_input_files, filename, 0);//TIGER AAC 在这里打印输出的aac 为LC模式即LOW不是MAIN
 
     GROW_ARRAY(input_files, nb_input_files);
     f = av_mallocz(sizeof(*f));
@@ -3046,11 +3046,11 @@ static int opt_profile(void *optctx, const char *opt, const char *arg)
 {
     OptionsContext *o = optctx;
     if(!strcmp(opt, "profile")){
-        av_log(NULL, AV_LOG_WARNING, "Please use -profile:a or -profile:v, -profile is ambiguous\n");
-        av_dict_set(&o->g->codec_opts, "profile:v", arg, 0);
+        av_log(NULL, AV_LOG_WARNING, "Please use -profile:a or -profile:v, -profile is ambiguous\n");//tiger aac profile 会有黄色提示，开始没看见
+        av_dict_set(&o->g->codec_opts, "profile:v", arg, 0);//默认放到video里面，大概和以前版本兼容？
         return 0;
     }
-    av_dict_set(&o->g->codec_opts, opt, arg, 0);
+    av_dict_set(&o->g->codec_opts, opt, arg, 0);//最终都放在codec_opts
     return 0;
 }
 

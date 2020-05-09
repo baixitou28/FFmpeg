@@ -42,7 +42,7 @@ struct PayloadContext {
     int indexdeltalength;
     int profile_level_id;
     int streamtype;
-    int objecttype;
+    int objecttype;//TIGER AAC OBJECT_TYPE
     char *mode;
 
     /** mpeg 4 AU headers */

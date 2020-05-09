@@ -1219,9 +1219,9 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
     codec_name = avcodec_get_name(enc->codec_id);
     profile = avcodec_profile_name(enc->codec_id, enc->profile);
 
-    snprintf(buf, buf_size, "%s: %s", codec_type ? codec_type : "unknown",
+    snprintf(buf, buf_size, "%s: %s", codec_type ? codec_type : "unknown",//这里打印audio: aac
              codec_name);
-    buf[0] ^= 'a' ^ 'A'; /* first letter in uppercase */
+    buf[0] ^= 'a' ^ 'A'; /* first letter in uppercase *///真是native 语言的做法
 
     if (enc->codec && strcmp(enc->codec->name, codec_name))
         snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", enc->codec->name);

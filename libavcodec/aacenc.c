@@ -955,7 +955,7 @@ static av_cold void aac_encode_init_tables(void)
 {
     ff_aac_tableinit();
 }
-
+//tiger aac编码初始化
 static av_cold int aac_encode_init(AVCodecContext *avctx)
 {
     AACEncContext *s = avctx->priv_data;
@@ -1024,7 +1024,7 @@ static av_cold int aac_encode_init(AVCodecContext *avctx)
                                      avctx->bit_rate);
 
     /* Profile and option setting */
-    avctx->profile = avctx->profile == FF_PROFILE_UNKNOWN ? FF_PROFILE_AAC_LOW :
+    avctx->profile = avctx->profile == FF_PROFILE_UNKNOWN ? FF_PROFILE_AAC_LOW ://TIGER AAC LOW 如果未指定profile，用LOW模式，
                      avctx->profile;
     for (i = 0; i < FF_ARRAY_ELEMS(aacenc_profiles); i++)
         if (avctx->profile == aacenc_profiles[i])
@@ -1146,17 +1146,17 @@ static const AVCodecDefault aac_encode_defaults[] = {
     { NULL }
 };
 
-AVCodec ff_aac_encoder = {
+AVCodec ff_aac_encoder = {//TIGER aac 编码
     .name           = "aac",
     .long_name      = NULL_IF_CONFIG_SMALL("AAC (Advanced Audio Coding)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_AAC,
     .priv_data_size = sizeof(AACEncContext),
     .init           = aac_encode_init,
-    .encode2        = aac_encode_frame,
+    .encode2        = aac_encode_frame,//tiger aac 编码主函数
     .close          = aac_encode_end,
-    .defaults       = aac_encode_defaults,
-    .supported_samplerates = mpeg4audio_sample_rates,
+    .defaults       = aac_encode_defaults,//默认参数
+    .supported_samplerates = mpeg4audio_sample_rates,//支持的采样率
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
     .capabilities   = AV_CODEC_CAP_SMALL_LAST_FRAME | AV_CODEC_CAP_DELAY,
     .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLTP,

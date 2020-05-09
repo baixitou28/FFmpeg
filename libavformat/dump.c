@@ -494,7 +494,7 @@ static void dump_stream_format(AVFormatContext *ic, int i,
         av_log(NULL, AV_LOG_INFO, "(%s)", lang->value);
     av_log(NULL, AV_LOG_DEBUG, ", %d, %d/%d", st->codec_info_nb_frames,
            st->time_base.num, st->time_base.den);
-    av_log(NULL, AV_LOG_INFO, ": %s", buf);
+    av_log(NULL, AV_LOG_INFO, ": %s", buf);//TIGER AAC Stream #0:0: Audio: aac(LC)在这里打印
 
     if (st->sample_aspect_ratio.num &&
         av_cmp_q(st->sample_aspect_ratio, st->codecpar->sample_aspect_ratio)) {

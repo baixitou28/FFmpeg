@@ -995,7 +995,7 @@ static int decode_audio_specific_config_gb(AACContext *ac,
     skip_bits_long(gb, i);
 
     switch (m4ac->object_type) {
-    case AOT_AAC_MAIN:
+    case AOT_AAC_MAIN://TIGER AAC ½âÎösdp
     case AOT_AAC_LC:
     case AOT_AAC_SSR:
     case AOT_AAC_LTP:
@@ -1388,7 +1388,7 @@ static int decode_ics_info(AACContext *ac, IndividualChannelStream *ics,
                     goto fail;
                 }
             } else if (aot == AOT_AAC_LC ||
-                       aot == AOT_ER_AAC_LC) {
+                       aot == AOT_ER_AAC_LC) {//TIGER AAC 
                 av_log(ac->avctx, AV_LOG_ERROR,
                        "Prediction is not allowed in AAC-LC.\n");
                 goto fail;

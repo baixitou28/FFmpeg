@@ -1439,7 +1439,7 @@ static int reap_filters(int flush)
 
         if (!ost->initialized) {
             char error[1024] = "";
-            ret = init_output_stream(ost, error, sizeof(error));
+            ret = init_output_stream(ost, error, sizeof(error));//TIGER aac 输出文件这里创建
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Error initializing output stream %d:%d -- %s\n",
                        ost->file_index, ost->index, error);
@@ -4645,9 +4645,9 @@ static int transcode_step(void)
     if (ret < 0)
         return ret == AVERROR_EOF ? 0 : ret;
 
-    return reap_filters(0);
+    return reap_filters(0); //如果输出的文件未创建，再这里打开
 }
-
+//主函数
 /*
  * The following code is the main loop of the file converter
  */
@@ -4674,12 +4674,12 @@ static int transcode(void)
     if ((ret = init_input_threads()) < 0)
         goto fail;
 #endif
-
-    while (!received_sigterm) {
+    //这个循环好简单
+    while (!received_sigterm) {//知道收到信号才停止
         int64_t cur_time= av_gettime_relative();
 
         /* if 'q' pressed, exits */
-        if (stdin_interaction)
+        if (stdin_interaction)//前台输入
             if (check_keyboard_interaction(cur_time) < 0)
                 break;
 
@@ -4688,7 +4688,7 @@ static int transcode(void)
             av_log(NULL, AV_LOG_VERBOSE, "No more output streams to write to, finishing.\n");
             break;
         }
-
+        //操作一次
         ret = transcode_step();
         if (ret < 0 && ret != AVERROR_EOF) {
             av_log(NULL, AV_LOG_ERROR, "Error while filtering: %s\n", av_err2str(ret));
@@ -4696,7 +4696,7 @@ static int transcode(void)
         }
 
         /* dump report by using the output first video and audio streams */
-        print_report(0, timer_start, cur_time);
+        print_report(0, timer_start, cur_time);//打印状态
     }
 #if HAVE_THREADS
     free_input_threads();

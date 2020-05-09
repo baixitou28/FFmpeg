@@ -34,7 +34,7 @@
 typedef struct ADTSContext {
     AVClass *class;
     int write_adts;
-    int objecttype;
+    int objecttype;//TIGER AAC OBJECT_TYPE
     int sample_rate_index;
     int channel_conf;
     int pce_size;
