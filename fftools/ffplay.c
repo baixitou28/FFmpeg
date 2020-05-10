@@ -3266,7 +3266,7 @@ static void event_loop(VideoState *cur_stream)
     for (;;) {
         double x;
         refresh_loop_wait_event(cur_stream, &event);
-        switch (event.type) {
+        switch (event.type) {//处理按键
         case SDL_KEYDOWN:
             if (exit_on_keydown || event.key.keysym.sym == SDLK_ESCAPE || event.key.keysym.sym == SDLK_q) {
                 do_exit(cur_stream);
@@ -3564,57 +3564,57 @@ static int opt_codec(void *optctx, const char *opt, const char *arg)
 
 static int dummy;
 
-static const OptionDef options[] = {
+static const OptionDef options[] = {//tiger ffplay
     CMDUTILS_COMMON_OPTIONS
-    { "x", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },
-    { "y", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
-    { "s", HAS_ARG | OPT_VIDEO, { .func_arg = opt_frame_size }, "set frame size (WxH or abbreviation)", "size" },
-    { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
-    { "an", OPT_BOOL, { &audio_disable }, "disable audio" },
+    { "x", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },//宽
+    { "y", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },//高
+    { "s", HAS_ARG | OPT_VIDEO, { .func_arg = opt_frame_size }, "set frame size (WxH or abbreviation)", "size" },//TIGER 这个size有什么用？
+    { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },//全屏
+    { "an", OPT_BOOL, { &audio_disable }, "disable audio" },//禁止音频
     { "vn", OPT_BOOL, { &video_disable }, "disable video" },
     { "sn", OPT_BOOL, { &subtitle_disable }, "disable subtitling" },
-    { "ast", OPT_STRING | HAS_ARG | OPT_EXPERT, { &wanted_stream_spec[AVMEDIA_TYPE_AUDIO] }, "select desired audio stream", "stream_specifier" },
+    { "ast", OPT_STRING | HAS_ARG | OPT_EXPERT, { &wanted_stream_spec[AVMEDIA_TYPE_AUDIO] }, "select desired audio stream", "stream_specifier" },//选择某个音频流
     { "vst", OPT_STRING | HAS_ARG | OPT_EXPERT, { &wanted_stream_spec[AVMEDIA_TYPE_VIDEO] }, "select desired video stream", "stream_specifier" },
     { "sst", OPT_STRING | HAS_ARG | OPT_EXPERT, { &wanted_stream_spec[AVMEDIA_TYPE_SUBTITLE] }, "select desired subtitle stream", "stream_specifier" },
-    { "ss", HAS_ARG, { .func_arg = opt_seek }, "seek to a given position in seconds", "pos" },
-    { "t", HAS_ARG, { .func_arg = opt_duration }, "play  \"duration\" seconds of audio/video", "duration" },
-    { "bytes", OPT_INT | HAS_ARG, { &seek_by_bytes }, "seek by bytes 0=off 1=on -1=auto", "val" },
-    { "seek_interval", OPT_FLOAT | HAS_ARG, { &seek_interval }, "set seek interval for left/right keys, in seconds", "seconds" },
-    { "nodisp", OPT_BOOL, { &display_disable }, "disable graphical display" },
-    { "noborder", OPT_BOOL, { &borderless }, "borderless window" },
-    { "alwaysontop", OPT_BOOL, { &alwaysontop }, "window always on top" },
-    { "volume", OPT_INT | HAS_ARG, { &startup_volume}, "set startup volume 0=min 100=max", "volume" },
-    { "f", HAS_ARG, { .func_arg = opt_format }, "force format", "fmt" },
-    { "pix_fmt", HAS_ARG | OPT_EXPERT | OPT_VIDEO, { .func_arg = opt_frame_pix_fmt }, "set pixel format", "format" },
-    { "stats", OPT_BOOL | OPT_EXPERT, { &show_status }, "show status", "" },
-    { "fast", OPT_BOOL | OPT_EXPERT, { &fast }, "non spec compliant optimizations", "" },
-    { "genpts", OPT_BOOL | OPT_EXPERT, { &genpts }, "generate pts", "" },
-    { "drp", OPT_INT | HAS_ARG | OPT_EXPERT, { &decoder_reorder_pts }, "let decoder reorder pts 0=off 1=on -1=auto", ""},
-    { "lowres", OPT_INT | HAS_ARG | OPT_EXPERT, { &lowres }, "", "" },
-    { "sync", HAS_ARG | OPT_EXPERT, { .func_arg = opt_sync }, "set audio-video sync. type (type=audio/video/ext)", "type" },
-    { "autoexit", OPT_BOOL | OPT_EXPERT, { &autoexit }, "exit at the end", "" },
-    { "exitonkeydown", OPT_BOOL | OPT_EXPERT, { &exit_on_keydown }, "exit on key down", "" },
-    { "exitonmousedown", OPT_BOOL | OPT_EXPERT, { &exit_on_mousedown }, "exit on mouse down", "" },
+    { "ss", HAS_ARG, { .func_arg = opt_seek }, "seek to a given position in seconds", "pos" },//选择位置(时间)
+    { "t", HAS_ARG, { .func_arg = opt_duration }, "play  \"duration\" seconds of audio/video", "duration" },//多长时间
+    { "bytes", OPT_INT | HAS_ARG, { &seek_by_bytes }, "seek by bytes 0=off 1=on -1=auto", "val" },//选择位置(字节)
+    { "seek_interval", OPT_FLOAT | HAS_ARG, { &seek_interval }, "set seek interval for left/right keys, in seconds", "seconds" },//左右键跳跃
+    { "nodisp", OPT_BOOL, { &display_disable }, "disable graphical display" },//TIGER 可以只解压，但不显示
+    { "noborder", OPT_BOOL, { &borderless }, "borderless window" },//外框
+    { "alwaysontop", OPT_BOOL, { &alwaysontop }, "window always on top" },//始终在前面
+    { "volume", OPT_INT | HAS_ARG, { &startup_volume}, "set startup volume 0=min 100=max", "volume" },//声音
+    { "f", HAS_ARG, { .func_arg = opt_format }, "force format", "fmt" },//?
+    { "pix_fmt", HAS_ARG | OPT_EXPERT | OPT_VIDEO, { .func_arg = opt_frame_pix_fmt }, "set pixel format", "format" },//？
+    { "stats", OPT_BOOL | OPT_EXPERT, { &show_status }, "show status", "" },//统计
+    { "fast", OPT_BOOL | OPT_EXPERT, { &fast }, "non spec compliant optimizations", "" },//?
+    { "genpts", OPT_BOOL | OPT_EXPERT, { &genpts }, "generate pts", "" },//这有什么用？
+    { "drp", OPT_INT | HAS_ARG | OPT_EXPERT, { &decoder_reorder_pts }, "let decoder reorder pts 0=off 1=on -1=auto", ""},//?
+    { "lowres", OPT_INT | HAS_ARG | OPT_EXPERT, { &lowres }, "", "" },//?低像素
+    { "sync", HAS_ARG | OPT_EXPERT, { .func_arg = opt_sync }, "set audio-video sync. type (type=audio/video/ext)", "type" },//tiger TODO 重要，如何同步
+    { "autoexit", OPT_BOOL | OPT_EXPERT, { &autoexit }, "exit at the end", "" },//自动退出
+    { "exitonkeydown", OPT_BOOL | OPT_EXPERT, { &exit_on_keydown }, "exit on key down", "" },//按一下退出
+    { "exitonmousedown", OPT_BOOL | OPT_EXPERT, { &exit_on_mousedown }, "exit on mouse down", "" },//鼠标点一下退出
     { "loop", OPT_INT | HAS_ARG | OPT_EXPERT, { &loop }, "set number of times the playback shall be looped", "loop count" },
     { "framedrop", OPT_BOOL | OPT_EXPERT, { &framedrop }, "drop frames when cpu is too slow", "" },
     { "infbuf", OPT_BOOL | OPT_EXPERT, { &infinite_buffer }, "don't limit the input buffer size (useful with realtime streams)", "" },
     { "window_title", OPT_STRING | HAS_ARG, { &window_title }, "set window title", "window title" },
-    { "left", OPT_INT | HAS_ARG | OPT_EXPERT, { &screen_left }, "set the x position for the left of the window", "x pos" },
+    { "left", OPT_INT | HAS_ARG | OPT_EXPERT, { &screen_left }, "set the x position for the left of the window", "x pos" },//在MOUGE 
     { "top", OPT_INT | HAS_ARG | OPT_EXPERT, { &screen_top }, "set the y position for the top of the window", "y pos" },
 #if CONFIG_AVFILTER
     { "vf", OPT_EXPERT | HAS_ARG, { .func_arg = opt_add_vfilter }, "set video filters", "filter_graph" },
     { "af", OPT_STRING | HAS_ARG, { &afilters }, "set audio filters", "filter_graph" },
 #endif
     { "rdftspeed", OPT_INT | HAS_ARG| OPT_AUDIO | OPT_EXPERT, { &rdftspeed }, "rdft speed", "msecs" },
-    { "showmode", HAS_ARG, { .func_arg = opt_show_mode}, "select show mode (0 = video, 1 = waves, 2 = RDFT)", "mode" },
+    { "showmode", HAS_ARG, { .func_arg = opt_show_mode}, "select show mode (0 = video, 1 = waves, 2 = RDFT)", "mode" },//显示
     { "default", HAS_ARG | OPT_AUDIO | OPT_VIDEO | OPT_EXPERT, { .func_arg = opt_default }, "generic catch all option", "" },
     { "i", OPT_BOOL, { &dummy}, "read specified file", "input_file"},
     { "codec", HAS_ARG, { .func_arg = opt_codec}, "force decoder", "decoder_name" },
-    { "acodec", HAS_ARG | OPT_STRING | OPT_EXPERT, {    &audio_codec_name }, "force audio decoder",    "decoder_name" },
+    { "acodec", HAS_ARG | OPT_STRING | OPT_EXPERT, {    &audio_codec_name }, "force audio decoder",    "decoder_name" },//制定音频解码
     { "scodec", HAS_ARG | OPT_STRING | OPT_EXPERT, { &subtitle_codec_name }, "force subtitle decoder", "decoder_name" },
     { "vcodec", HAS_ARG | OPT_STRING | OPT_EXPERT, {    &video_codec_name }, "force video decoder",    "decoder_name" },
-    { "autorotate", OPT_BOOL, { &autorotate }, "automatically rotate video", "" },
-    { "find_stream_info", OPT_BOOL | OPT_INPUT | OPT_EXPERT, { &find_stream_info },
+    { "autorotate", OPT_BOOL, { &autorotate }, "automatically rotate video", "" },//自动旋转？
+    { "find_stream_info", OPT_BOOL | OPT_INPUT | OPT_EXPERT, { &find_stream_info },//
         "read and decode the streams to fill missing information with heuristics" },
     { "filter_threads", HAS_ARG | OPT_INT | OPT_EXPERT, { &filter_nbthreads }, "number of filter threads per graph" },
     { NULL, },
@@ -3637,27 +3637,27 @@ void show_help_default(const char *opt, const char *arg)
     show_help_children(avcodec_get_class(), AV_OPT_FLAG_DECODING_PARAM);
     show_help_children(avformat_get_class(), AV_OPT_FLAG_DECODING_PARAM);
 #if !CONFIG_AVFILTER
-    show_help_children(sws_get_class(), AV_OPT_FLAG_ENCODING_PARAM);
+    show_help_children(sws_get_class(), AV_OPT_FLAG_ENCODING_PARAM);//
 #else
     show_help_children(avfilter_get_class(), AV_OPT_FLAG_FILTERING_PARAM);
 #endif
     printf("\nWhile playing:\n"
            "q, ESC              quit\n"
-           "f                   toggle full screen\n"
-           "p, SPC              pause\n"
-           "m                   toggle mute\n"
-           "9, 0                decrease and increase volume respectively\n"
+           "f                   toggle full screen\n"//全屏
+           "p, SPC              pause\n"//暂停
+           "m                   toggle mute\n"//静音
+           "9, 0                decrease and increase volume respectively\n"//
            "/, *                decrease and increase volume respectively\n"
-           "a                   cycle audio channel in the current program\n"
+           "a                   cycle audio channel in the current program\n"//tiger todo 不知道什么意思
            "v                   cycle video channel\n"
            "t                   cycle subtitle channel in the current program\n"
            "c                   cycle program\n"
            "w                   cycle video filters or show modes\n"
            "s                   activate frame-step mode\n"
-           "left/right          seek backward/forward 10 seconds or to custom interval if -seek_interval is set\n"
-           "down/up             seek backward/forward 1 minute\n"
-           "page down/page up   seek backward/forward 10 minutes\n"
-           "right mouse click   seek to percentage in file corresponding to fraction of width\n"
+           "left/right          seek backward/forward 10 seconds or to custom interval if -seek_interval is set\n"//前进/后退 10秒//TIGER LEARN
+           "down/up             seek backward/forward 1 minute\n"//前进/后退一分钟
+           "page down/page up   seek backward/forward 10 minutes\n"//前进/后退10分钟
+           "right mouse click   seek to percentage in file corresponding to fraction of width\n"//跳跃百分比
            "left double-click   toggle full screen\n"
            );
 }
@@ -3667,7 +3667,7 @@ int main(int argc, char **argv)
 {
     int flags;
     VideoState *is;
-
+    //加载
     init_dynload();
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
@@ -3677,17 +3677,17 @@ int main(int argc, char **argv)
 #if CONFIG_AVDEVICE
     avdevice_register_all();
 #endif
-    avformat_network_init();
+    avformat_network_init();//网络初始化
 
-    init_opts();
+    init_opts();//自定义参数
 
     signal(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
     signal(SIGTERM, sigterm_handler); /* Termination (ANSI).  */
-
+    //tiger 打印信息，可参考
     show_banner(argc, argv, options);
-
+    //解析参数
     parse_options(NULL, argc, argv, options, opt_input_file);
-
+    //一定需要输入文件
     if (!input_filename) {
         show_usage();
         av_log(NULL, AV_LOG_FATAL, "An input file must be specified\n");
@@ -3696,7 +3696,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (display_disable) {
+    if (display_disable) {//可以允许为不显示吗？
         video_disable = 1;
     }
     flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER;
@@ -3715,14 +3715,14 @@ int main(int argc, char **argv)
         av_log(NULL, AV_LOG_FATAL, "(Did you set the DISPLAY variable?)\n");
         exit(1);
     }
-
+    //忽略？
     SDL_EventState(SDL_SYSWMEVENT, SDL_IGNORE);
     SDL_EventState(SDL_USEREVENT, SDL_IGNORE);
-
+    //
     av_init_packet(&flush_pkt);
     flush_pkt.data = (uint8_t *)&flush_pkt;
 
-    if (!display_disable) {
+    if (!display_disable) {//如果是不要视频显示，就不需要SDL了
         int flags = SDL_WINDOW_HIDDEN;
         if (alwaysontop)
 #if SDL_VERSION_ATLEAST(2,0,5)
@@ -3730,14 +3730,14 @@ int main(int argc, char **argv)
 #else
             av_log(NULL, AV_LOG_WARNING, "Your SDL version doesn't support SDL_WINDOW_ALWAYS_ON_TOP. Feature will be inactive.\n");
 #endif
-        if (borderless)
+        if (borderless)//标记是否外框
             flags |= SDL_WINDOW_BORDERLESS;
         else
             flags |= SDL_WINDOW_RESIZABLE;
-        window = SDL_CreateWindow(program_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, default_width, default_height, flags);
+        window = SDL_CreateWindow(program_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, default_width, default_height, flags);//创建窗口
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
         if (window) {
-            renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+            renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);//创建硬件加速
             if (!renderer) {
                 av_log(NULL, AV_LOG_WARNING, "Failed to initialize a hardware accelerated renderer: %s\n", SDL_GetError());
                 renderer = SDL_CreateRenderer(window, -1, 0);
@@ -3752,13 +3752,13 @@ int main(int argc, char **argv)
             do_exit(NULL);
         }
     }
-
+    //打开文件
     is = stream_open(input_filename, file_iformat);
     if (!is) {
         av_log(NULL, AV_LOG_FATAL, "Failed to initialize VideoState!\n");
         do_exit(NULL);
     }
-
+    //处理按钮
     event_loop(is);
 
     /* never returns */
