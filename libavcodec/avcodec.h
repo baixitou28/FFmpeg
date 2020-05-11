@@ -803,7 +803,7 @@ enum AVDiscard{
     /* We leave some space between them for extensions (drop some
      * keyframes for intra-only or drop just some bidir frames). */
     AVDISCARD_NONE    =-16, ///< discard nothing
-    AVDISCARD_DEFAULT =  0, ///< discard useless packets like 0 size packets in avi
+    AVDISCARD_DEFAULT =  0, ///< discard useless packets like 0 size packets in avi//是否这个是最多的
     AVDISCARD_NONREF  =  8, ///< discard all non reference
     AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
     AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
