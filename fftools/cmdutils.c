@@ -217,7 +217,7 @@ void show_help_children(const AVClass *class, int flags)
 
 static const OptionDef *find_option(const OptionDef *po, const char *name)
 {
-    const char *p = strchr(name, ':');
+    const char *p = strchr(name, ':');//是否是:分隔的，比如-profile:a
     int len = p ? p - name : strlen(name);
 
     while (po->name) {
@@ -354,9 +354,9 @@ int parse_option(void *optctx, const char *opt, const char *arg,
     int ret;
 
     po = find_option(options, opt);
-    if (!po->name && opt[0] == 'n' && opt[1] == 'o') {
+    if (!po->name && opt[0] == 'n' && opt[1] == 'o') {//不是 -no:find_stream_info 需要是nofind_stream_info
         /* handle 'no' bool option */
-        po = find_option(options, opt + 2);
+        po = find_option(options, opt + 2);//查找find_stream_info
         if ((po->name && (po->flags & OPT_BOOL)))
             arg = "0";
     } else if (po->flags & OPT_BOOL)
@@ -379,7 +379,7 @@ int parse_option(void *optctx, const char *opt, const char *arg,
 
     return !!(po->flags & HAS_ARG);
 }
-
+//解析所有
 void parse_options(void *optctx, int argc, char **argv, const OptionDef *options,
                    void (*parse_arg_function)(void *, const char*))
 {
@@ -400,7 +400,7 @@ void parse_options(void *optctx, int argc, char **argv, const OptionDef *options
                 continue;
             }
             opt++;
-
+            //解析单个
             if ((ret = parse_option(optctx, opt, argv[optindex], options)) < 0)
                 exit_program(1);
             optindex += ret;

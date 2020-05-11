@@ -4010,8 +4010,8 @@ static int check_keyboard_interaction(int64_t cur_time)
                         "-      decrease verbosity\n"//可以一直关闭到report都看不到，这时候用+来打开一档
                         "c      Send command to first matching filter supporting it\n"//暂时用不到
                         "C      Send/Queue command to all matching filters\n"
-                        "D      cycle through available debug modes\n"//D编码器的输入级别倍增，日志级别打开为debug，
-                        "h      dump packets/hex press to cycle through the 3 states\n"
+                        "D      cycle through available debug modes\n"//D级别逐级增长(每次左移， 参看FF_DEBUG_PICT_INFO-->FF_DEBUG_RC-->FF_DEBUG_BITSTREAM)，日志级别打开为debug，
+                        "h      dump packets/hex press to cycle through the 3 states\n"//打印级别3态循环
                         "q      quit\n"
                         "s      Show QP histogram\n"
         );
@@ -4634,7 +4634,7 @@ static int transcode_step(void)
         av_assert0(ost->source_index >= 0);
         ist = input_streams[ost->source_index];
     }
-
+    //
     ret = process_input(ist->file_index);
     if (ret == AVERROR(EAGAIN)) {
         if (input_files[ist->file_index]->eagain)

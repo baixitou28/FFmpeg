@@ -3614,7 +3614,7 @@ static const OptionDef options[] = {//tiger ffplay 参数，其中CMDUTILS_COMMON_OPT
     { "scodec", HAS_ARG | OPT_STRING | OPT_EXPERT, { &subtitle_codec_name }, "force subtitle decoder", "decoder_name" },
     { "vcodec", HAS_ARG | OPT_STRING | OPT_EXPERT, {    &video_codec_name }, "force video decoder",    "decoder_name" },
     { "autorotate", OPT_BOOL, { &autorotate }, "automatically rotate video", "" },//自动旋转？
-    { "find_stream_info", OPT_BOOL | OPT_INPUT | OPT_EXPERT, { &find_stream_info },//好像不能设置为0？
+    { "find_stream_info", OPT_BOOL | OPT_INPUT | OPT_EXPERT, { &find_stream_info },//==>不能设置为0//-nofind_stream_info可以初始化为0，没有HAS_ARG，所以不能填写参数，parse_option 递归parse_option if (!po->name && opt[0] == 'n' && opt[1] == 'o') 
         "read and decode the streams to fill missing information with heuristics" },
     { "filter_threads", HAS_ARG | OPT_INT | OPT_EXPERT, { &filter_nbthreads }, "number of filter threads per graph" },
     { NULL, },
