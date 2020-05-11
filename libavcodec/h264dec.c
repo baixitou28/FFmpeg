@@ -1048,7 +1048,7 @@ static const AVClass h264_class = {
 };
 
 AVCodec ff_h264_decoder = {
-    .name                  = "h264",
+    .name                  = "h264",//tiger h264
     .long_name             = NULL_IF_CONFIG_SMALL("H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"),
     .type                  = AVMEDIA_TYPE_VIDEO,
     .id                    = AV_CODEC_ID_H264,

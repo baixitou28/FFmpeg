@@ -3564,7 +3564,7 @@ static int opt_codec(void *optctx, const char *opt, const char *arg)
 
 static int dummy;
 
-static const OptionDef options[] = {//tiger ffplay 参数，其中CMDUTILS_COMMON_OPTIONS 是公共的一些参数
+static const OptionDef options[] = {//tiger ffplay 的参数，其中CMDUTILS_COMMON_OPTIONS 是公共的一些参数
     CMDUTILS_COMMON_OPTIONS
     { "x", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },//宽
     { "y", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },//高
