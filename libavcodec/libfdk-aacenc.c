@@ -457,7 +457,7 @@ static const int aac_sample_rates[] = {
 };
 
 AVCodec ff_libfdk_aac_encoder = {
-    .name                  = "libfdk_aac",
+    .name                  = "libfdk_aac",//默认ffmpeg 4.4.2 fuse rpm里面没有，需要额外编译==>ffplay -buildconf查询，用--enable-libfdk-aac打开
     .long_name             = NULL_IF_CONFIG_SMALL("Fraunhofer FDK AAC"),
     .type                  = AVMEDIA_TYPE_AUDIO,
     .id                    = AV_CODEC_ID_AAC,
