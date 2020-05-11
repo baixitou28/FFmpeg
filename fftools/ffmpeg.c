@@ -3968,29 +3968,29 @@ static int check_keyboard_interaction(int64_t cur_time)
                    "only %d given in string '%s'\n", n, buf);
         }
     }
-    if (key == 'd' || key == 'D'){//D打开编解码的日志级别，d是减小，同时设置日志级别为debug ///tiger 
+    if (key == 'd' || key == 'D'){//D打开编解码的日志级别*4，d是指定级别，如果debug大于0，同时设置日志级别为AV_LOG_DEBUG ///tiger 
         int debug=0;
         if(key == 'D') {
-            debug = input_streams[0]->st->codec->debug<<1;
+            debug = input_streams[0]->st->codec->debug<<1;//每次左移， 参看FF_DEBUG_PICT_INFO-->FF_DEBUG_RC-->FF_DEBUG_BITSTREAM
             if(!debug) debug = 1;//如果原来没有，设置为1
             while(debug & (FF_DEBUG_DCT_COEFF
 #if FF_API_DEBUG_MV
                                              |FF_DEBUG_VIS_QP|FF_DEBUG_VIS_MB_TYPE
 #endif
                                                                                   )) //unsupported, would just crash
-                debug += debug;
+                debug += debug;//再翻倍?==>仅对FF_DEBUG_DCT_COEFF有效，暂时用不到。
         }else{
             char buf[32];
             int k = 0;
             i = 0;
-            set_tty_echo(1);
+            set_tty_echo(1);//设置回显
             while ((k = read_key()) != '\n' && k != '\r' && i < sizeof(buf)-1)
                 if (k > 0)
                     buf[i++] = k;
             buf[i] = 0;
-            set_tty_echo(0);
+            set_tty_echo(0);//取消回显
             fprintf(stderr, "\n");
-            if (k <= 0 || sscanf(buf, "%d", &debug)!=1)
+            if (k <= 0 || sscanf(buf, "%d", &debug)!=1)//读入数字
                 fprintf(stderr,"error parsing debug value\n");
         }
         for(i=0;i<nb_input_streams;i++) {
@@ -4003,14 +4003,14 @@ static int check_keyboard_interaction(int64_t cur_time)
         if(debug) av_log_set_level(AV_LOG_DEBUG);//设置输出日志为debug，因此D命令比+的命令日志更多，//tiger TODO:AV_LOG_DEBUG flv +的命令多一点？
         fprintf(stderr,"debug=%d\n", debug);//输出当前日志级别
     }
-    if (key == '?'){//帮助
+    if (key == '?'){//帮助 ，这里少了d，编码器日志级别为指定类型
         fprintf(stderr, "key    function\n"
                         "?      show this help\n"
                         "+      increase verbosity\n"
-                        "-      decrease verbosity\n"
-                        "c      Send command to first matching filter supporting it\n"
+                        "-      decrease verbosity\n"//可以一直关闭到report都看不到，这时候用+来打开一档
+                        "c      Send command to first matching filter supporting it\n"//暂时用不到
                         "C      Send/Queue command to all matching filters\n"
-                        "D      cycle through available debug modes\n"
+                        "D      cycle through available debug modes\n"//D编码器的输入级别倍增，日志级别打开为debug，
                         "h      dump packets/hex press to cycle through the 3 states\n"
                         "q      quit\n"
                         "s      Show QP histogram\n"
