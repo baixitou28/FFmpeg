@@ -993,7 +993,7 @@ static void dump_attachment(AVStream *st, const char *filename)
     avio_flush(out);
     avio_close(out);
 }
-
+//TIGER TODO:
 static int open_input_file(OptionsContext *o, const char *filename)
 {
     InputFile *f;
@@ -2104,7 +2104,7 @@ static int init_complex_filters(void)
     }
     return 0;
 }
-
+//TIGER todo: 
 static int open_output_file(OptionsContext *o, const char *filename)
 {
     AVFormatContext *oc;
@@ -3284,7 +3284,7 @@ static int open_files(OptionGroupList *l, const char *inout,
 
     return 0;
 }
-
+//ffmpeg的命令行参数，分为三类1.全局的，2.输入文件的参数，3.输出文件的参数。
 int ffmpeg_parse_options(int argc, char **argv)
 {
     OptionParseContext octx;
@@ -3294,7 +3294,7 @@ int ffmpeg_parse_options(int argc, char **argv)
     memset(&octx, 0, sizeof(octx));
 
     /* split the commandline into an internal representation */
-    ret = split_commandline(&octx, argc, argv, options, groups,
+    ret = split_commandline(&octx, argc, argv, options, groups,//自己写命令行
                             FF_ARRAY_ELEMS(groups));
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error splitting the argument list: ");
@@ -3302,37 +3302,37 @@ int ffmpeg_parse_options(int argc, char **argv)
     }
 
     /* apply global options */
-    ret = parse_optgroup(NULL, &octx.global_opts);
+    ret = parse_optgroup(NULL, &octx.global_opts);//全局？
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error parsing global options: ");
         goto fail;
     }
 
     /* configure terminal and setup signal handlers */
-    term_init();
-
+    term_init();//信号处理，放的地方....不好照
+    
     /* open input files */
-    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);
+    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//处理输入文件参数， open_input_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening input files: ");
         goto fail;
     }
 
     /* create the complex filtergraphs */
-    ret = init_complex_filters();
+    ret = init_complex_filters();//FILTER 暂时不考虑
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error initializing complex filters.\n");
         goto fail;
     }
 
     /* open output files */
-    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);
+    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//处理输出文件参数， open_output_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening output files: ");
         goto fail;
     }
 
-    check_filter_outputs();
+    check_filter_outputs();//FILTER 暂时不考虑 
 
 fail:
     uninit_parse_context(&octx);

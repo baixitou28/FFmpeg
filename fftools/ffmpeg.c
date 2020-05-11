@@ -3659,7 +3659,7 @@ static void report_new_stream(int input_index, AVPacket *pkt)
            pkt->pos, av_ts2timestr(pkt->dts, &st->time_base));
     file->nb_streams_warn = pkt->stream_index + 1;
 }
-
+//TIGER TODO:未完
 static int transcode_init(void)
 {
     int ret = 0, i, j, k;
@@ -3668,7 +3668,7 @@ static int transcode_init(void)
     InputStream *ist;
     char error[1024] = {0};
 
-    for (i = 0; i < nb_filtergraphs; i++) {
+    for (i = 0; i < nb_filtergraphs; i++) {//暂不处理FILTER
         FilterGraph *fg = filtergraphs[i];
         for (j = 0; j < fg->nb_outputs; j++) {
             OutputFilter *ofilter = fg->outputs[j];
@@ -3684,17 +3684,17 @@ static int transcode_init(void)
     }
 
     /* init framerate emulation */
-    for (i = 0; i < nb_input_files; i++) {
-        InputFile *ifile = input_files[i];
-        if (ifile->rate_emu)
+    for (i = 0; i < nb_input_files; i++) {//多个文件
+        InputFile *ifile = input_files[i];//和前面的文件打开(open_input_file)区别？==>已经打开的文件，前面open_files是可以打开多个文件的
+        if (ifile->rate_emu)//tiger  framerate emulation
             for (j = 0; j < ifile->nb_streams; j++)
                 input_streams[j + ifile->ist_index]->start = av_gettime_relative();
     }
 
     /* init input streams */
-    for (i = 0; i < nb_input_streams; i++)
-        if ((ret = init_input_stream(i, error, sizeof(error))) < 0) {
-            for (i = 0; i < nb_output_streams; i++) {
+    for (i = 0; i < nb_input_streams; i++)//多个输入流
+        if ((ret = init_input_stream(i, error, sizeof(error))) < 0) {//
+            for (i = 0; i < nb_output_streams; i++) {//多个输出流？写这么巧干什么？可能输入和输出流个数不一致？
                 ost = output_streams[i];
                 avcodec_close(ost->enc_ctx);
             }
@@ -3704,7 +3704,7 @@ static int transcode_init(void)
     /* open each encoder */
     for (i = 0; i < nb_output_streams; i++) {
         // skip streams fed from filtergraphs until we have a frame for them
-        if (output_streams[i]->filter)
+        if (output_streams[i]->filter)//忽略fitler的流
             continue;
 
         ret = init_output_stream(output_streams[i], error, sizeof(error));
@@ -3827,7 +3827,7 @@ static int transcode_init(void)
         return ret;
     }
 
-    atomic_store(&transcode_init_done, 1);
+    atomic_store(&transcode_init_done, 1);//初始化标记
 
     return 0;
 }
@@ -3901,7 +3901,7 @@ static void set_tty_echo(int on)
     }
 #endif
 }
-
+//交互命令
 static int check_keyboard_interaction(int64_t cur_time)
 {
     int i, ret, key;
@@ -3914,13 +3914,13 @@ static int check_keyboard_interaction(int64_t cur_time)
         last_time = cur_time;
     }else
         key = -1;
-    if (key == 'q')
+    if (key == 'q')//退出
         return AVERROR_EXIT;
-    if (key == '+') av_log_set_level(av_log_get_level()+10);
-    if (key == '-') av_log_set_level(av_log_get_level()-10);
+    if (key == '+') av_log_set_level(av_log_get_level()+10);//增加日志级别加10 //TIGER 感觉很有用 ，和D命令不同，这里仅仅是日志级别而没有编解码
+    if (key == '-') av_log_set_level(av_log_get_level()-10);//减小
     if (key == 's') qp_hist     ^= 1;
-    if (key == 'h'){
-        if (do_hex_dump){
+    if (key == 'h'){//输出16进制 //TIGER 感觉很有空用
+        if (do_hex_dump){//第一次 do_pkt_dump，第二次do_hex_dump，第三次关闭所有
             do_hex_dump = do_pkt_dump = 0;
         } else if(do_pkt_dump){
             do_hex_dump = 1;
@@ -3928,7 +3928,7 @@ static int check_keyboard_interaction(int64_t cur_time)
             do_pkt_dump = 1;
         av_log_set_level(AV_LOG_DEBUG);
     }
-    if (key == 'c' || key == 'C'){
+    if (key == 'c' || key == 'C'){//TIGER todo
         char buf[4096], target[64], command[256], arg[256] = {0};
         double time;
         int k, n = 0;
@@ -3968,11 +3968,11 @@ static int check_keyboard_interaction(int64_t cur_time)
                    "only %d given in string '%s'\n", n, buf);
         }
     }
-    if (key == 'd' || key == 'D'){
+    if (key == 'd' || key == 'D'){//D打开编解码的日志级别，d是减小，同时设置日志级别为debug ///tiger 
         int debug=0;
         if(key == 'D') {
             debug = input_streams[0]->st->codec->debug<<1;
-            if(!debug) debug = 1;
+            if(!debug) debug = 1;//如果原来没有，设置为1
             while(debug & (FF_DEBUG_DCT_COEFF
 #if FF_API_DEBUG_MV
                                              |FF_DEBUG_VIS_QP|FF_DEBUG_VIS_MB_TYPE
@@ -3994,16 +3994,16 @@ static int check_keyboard_interaction(int64_t cur_time)
                 fprintf(stderr,"error parsing debug value\n");
         }
         for(i=0;i<nb_input_streams;i++) {
-            input_streams[i]->st->codec->debug = debug;
+            input_streams[i]->st->codec->debug = debug;//设置所有输入编码的日志为debug
         }
         for(i=0;i<nb_output_streams;i++) {
             OutputStream *ost = output_streams[i];
-            ost->enc_ctx->debug = debug;
+            ost->enc_ctx->debug = debug;//设置所有输出编码的日志为debug
         }
-        if(debug) av_log_set_level(AV_LOG_DEBUG);
-        fprintf(stderr,"debug=%d\n", debug);
+        if(debug) av_log_set_level(AV_LOG_DEBUG);//设置输出日志为debug，因此D命令比+的命令日志更多，//tiger TODO:AV_LOG_DEBUG flv +的命令多一点？
+        fprintf(stderr,"debug=%d\n", debug);//输出当前日志级别
     }
-    if (key == '?'){
+    if (key == '?'){//帮助
         fprintf(stderr, "key    function\n"
                         "?      show this help\n"
                         "+      increase verbosity\n"
@@ -4660,12 +4660,12 @@ static int transcode(void)
     int64_t timer_start;
     int64_t total_packets_written = 0;
 
-    ret = transcode_init();
+    ret = transcode_init();//转码前的初始化：打开
     if (ret < 0)
         goto fail;
 
-    if (stdin_interaction) {
-        av_log(NULL, AV_LOG_INFO, "Press [q] to stop, [?] for help\n");
+    if (stdin_interaction) {//输入出交互
+        av_log(NULL, AV_LOG_INFO, "Press [q] to stop, [?] for help\n");//TIGER PROGRAM 交互中使用这个命令
     }
 
     timer_start = av_gettime_relative();
@@ -4680,7 +4680,7 @@ static int transcode(void)
 
         /* if 'q' pressed, exits */
         if (stdin_interaction)//前台输入
-            if (check_keyboard_interaction(cur_time) < 0)
+            if (check_keyboard_interaction(cur_time) < 0)//用户输入命令查看
                 break;
 
         /* check if there's any stream where output is still needed */
@@ -4688,7 +4688,7 @@ static int transcode(void)
             av_log(NULL, AV_LOG_VERBOSE, "No more output streams to write to, finishing.\n");
             break;
         }
-        //操作一次
+        //转码一次
         ret = transcode_step();
         if (ret < 0 && ret != AVERROR_EOF) {
             av_log(NULL, AV_LOG_ERROR, "Error while filtering: %s\n", av_err2str(ret));
@@ -4839,61 +4839,61 @@ static int64_t getmaxrss(void)
 static void log_callback_null(void *ptr, int level, const char *fmt, va_list vl)
 {
 }
-
+//入口
 int main(int argc, char **argv)
 {
     int i, ret;
-    BenchmarkTimeStamps ti;
+    BenchmarkTimeStamps ti;//？
+    
+    init_dynload();//动态加载目录设置
 
-    init_dynload();
-
-    register_exit(ffmpeg_cleanup);
-
-    setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this */
+    register_exit(ffmpeg_cleanup);//这个大概以前是at_exist吧
+    
+    setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this *///这个不是一直这样的吗？
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
-    parse_loglevel(argc, argv, options);
+    parse_loglevel(argc, argv, options);//日志级别和是否将报告写入文件
 
-    if(argc>1 && !strcmp(argv[1], "-d")){
+    if(argc>1 && !strcmp(argv[1], "-d")){//是否后台运行
         run_as_daemon=1;
         av_log_set_callback(log_callback_null);
         argc--;
         argv++;
     }
 
-#if CONFIG_AVDEVICE
+#if CONFIG_AVDEVICE//这个不大理解，有什么用==>
     avdevice_register_all();
 #endif
-    avformat_network_init();
+    avformat_network_init();//是否初始化网络，是否初始化ssl
 
-    show_banner(argc, argv, options);
+    show_banner(argc, argv, options);//打印banner相关信息
 
     /* parse options and open all input/output files */
-    ret = ffmpeg_parse_options(argc, argv);
+    ret = ffmpeg_parse_options(argc, argv);//解析参数，如果数输入出文件，直接打开
     if (ret < 0)
         exit_program(1);
 
-    if (nb_output_files <= 0 && nb_input_files == 0) {
+    if (nb_output_files <= 0 && nb_input_files == 0) {//没有输入文件也没有输出文件
         show_usage();
         av_log(NULL, AV_LOG_WARNING, "Use -h to get full help or, even better, run 'man %s'\n", program_name);
         exit_program(1);
     }
 
     /* file converter / grab */
-    if (nb_output_files <= 0) {
-        av_log(NULL, AV_LOG_FATAL, "At least one output file must be specified\n");
+    if (nb_output_files <= 0) {//至少得一个输出文件
+        av_log(NULL, AV_LOG_FATAL, "At least one output file must be specified\n");//对比上面的提示，这样更清楚
         exit_program(1);
     }
 
     for (i = 0; i < nb_output_files; i++) {
         if (strcmp(output_files[i]->ctx->oformat->name, "rtp"))
-            want_sdp = 0;
+            want_sdp = 0;//如果是rtp文件，则需要sdp 提示
     }
 
     current_time = ti = get_benchmark_time_stamps();
-    if (transcode() < 0)
-        exit_program(1);
-    if (do_benchmark) {
+    if (transcode() < 0)//主函数，转码
+        exit_program(1);//转失败，返回1.//TIGER 返回值大于0，都是非正常返回。
+    if (do_benchmark) {//如果是性能测试，打印更多信息
         int64_t utime, stime, rtime;
         current_time = get_benchmark_time_stamps();
         utime = current_time.user_usec - ti.user_usec;
@@ -4906,8 +4906,8 @@ int main(int argc, char **argv)
     av_log(NULL, AV_LOG_DEBUG, "%"PRIu64" frames successfully decoded, %"PRIu64" decoding errors\n",
            decode_error_stat[0], decode_error_stat[1]);
     if ((decode_error_stat[0] + decode_error_stat[1]) * max_error_rate < decode_error_stat[1])
-        exit_program(69);
+        exit_program(69);//为什么是69
 
-    exit_program(received_nb_signals ? 255 : main_return_code);
+    exit_program(received_nb_signals ? 255 : main_return_code);//如果是信号，输出信号的ID否则其他返回值
     return main_return_code;
 }
