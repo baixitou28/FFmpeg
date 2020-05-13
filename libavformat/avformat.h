@@ -785,7 +785,7 @@ typedef struct AVInputFormat {
 /**
  * @}
  */
-
+//tiger TODO Ω‚Œˆ¿‡–Õ
 enum AVStreamParseType {
     AVSTREAM_PARSE_NONE,
     AVSTREAM_PARSE_FULL,       /**< full parsing and repack */

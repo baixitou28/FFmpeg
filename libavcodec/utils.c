@@ -1202,7 +1202,7 @@ size_t av_get_codec_tag_string(char *buf, size_t buf_size, unsigned int codec_ta
     }
     return ret;
 }
-
+//打印编码器的基本信息
 void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
 {
     const char *codec_type;
@@ -1221,7 +1221,7 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
 
     snprintf(buf, buf_size, "%s: %s", codec_type ? codec_type : "unknown",//这里打印audio: aac
              codec_name);
-    buf[0] ^= 'a' ^ 'A'; /* first letter in uppercase *///真是native 语言的做法
+    buf[0] ^= 'a' ^ 'A'; /* first letter in uppercase *///真是native 语言的做法，还考虑大小写
 
     if (enc->codec && strcmp(enc->codec->name, codec_name))
         snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", enc->codec->name);

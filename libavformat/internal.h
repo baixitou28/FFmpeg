@@ -169,7 +169,7 @@ struct AVStreamInternal {
     /**
      * The codec context used by avformat_find_stream_info, the parser, etc.
      */
-    AVCodecContext *avctx;
+    AVCodecContext *avctx;//tiger 线程无关？
     /**
      * 1 if avctx has been initialized with the values from the codec parameters
      */

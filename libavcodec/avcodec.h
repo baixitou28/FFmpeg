@@ -1570,7 +1570,7 @@ typedef struct AVCodecContext {
     const AVClass *av_class;
     int log_level_offset;
 
-    enum AVMediaType codec_type; /* see AVMEDIA_TYPE_xxx */
+    enum AVMediaType codec_type; /* see AVMEDIA_TYPE_xxx ÒôÆµ£¬ÊÓÆµ ×ÖÄ»*/
     const struct AVCodec  *codec;
     enum AVCodecID     codec_id; /* see AV_CODEC_ID_xxx */
 

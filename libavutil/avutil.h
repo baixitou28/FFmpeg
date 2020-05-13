@@ -56,7 +56,7 @@
  * version number is incremented for smaller changes that a calling program
  * might still want to check for - e.g. changing behavior in a previously
  * unspecified situation.
- *
+ *  大版本不变，则api不变
  * FFmpeg guarantees backward API and ABI compatibility for each library as long
  * as its major version number is unchanged. This means that no public symbols
  * will be removed or renamed. Types and names of the public struct members and
@@ -86,7 +86,7 @@
  * libavutil is designed to be modular. In most cases, in order to use the
  * functions provided by one component of libavutil you must explicitly include
  * the specific header containing that feature. If you are only using
- * media-related components, you could simply include libavutil/avutil.h, which
+ * media-related components, you could simply include libavutil/avutil.h, which 最简单的使用方法
  * brings in most of the "core" components.
  *
  * @{
@@ -250,13 +250,13 @@ const char *av_get_media_type_string(enum AVMediaType media_type);
 /**
  * Internal time base represented as integer
  */
-
+//分母是100万，即微秒的精度
 #define AV_TIME_BASE            1000000
 
 /**
  * Internal time base represented as fractional value
  */
-
+//最基本的时间单位
 #define AV_TIME_BASE_Q          (AVRational){1, AV_TIME_BASE}
 
 /**
