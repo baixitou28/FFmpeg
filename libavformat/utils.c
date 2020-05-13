@@ -3378,7 +3378,7 @@ int ff_rfps_add_frame(AVFormatContext *ic, AVStream *st, int64_t ts)
 
     return 0;
 }
-
+//tiger 简写rf:Real base framerate 
 void ff_rfps_calculate(AVFormatContext *ic)
 {
     int i, j;
@@ -3936,7 +3936,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
     }
 
-    if (flush_codecs) {
+    if (flush_codecs) {//如果是probe模式的，要填入一个空的pkt
         AVPacket empty_pkt = { 0 };
         int err = 0;
         av_init_packet(&empty_pkt);
@@ -3946,12 +3946,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st = ic->streams[i];
 
             /* flush the decoders */
-            if (st->info->found_decoder == 1) {
+            if (st->info->found_decoder == 1) {//如果找到解码器了，尝试flush
                 do {
                     err = try_decode_frame(ic, st, &empty_pkt,
                                             (options && i < orig_nb_streams)
                                             ? &options[i] : NULL);
-                } while (err > 0 && !has_codec_parameters(st, NULL));
+                } while (err > 0 && !has_codec_parameters(st, NULL));//有数据解出来，就继续循环，decode
 
                 if (err < 0) {
                     av_log(ic, AV_LOG_INFO,
@@ -3961,7 +3961,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
     }
 
-    ff_rfps_calculate(ic);
+    ff_rfps_calculate(ic);//real frame rate，H.264是25帧每秒，rational{3600, 90000},按TIME_BASE计算的是{25000,1000000}; 
 
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];

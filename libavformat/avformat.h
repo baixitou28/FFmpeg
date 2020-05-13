@@ -993,7 +993,7 @@ typedef struct AVStream {
      * For example, if the time base is 1/90000 and all frames have either
      * approximately 3600 or 1800 timer ticks, then r_frame_rate will be 50/1.
      */
-    AVRational r_frame_rate;
+    AVRational r_frame_rate;//重新计算新的帧率，H.264是25帧每秒，rational{3600, 90000},按TIME_BASE计算的是{25000,1000000}; AAC 
 
 #if FF_API_LAVF_FFSERVER
     /**
