@@ -55,7 +55,7 @@ if test "$E1" != 0 || test "$E2" = 0; then
 fi
 
 test -d /usr/xpg4/bin && PATH=/usr/xpg4/bin:$PATH
-
+#tiger 帮助
 show_help(){
     cat <<EOF
 Usage: configure [options]
@@ -499,7 +499,7 @@ if test -t 1 && which tput >/dev/null 2>&1; then
     ncols=$(tput cols)
 fi
 : ${ncols:=72}
-
+#tiger 几种日志类型
 log(){
     echo "$@" >> $logfile
 }
@@ -541,7 +541,7 @@ EOF
     fi
     exit 1
 }
-
+#字符处理
 # Avoid locale weirdness, besides we really just want to translate ASCII.
 toupper(){
     echo "$@" | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
@@ -598,7 +598,7 @@ remove_suffix(){
     shift
     for v; do echo ${v%$suffix}; done
 }
-
+#tiger configure 设置
 set_all(){
     value=$1
     shift
@@ -660,7 +660,7 @@ warn_if_gets_disabled(){
         WARN_IF_GETS_DISABLED_LIST="$WARN_IF_GETS_DISABLED_LIST $var"
     done
 }
-
+#tiger configure 自定义函数
 enable(){
     set_all yes $*
 }
@@ -726,7 +726,7 @@ requested(){
     test "${1#!}" = "$1" && op="=" || op="!="
     eval test "x\$${1#!}_requested" $op "xyes"
 }
-
+#tiger TODO:这个语法不懂
 enabled(){
     test "${1#!}" = "$1" && op="=" || op="!="
     eval test "x\$${1#!}" $op "xyes"
@@ -776,7 +776,7 @@ is_in(){
     done
     return 1
 }
-
+#tiger 
 # The cfg loop is very hot (several thousands iterations), and in bash also
 # potentialy quite slow. Try to abort the iterations early, preferably without
 # calling functions. 70%+ of the time cfg is already done or without deps.
@@ -822,7 +822,7 @@ check_deps(){
         eval ${cfg}_checking=done
     done
 }
-
+# tiger 生成类似config.mak config.asm config.h，每种文件语法都不一样
 print_config(){
     pfx=$1
     files=$2
@@ -861,7 +861,7 @@ print_enabled(){
         enabled $v && printf "%s\n" ${v%$suf}
     done
 }
-
+#tiger 还是字符处理
 append(){
     var=$1
     shift
@@ -906,7 +906,7 @@ resolve(){
     done
     eval $1=\$resolve_out
 }
-
+#tiger 编译项辅助函数
 add_cppflags(){
     append CPPFLAGS "$@"
 }
@@ -1621,7 +1621,7 @@ check_host_cpp_condition(){
     disable $name
     test_host_cpp_condition "$@" && enable $name
 }
-
+#tiger 创建目录，判断有没有改变，copy
 cp_if_changed(){
     cmp -s "$1" "$2" && { test "$quiet" != "yes" && echo "$2 is unchanged"; } && return
     mkdir -p "$(dirname $2)"
@@ -1630,7 +1630,7 @@ cp_if_changed(){
 
 # CONFIG_LIST contains configurable options, while HAVE_LIST is for
 # system-dependent things.
-
+#几个模块的成员
 AVCODEC_COMPONENTS="
     bsfs
     decoders
@@ -1660,7 +1660,7 @@ COMPONENT_LIST="
     $AVFILTER_COMPONENTS
     $AVFORMAT_COMPONENTS
 "
-
+#tiger 几个测试程序
 EXAMPLE_LIST="
     avio_dir_cmd_example
     avio_reading_example
@@ -1686,7 +1686,7 @@ EXAMPLE_LIST="
     vaapi_encode_example
     vaapi_transcode_example
 "
-
+#tiger 自动测试库
 EXTERNAL_AUTODETECT_LIBRARY_LIST="
     alsa
     appkit
@@ -1706,7 +1706,7 @@ EXTERNAL_AUTODETECT_LIBRARY_LIST="
     xlib
     zlib
 "
-
+#外部依赖库
 EXTERNAL_LIBRARY_GPL_LIST="
     avisynth
     frei0r
@@ -1720,14 +1720,14 @@ EXTERNAL_LIBRARY_GPL_LIST="
     libxavs2
     libxvid
 "
-
+#tiger 非免费
 EXTERNAL_LIBRARY_NONFREE_LIST="
     decklink
     libfdk_aac
     openssl
     libtls
 "
-
+#tiger 
 EXTERNAL_LIBRARY_VERSION3_LIST="
     gmp
     libaribb24
@@ -1743,7 +1743,7 @@ EXTERNAL_LIBRARY_VERSION3_LIST="
 EXTERNAL_LIBRARY_GPLV3_LIST="
     libsmbclient
 "
-
+#tiger 外部库
 EXTERNAL_LIBRARY_LIST="
     $EXTERNAL_LIBRARY_GPL_LIST
     $EXTERNAL_LIBRARY_NONFREE_LIST
@@ -1813,7 +1813,7 @@ EXTERNAL_LIBRARY_LIST="
     pocketsphinx
     vapoursynth
 "
-
+#tiger 自动测试是否硬件加速的库 //tiger program: cuda cuda_llvm cuvid nvdec nvenc
 HWACCEL_AUTODETECT_LIBRARY_LIST="
     amf
     audiotoolbox
@@ -1838,7 +1838,7 @@ EXTRALIBS_LIST="
     cpu_init
     cws2fws
 "
-
+#tiger 自动测试是否硬件加速的库 //tiger program:cuda_nvcc 不免费
 HWACCEL_LIBRARY_NONFREE_LIST="
     cuda_nvcc
     cuda_sdk
@@ -1860,7 +1860,7 @@ DOCUMENT_LIST="
     podpages
     txtpages
 "
-
+# tiger static和shared 是一个feature
 FEATURE_LIST="
     ftrapv
     gray
@@ -1873,7 +1873,7 @@ FEATURE_LIST="
     static
     swscale_alpha
 "
-
+#tiger 哪几个库
 # this list should be kept in linking order
 LIBRARY_LIST="
     avdevice
@@ -1892,13 +1892,13 @@ LICENSE_LIST="
     nonfree
     version3
 "
-
+#tiger 程序再这里定义
 PROGRAM_LIST="
     ffplay
     ffprobe
     ffmpeg
 "
-
+#tiger 子系统
 SUBSYSTEM_LIST="
     dct
     dwt
@@ -1913,7 +1913,7 @@ SUBSYSTEM_LIST="
     network
     rdft
 "
-
+#汇总所有要编译的
 # COMPONENT_LIST needs to come last to ensure correct dependency checking
 CONFIG_LIST="
     $DOCUMENT_LIST
@@ -1945,7 +1945,7 @@ THREADS_LIST="
     os2threads
     w32threads
 "
-
+#tiger program
 ATOMICS_LIST="
     atomics_gcc
     atomics_suncc
@@ -1957,7 +1957,7 @@ AUTODETECT_LIBS="
     $HWACCEL_AUTODETECT_LIBRARY_LIST
     $THREADS_LIST
 "
-
+#tiger 支持的cpu
 ARCH_LIST="
     aarch64
     alpha
@@ -1984,7 +1984,7 @@ ARCH_LIST="
     x86_32
     x86_64
 "
-
+#tiger arm类型
 ARCH_EXT_LIST_ARM="
     armv5te
     armv6
@@ -2008,13 +2008,13 @@ ARCH_EXT_LIST_MIPS="
     msa
     msa2
 "
-
+#tiger 龙芯
 ARCH_EXT_LIST_LOONGSON="
     loongson2
     loongson3
     mmi
 "
-
+#tiger Single Instruction Multiple Data 数据向量
 ARCH_EXT_LIST_X86_SIMD="
     aesni
     amd3dnow
@@ -2049,7 +2049,7 @@ ARCH_EXT_LIST_X86="
     cpunop
     i686
 "
-
+# 各个cpu支持的子功能
 ARCH_EXT_LIST="
     $ARCH_EXT_LIST_ARM
     $ARCH_EXT_LIST_PPC
@@ -2057,7 +2057,7 @@ ARCH_EXT_LIST="
     $ARCH_EXT_LIST_MIPS
     $ARCH_EXT_LIST_LOONGSON
 "
-
+#tiger 芯片的一些特性，以便快速计算
 ARCH_FEATURES="
     aligned_stack
     fast_64bit
@@ -2068,7 +2068,7 @@ ARCH_FEATURES="
     simd_align_32
     simd_align_64
 "
-
+# 原子操作
 BUILTIN_LIST="
     atomic_cas_ptr
     machine_rw_barrier
@@ -2314,7 +2314,7 @@ HAVE_LIST="
     pod2man
     texi2html
 "
-
+#tiger 
 # options emitted with CONFIG_ prefix but not available on the command line
 CONFIG_EXTRA="
     aandcttables
@@ -2437,7 +2437,7 @@ PATHS_LIST="
     shlibdir
     install_name_dir
 "
-
+#tiger 命令有关系吗？
 CMDLINE_SET="
     $PATHS_LIST
     ar
@@ -2499,7 +2499,7 @@ CMDLINE_APPEND="
     extra_objcflags
     host_cppflags
 "
-
+#tiger 代码依赖关系
 # code dependency declarations
 
 # architecture extensions
@@ -3610,7 +3610,7 @@ swscale_suggest="libm"
 avcodec_extralibs="pthreads_extralibs iconv_extralibs dxva2_extralibs"
 avfilter_extralibs="pthreads_extralibs"
 avutil_extralibs="d3d11va_extralibs nanosleep_extralibs pthreads_extralibs vaapi_drm_extralibs vaapi_x11_extralibs vdpau_x11_extralibs"
-
+#tiger 程序的依赖关系
 # programs
 ffmpeg_deps="avcodec avfilter avformat"
 ffmpeg_select="aformat_filter anull_filter atrim_filter format_filter
@@ -3632,7 +3632,7 @@ txtpages_deps="perl makeinfo"
 doc_deps_any="manpages htmlpages podpages txtpages"
 
 # default parameters
-
+# tiger configure 01 文件  参考雷神 https://blog.csdn.net/leixiaohua1020/article/details/44587465
 logfile="ffbuild/config.log"
 
 # installation paths
@@ -3643,7 +3643,7 @@ docdir_default='${prefix}/share/doc/ffmpeg'
 incdir_default='${prefix}/include'
 libdir_default='${prefix}/lib'
 mandir_default='${prefix}/share/man'
-
+# tiger configure 02 toolchain
 # toolchain
 ar_default="ar"
 cc_default="gcc"
@@ -3661,11 +3661,11 @@ objformat="elf32"
 x86asmexe_default="nasm"
 windres_default="windres"
 striptype="direct"
-
+# tiger configure 03 OS 
 # OS
 target_os_default=$(tolower $(uname -s))
 host_os=$target_os_default
-
+# tiger configure 04 机器 有些时候需要查看
 # machine
 if test "$target_os_default" = aix; then
     arch_default=$(uname -p)
@@ -3676,7 +3676,7 @@ else
 fi
 cpu="generic"
 intrinsics="none"
-
+# tiger configure 05 enable 自定义的命令==> enable 将一个或者多个设置为yes
 # configurable options
 enable $PROGRAM_LIST
 enable $DOCUMENT_LIST
@@ -3703,7 +3703,7 @@ enable $EXTRALIBS_LIST
 
 # Avoid external, non-system, libraries getting enabled by dependency resolution
 disable $EXTERNAL_LIBRARY_LIST $HWACCEL_LIBRARY_LIST
-
+# tiger configure 06 编译设置
 # build settings
 SHFLAGS='-shared -Wl,-soname,$$(@F)'
 LIBPREF="lib"
@@ -3755,9 +3755,9 @@ target_path='$(CURDIR)'
 # is only able to print the basename, and we must add the path ourselves
 DEPCMD='$(DEP$(1)) $(DEP$(1)FLAGS) $($(1)DEP_FLAGS) $< 2>/dev/null | sed -e "/^\#.*/d" -e "s,^[[:space:]]*$(@F),$(@D)/$(@F)," > $(@:.o=.d)'
 DEPFLAGS='-MM'
-
+# tiger configure 07 创建目录
 mkdir -p ffbuild
-
+# tiger 验证configure相关条件， config.h是否已经存在
 # find source path
 if test -f configure; then
     source_path=.
@@ -3771,7 +3771,7 @@ else
     test -e "$source_path/config.h" &&
         die "Out of tree builds are impossible with config.h in source dir."
 fi
-
+# tiger configure 08
 for v in "$@"; do
     r=${v#*=}
     l=${v%"$r"}
@@ -3791,7 +3791,7 @@ find_filters_extern(){
     file=$source_path/$1
     sed -n 's/^extern AVFilter ff_[avfsinkrc]\{2,5\}_\([[:alnum:]_]\{1,\}\);/\1_filter/p' $file
 }
-
+#tiger 从代码里获取列表
 FILTER_LIST=$(find_filters_extern libavfilter/allfilters.c)
 OUTDEV_LIST=$(find_things_extern muxer AVOutputFormat libavdevice/alldevices.c outdev)
 INDEV_LIST=$(find_things_extern demuxer AVInputFormat libavdevice/alldevices.c indev)
@@ -3898,7 +3898,7 @@ do_random(){
     random_seed=$(awk "BEGIN { srand($random_seed); print srand() }")
     $action $(rand_list "$@" | awk "BEGIN { srand($random_seed) } \$1 == \"prob\" { prob = \$2; next } rand() < prob { print }")
 }
-
+# tiger configure 09 处理输入的选项
 for opt do
     optval="${opt#*=}"
     case "$opt" in
@@ -4007,7 +4007,7 @@ for opt do
         ;;
     esac
 done
-
+# tiger configure 10 输出环境变量
 for e in $env; do
     eval "export $e"
 done
@@ -4095,7 +4095,7 @@ map 'disable_components $v' $LIBRARY_LIST
 
 echo "# $0 $FFMPEG_CONFIGURATION" > $logfile
 set >> $logfile
-
+#tiger program 如果安装了valgrind ，才会有valgrind-memcheck
 test -n "$valgrind" && toolchain="valgrind-memcheck"
 
 enabled ossfuzz && ! echo $CFLAGS | grep -q -- "-fsanitize="  && ! echo $CFLAGS | grep -q -- "-fcoverage-mapping" &&{
@@ -4226,12 +4226,12 @@ strip_default="${cross_prefix}${strip_default}"
 windres_default="${cross_prefix}${windres_default}"
 
 sysinclude_default="${sysroot}/usr/include"
-
+#tiger cuda
 if enabled cuda_sdk; then
     warn "Option --enable-cuda-sdk is deprecated. Use --enable-cuda-nvcc instead."
     enable cuda_nvcc
 fi
-
+#tiger program clang
 if enabled cuda_nvcc; then
     nvcc_default="nvcc"
     nvccflags_default="-gencode arch=compute_30,code=sm_30 -O2"
@@ -4318,7 +4318,7 @@ tmpfile TMPV   .ver
 unset -f mktemp
 
 chmod +x $TMPE
-
+#tiger 测试文件可写
 # make sure we can execute files in $TMPDIR
 cat > $TMPSH 2>> $logfile <<EOF
 #! /bin/sh
@@ -4331,7 +4331,7 @@ variable to another directory and make sure that it is not mounted noexec.
 EOF
     die "Sanity test failed."
 fi
-
+#tiger 各个编译的flag
 armasm_flags(){
     for flag; do
         case $flag in
@@ -5090,7 +5090,7 @@ elif enabled sparc; then
             cpuflags="-mcpu=$cpu"
         ;;
     esac
-
+#tiger program x86机器
 elif enabled x86; then
 
     case $cpu in
@@ -5480,7 +5480,7 @@ rm -r "$link_dest"
 rm -r "$link_name"
 
 # determine libc flavour
-
+#tiger libc 有这么多类型
 probe_libc(){
     pfx=$1
     pfx_no_=${pfx%_}
@@ -5822,7 +5822,7 @@ elif enabled ppc; then
     fi
 
 elif enabled x86; then
-
+#tiger program x86 
     check_builtin rdtsc    intrin.h   "__rdtsc()"
     check_builtin mm_empty mmintrin.h "_mm_empty()"
 
@@ -5902,7 +5902,7 @@ check_cc intrinsics_neon arm_neon.h "int16x8_t test = vdupq_n_s16(0)"
 
 check_ldflags -Wl,--as-needed
 check_ldflags -Wl,-z,noexecstack
-
+#tiger configure 原来网络也可以禁止的
 if ! disabled network; then
     check_func getaddrinfo $network_extralibs
     check_func inet_aton $network_extralibs
@@ -5942,7 +5942,7 @@ if ! disabled network; then
         disable network
     fi
 fi
-
+#tiger 检查builtin函数
 check_builtin atomic_cas_ptr atomic.h "void **ptr; void *oldval, *newval; atomic_cas_ptr(ptr, oldval, newval)"
 check_builtin machine_rw_barrier mbarrier.h "__machine_rw_barrier()"
 check_builtin MemoryBarrier windows.h "MemoryBarrier()"
@@ -5961,7 +5961,7 @@ case "$custom_allocator" in
         malloc_prefix=tc_
     ;;
 esac
-
+#tiger 检查函数
 check_func_headers malloc.h _aligned_malloc     && enable aligned_malloc
 check_func  ${malloc_prefix}memalign            && enable memalign
 check_func  ${malloc_prefix}posix_memalign      && enable posix_memalign
@@ -5988,7 +5988,7 @@ check_func  strerror_r
 check_func  sysconf
 check_func  sysctl
 check_func  usleep
-
+#tiger 检查头文件
 check_func_headers conio.h kbhit
 check_func_headers io.h setmode
 check_func_headers lzo/lzo1x.h lzo1x_999_compress
@@ -6380,7 +6380,7 @@ if enabled gcrypt; then
         require gcrypt gcrypt.h gcry_mpi_new -lgcrypt
     fi
 fi
-
+#tiger 是否开启sdl2，可以强制关闭的
 if enabled sdl2; then
     SDL2_CONFIG="${cross_prefix}sdl2-config"
     test_pkg_config sdl2 "sdl2 >= 2.0.1 sdl2 < 2.1.0" SDL_events.h SDL_PollEvent
@@ -6405,7 +6405,7 @@ if enabled decklink; then
             ;;
     esac
 fi
-
+#tiger 是否开启加密模式
 enabled securetransport &&
     check_func SecIdentityCreate "-Wl,-framework,CoreFoundation -Wl,-framework,Security" &&
     check_lib securetransport "Security/SecureTransport.h Security/Security.h" "SSLCreateContext" "-Wl,-framework,CoreFoundation -Wl,-framework,Security" ||
@@ -6511,7 +6511,7 @@ test_cpp <<EOF && enable uwp && d3d11va_extralibs="-ldxgi -ld3d11"
 #error no family set
 #endif
 EOF
-
+#tiger intel 的sdk
 enabled vaapi &&
     check_pkg_config vaapi "libva >= 0.35.0" "va/va.h" vaInitialize
 
@@ -6588,7 +6588,7 @@ else
 fi
 
 enabled ffnvcodec && enable cuda
-
+#tiger 开启NVIDIA 
 enabled nvenc &&
     test_cc -I$source_path <<EOF || disable nvenc
 #include <ffnvcodec/nvEncodeAPI.h>
@@ -6756,7 +6756,7 @@ test_cc -mno-red-zone <<EOF && noredzone_flags="-mno-red-zone"
 int x;
 EOF
 
-
+#tiger 不同编译器不通编译选项，是否关闭某些提示等
 if enabled icc; then
     # Just warnings, no remarks
     check_cflags -w1
@@ -6915,7 +6915,7 @@ check_deps $CONFIG_LIST       \
            $CONFIG_EXTRA      \
            $HAVE_LIST         \
            $ALL_COMPONENTS    \
-
+#tiger 是否开启线程
 enabled threads && ! enabled pthreads && ! enabled atomics_native && die "non pthread threading without atomics not supported, try adding --enable-pthreads or --cpu=i486 or higher if you are on x86"
 enabled avresample && warn "Building with deprecated library libavresample"
 
@@ -7011,7 +7011,7 @@ for lib in $AUTODETECT_LIBS; do
 done
 
 enabled zlib && add_cppflags -DZLIB_CONST
-
+#tiger 库的依赖
 # conditional library dependencies, in any order
 enabled afftdn_filter       && prepend avfilter_deps "avcodec"
 enabled afftfilt_filter     && prepend avfilter_deps "avcodec"
@@ -7094,9 +7094,9 @@ expand_deps(){
 postproc_deps="$(filter_out 'gpl' $postproc_deps)"
 
 map 'expand_deps $v' $LIBRARY_LIST
-
+#打印相关的信息，以便用户参考
 if test "$quiet" != "yes"; then
-
+#tiger 编译常用变量，如安装地址，编译器类型
 echo "install prefix            $prefix"
 echo "source path               $source_path"
 echo "C compiler                $cc"
@@ -7117,6 +7117,7 @@ if test "$extra_version" != ""; then
 fi
 echo "big-endian                ${bigendian-no}"
 echo "runtime cpu detection     ${runtime_cpudetect-no}"
+#tiger program 显示x86的一些选项，可以看出在哪里针对x86做出优化
 if enabled x86; then
     echo "standalone assembly       ${x86asm-no}"
     echo "x86 assembler             ${x86asmexe}"
@@ -7183,7 +7184,7 @@ echo "makeinfo supports HTML    ${makeinfo_html-no}"
 test -n "$random_seed" &&
     echo "random seed               ${random_seed}"
 echo
-
+#打印相关的库
 echo "External libraries:"
 print_enabled '' $EXTERNAL_LIBRARY_LIST $EXTERNAL_AUTODETECT_LIBRARY_LIST | print_in_columns
 echo
@@ -7206,7 +7207,7 @@ for type in decoder encoder hwaccel parser demuxer muxer protocol filter bsf ind
     print_enabled '_*' $list | print_in_columns
     echo
 done
-
+#tiger 是否要进行测试
 if test -n "$ignore_tests"; then
     ignore_tests=$(echo $ignore_tests | tr ',' ' ')
     echo "Ignored FATE tests:"
@@ -7237,12 +7238,12 @@ test -e Makefile || echo "include $source_path/Makefile" > Makefile
 esc(){
     echo "$*" | sed 's/%/%25/g;s/:/%3a/g'
 }
-
+#tiger 生成config.fate
 echo "config:$arch:$subarch:$cpu:$target_os:$(esc $cc_ident):$(esc $FFMPEG_CONFIGURATION)" > ffbuild/config.fate
 
 enabled stripping || strip="echo skipping strip"
 enabled stripping || striptype=""
-
+#tiger configure 动态生成的配置文件 config_files:config.h config.mak config.texi
 config_files="$TMPH ffbuild/config.mak doc/config.texi"
 
 cat > ffbuild/config.mak <<EOF
@@ -7384,13 +7385,13 @@ NOREDZONE_FLAGS=$noredzone_flags
 LIBFUZZER_PATH=$libfuzzer_path
 IGNORE_TESTS=$ignore_tests
 EOF
-
+#tiger 输出依赖
 map 'eval echo "${v}_FFLIBS=\$${v}_deps" >> ffbuild/config.mak' $LIBRARY_LIST
 
 for entry in $LIBRARY_LIST $PROGRAM_LIST $EXTRALIBS_LIST; do
     eval echo "EXTRALIBS-${entry}=\$${entry}_extralibs" >> ffbuild/config.mak
 done
-
+//tiger configure 先输出 config.h 固定的一些内容
 cat > $TMPH <<EOF
 /* Automatically generated by configure - do not modify! */
 #ifndef FFMPEG_CONFIG_H
@@ -7415,14 +7416,14 @@ test -n "$assert_level" &&
 
 test -n "$malloc_prefix" &&
     echo "#define MALLOC_PREFIX $malloc_prefix" >>$TMPH
-
+#tiger config 追加config.asm 到config_files， 再print_config输出
 if enabled x86asm; then
     append config_files $TMPASM
     cat > $TMPASM <<EOF
 ; Automatically generated by configure - do not modify!
 EOF
 fi
-
+#tiger configure 疑问：打印什么不知道
 enabled getenv || echo "#define getenv(x) NULL" >> $TMPH
 
 
@@ -7430,39 +7431,39 @@ mkdir -p doc
 mkdir -p tests
 mkdir -p tests/api
 echo "@c auto-generated by configure - do not modify! " > doc/config.texi
-
+#tiger configure print_config 同时输入到单个文件里面，对于config.h打印CONFIG 如从CONFIG_H264_DECODER=yes==> #define CONFIG_H264_DECODER 1 
 print_config ARCH_   "$config_files" $ARCH_LIST
 print_config HAVE_   "$config_files" $HAVE_LIST
 print_config CONFIG_ "$config_files" $CONFIG_LIST       \
                                      $CONFIG_EXTRA      \
                                      $ALL_COMPONENTS    \
-
+#tiger 2个文件需加结束标志
 echo "#endif /* FFMPEG_CONFIG_H */" >> $TMPH
 echo "endif # FFMPEG_CONFIG_MAK" >> ffbuild/config.mak
-
+#tiger 复制 $TMPH到 config.h
 # Do not overwrite an unchanged config.h to avoid superfluous rebuilds.
 cp_if_changed $TMPH config.h
 touch ffbuild/.config
-
+#tiger 复制config.asm
 enabled x86asm && cp_if_changed $TMPASM config.asm
-
+#tiger configure 准备生成libavutil/avconfig.h
 cat > $TMPH <<EOF
 /* Generated by ffmpeg configure */
 #ifndef AVUTIL_AVCONFIG_H
 #define AVUTIL_AVCONFIG_H
 EOF
-
+#tiger configure 如linux平台avconfig.h中#define AV_HAVE_BIGEDIAN 0
 print_config AV_HAVE_ $TMPH $HAVE_LIST_PUB
 
 echo "#endif /* AVUTIL_AVCONFIG_H */" >> $TMPH
-
+#tiger 复制文件
 cp_if_changed $TMPH libavutil/avconfig.h
-
+#tiger 替换文件
 # full_filter_name_foo=vf_foo
 # full_filter_name_bar=asrc_bar
-# ...
+# ...把extern AVFilter ff_af替换为?//TIGER todo:
 eval "$(sed -n "s/^extern AVFilter ff_\([avfsinkrc]\{2,5\}\)_\(.*\);/full_filter_name_\2=\1_\2/p" $source_path/libavfilter/allfilters.c)"
-
+#
 # generate the lists of enabled components
 print_enabled_components(){
     file=$1
@@ -7494,7 +7495,7 @@ print_enabled_components(){
     echo "    NULL };" >> $TMPH
     cp_if_changed $TMPH $file
 }
-
+#tiger 这些是动态生成的文件，找源码的时候不要忘记!!一般仅仅是个列表而已
 print_enabled_components libavfilter/filter_list.c AVFilter filter_list $FILTER_LIST
 print_enabled_components libavcodec/codec_list.c AVCodec codec_list $CODEC_LIST
 print_enabled_components libavcodec/parser_list.c AVCodecParser parser_list $PARSER_LIST
@@ -7506,7 +7507,7 @@ print_enabled_components libavdevice/outdev_list.c AVOutputFormat outdev_list $O
 print_enabled_components libavformat/protocol_list.c URLProtocol url_protocols $PROTOCOL_LIST
 
 # Settings for pkg-config files
-
+#先清空，再添加
 cat > $TMPH <<EOF
 # Automatically generated by configure - do not modify!
 shared=$shared
@@ -7533,5 +7534,6 @@ for lib in $LIBRARY_LIST; do
     lib_deps="$(eval echo \$${lib}_deps)"
     echo ${lib}_deps=\"$lib_deps\" >> $TMPH
 done
-
+#tiger configure 生成文件config.sh 根目录的Makefile include library.mak文件，library.mak 的 all-$(CONFIG_STATIC) 依赖 $(SUBDIR)lib$(FULLNAME).pc ，它再依赖config.sh,生成libavcodec.pc等
 cp_if_changed $TMPH ffbuild/config.sh
+#tiger 总结：生成config.mak config.asm config.h ffbuild/config.sh，其他的common.mak libversion.h pkgconfig_generate.sh?
