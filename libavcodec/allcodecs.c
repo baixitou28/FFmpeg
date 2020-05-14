@@ -805,7 +805,7 @@ const AVCodec *av_codec_iterate(void **opaque)
     uintptr_t i = (uintptr_t)*opaque;
     const AVCodec *c = codec_list[i];
 
-    ff_thread_once(&av_codec_static_init, av_codec_init_static);
+    ff_thread_once(&av_codec_static_init, av_codec_init_static);//没有初始化，则尝试初始化
 
     if (c)
         *opaque = (void*)(i + 1);
@@ -820,7 +820,7 @@ static AVOnce av_codec_next_init = AV_ONCE_INIT;
 static void av_codec_init_next(void)
 {
     AVCodec *prev = NULL, *p;
-    void *i = 0;
+    void *i = 0;//第一次是0
     while ((p = (AVCodec*)av_codec_iterate(&i))) {
         if (prev)
             prev->next = p;
@@ -834,15 +834,15 @@ av_cold void avcodec_register(AVCodec *codec)
 {
     ff_thread_once(&av_codec_next_init, av_codec_init_next);
 }
-
+//获取下一个编解码
 AVCodec *av_codec_next(const AVCodec *c)
 {
-    ff_thread_once(&av_codec_next_init, av_codec_init_next);
+    ff_thread_once(&av_codec_next_init, av_codec_init_next);//第一次则用av_codec_next_init初始化所有编解码
 
-    if (c)
+    if (c)//第二次，或者指定的，就直接找单向列表的下一个
         return c->next;
     else
-        return (AVCodec*)codec_list[0];
+        return (AVCodec*)codec_list[0];//第一次为空，则选第一个
 }
 
 void avcodec_register_all(void)

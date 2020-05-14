@@ -204,11 +204,11 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     return avcodec_find_decoder(codec_id);
 }
-
+//TIGER 
 static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st, enum AVCodecID codec_id)
 {
     const AVCodec *codec;
-
+    //tiger CONFIG_H264_DECODER 在哪里定义？==>
 #if CONFIG_H264_DECODER
     /* Other parts of the code assume this decoder to be used for h264,
      * so force it if possible. */
@@ -216,15 +216,15 @@ static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st,
         return avcodec_find_decoder_by_name("h264");
 #endif
 
-    codec = find_decoder(s, st, codec_id);
+    codec = find_decoder(s, st, codec_id);//找解码器
     if (!codec)
         return NULL;
 
-    if (codec->capabilities & AV_CODEC_CAP_AVOID_PROBING) {
+    if (codec->capabilities & AV_CODEC_CAP_AVOID_PROBING) {//若允许probe
         const AVCodec *probe_codec = NULL;
-        while (probe_codec = av_codec_next(probe_codec)) {
+        while (probe_codec = av_codec_next(probe_codec)) {//逐个对比
             if (probe_codec->id == codec_id &&
-                    av_codec_is_decoder(probe_codec) &&
+                    av_codec_is_decoder(probe_codec) &&//如果是ID相同的解码器
                     !(probe_codec->capabilities & (AV_CODEC_CAP_AVOID_PROBING | AV_CODEC_CAP_EXPERIMENTAL))) {
                 return probe_codec;
             }
@@ -1023,7 +1023,7 @@ static int has_decode_delay_been_guessed(AVStream *st)
     if (st->codecpar->codec_id != AV_CODEC_ID_H264) return 1;
     if (!st->info) // if we have left find_stream_info then nb_decoded_frames won't increase anymore for stream copy
         return 1;
-#if CONFIG_H264_DECODER
+#if CONFIG_H264_DECODER//编译中的ffbuid的config.make里：CONFIG_H264_DECODER=yes，config.h #define CONFIG_H264_DECODER 1, config.asm %define CONFIG_H264_DECODER 1
     if (st->internal->avctx->has_b_frames &&
        avpriv_h264_has_num_reorder_frames(st->internal->avctx) == st->internal->avctx->has_b_frames)
         return 1;
@@ -2980,31 +2980,31 @@ static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)
         && avctx->codec_type != AVMEDIA_TYPE_DATA)
         FAIL("unknown codec");
     switch (avctx->codec_type) {
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://音频必须要包含
         if (!avctx->frame_size && determinable_frame_size(avctx))
-            FAIL("unspecified frame size");
+            FAIL("unspecified frame size");//某些音频必须制定frame size
         if (st->info->found_decoder >= 0 &&
-            avctx->sample_fmt == AV_SAMPLE_FMT_NONE)
+            avctx->sample_fmt == AV_SAMPLE_FMT_NONE)//01.采样编码类型
             FAIL("unspecified sample format");
-        if (!avctx->sample_rate)
+        if (!avctx->sample_rate)//02.采样率
             FAIL("unspecified sample rate");
-        if (!avctx->channels)
+        if (!avctx->channels)//03.声道数
             FAIL("unspecified number of channels");
         if (st->info->found_decoder >= 0 && !st->nb_decoded_frames && avctx->codec_id == AV_CODEC_ID_DTS)
-            FAIL("no decodable DTS frames");
+            FAIL("no decodable DTS frames");//特例:
         break;
     case AVMEDIA_TYPE_VIDEO:
-        if (!avctx->width)
+        if (!avctx->width)//01. 宽
             FAIL("unspecified size");
         if (st->info->found_decoder >= 0 && avctx->pix_fmt == AV_PIX_FMT_NONE)
-            FAIL("unspecified pixel format");
+            FAIL("unspecified pixel format");//02.像素格式
         if (st->codecpar->codec_id == AV_CODEC_ID_RV30 || st->codecpar->codec_id == AV_CODEC_ID_RV40)
             if (!st->sample_aspect_ratio.num && !st->codecpar->sample_aspect_ratio.num && !st->codec_info_nb_frames)
-                FAIL("no frame in rv30/40 and no sar");
+                FAIL("no frame in rv30/40 and no sar");//特例：
         break;
     case AVMEDIA_TYPE_SUBTITLE:
         if (avctx->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE && !avctx->width)
-            FAIL("unspecified size");
+            FAIL("unspecified size");//01.字幕的宽带
         break;
     case AVMEDIA_TYPE_DATA:
         if (avctx->codec_id == AV_CODEC_ID_NONE) return 1;
@@ -3224,25 +3224,25 @@ static void compute_chapters_end(AVFormatContext *s)
     unsigned int i, j;
     int64_t max_time = 0;
 
-    if (s->duration > 0 && s->start_time < INT64_MAX - s->duration)
+    if (s->duration > 0 && s->start_time < INT64_MAX - s->duration)//
         max_time = s->duration +
                        ((s->start_time == AV_NOPTS_VALUE) ? 0 : s->start_time);
 
     for (i = 0; i < s->nb_chapters; i++)
-        if (s->chapters[i]->end == AV_NOPTS_VALUE) {
+        if (s->chapters[i]->end == AV_NOPTS_VALUE) {//如果没填，填写所有chapter里面最大的时间？
             AVChapter *ch = s->chapters[i];
-            int64_t end = max_time ? av_rescale_q(max_time, AV_TIME_BASE_Q,
+            int64_t end = max_time ? av_rescale_q(max_time, AV_TIME_BASE_Q,//用ch->time_base折算，每个chapter可能都不一样
                                                   ch->time_base)
                                    : INT64_MAX;
 
             for (j = 0; j < s->nb_chapters; j++) {
                 AVChapter *ch1     = s->chapters[j];
-                int64_t next_start = av_rescale_q(ch1->start, ch1->time_base,
+                int64_t next_start = av_rescale_q(ch1->start, ch1->time_base,//折算下一个开始的时间
                                                   ch->time_base);
                 if (j != i && next_start > ch->start && next_start < end)
                     end = next_start;
             }
-            ch->end = (end == INT64_MAX || end < ch->start) ? ch->start : end;
+            ch->end = (end == INT64_MAX || end < ch->start) ? ch->start : end;//填写所有chapter里面最大的时间？
         }
 }
 
@@ -3581,7 +3581,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
     int64_t probesize = ic->probesize;
     int eof_reached = 0;
     int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");//这个选项？
-
+    //01.参数初始化
     flush_codecs = probesize > 0;
     //增加一个选项
     av_opt_set(ic, "skip_clear", "1", AV_OPT_SEARCH_CHILDREN);
@@ -3601,7 +3601,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
     if (ic->pb)
         av_log(ic, AV_LOG_DEBUG, "Before avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d nb_streams:%d\n",
                avio_tell(ic->pb), ic->pb->bytes_read, ic->pb->seek_count, ic->nb_streams);
-
+    //02.
     for (i = 0; i < ic->nb_streams; i++) {//逐一分析
         const AVCodec *codec;
         AVDictionary *thread_opt = NULL;
@@ -3678,7 +3678,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (!options)//如果没有options，也不需要thread_opt
             av_dict_free(&thread_opt);
     }
-
+    //03.
     for (i = 0; i < ic->nb_streams; i++) {//初始化所有流
 #if FF_API_R_FRAME_RATE
         ic->streams[i]->info->last_dts = AV_NOPTS_VALUE;
@@ -3686,7 +3686,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         ic->streams[i]->info->fps_first_dts = AV_NOPTS_VALUE;
         ic->streams[i]->info->fps_last_dts  = AV_NOPTS_VALUE;
     }
-
+    //04.
     read_size = 0;
     for (;;) {
         int analyzed_all_streams;
@@ -3906,16 +3906,16 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (ic->flags & AVFMT_FLAG_NOBUFFER)//也可以将分析过的数据释放掉的
             av_packet_unref(pkt);
 
-        st->codec_info_nb_frames++;
+        st->codec_info_nb_frames++;//计数
         count++;
     }
-
-    if (eof_reached) {//虽然结束了，也要检验每个流,可能已经ok了
+    //05. 若到达文件末尾，检查每个流是否OK
+    if (eof_reached) {
         int stream_index;
         for (stream_index = 0; stream_index < ic->nb_streams; stream_index++) {
             st = ic->streams[stream_index];
             avctx = st->internal->avctx;
-            if (!has_codec_parameters(st, NULL)) {
+            if (!has_codec_parameters(st, NULL)) {//如果解码器参数还不够
                 const AVCodec *codec = find_probe_decoder(ic, st, st->codecpar->codec_id);//?
                 if (codec && !avctx->codec) {
                     AVDictionary *opts = NULL;
@@ -3935,34 +3935,34 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
     }
-
+    //06.如果是probe，尝试放入空的packet，不停解帧。
     if (flush_codecs) {//如果是probe模式的，要填入一个空的pkt
         AVPacket empty_pkt = { 0 };
         int err = 0;
-        av_init_packet(&empty_pkt);
+        av_init_packet(&empty_pkt);//空的pkt
 
         for (i = 0; i < ic->nb_streams; i++) {
 
             st = ic->streams[i];
 
             /* flush the decoders */
-            if (st->info->found_decoder == 1) {//如果找到解码器了，尝试flush
+            if (st->info->found_decoder == 1) {//如果找到解码器了，尝试继续解帧
                 do {
                     err = try_decode_frame(ic, st, &empty_pkt,
                                             (options && i < orig_nb_streams)
                                             ? &options[i] : NULL);
-                } while (err > 0 && !has_codec_parameters(st, NULL));//有数据解出来，就继续循环，decode
+                } while (err > 0 && !has_codec_parameters(st, NULL));//拖还有数据解出来,且编码器信息不够，则继续循环.
 
                 if (err < 0) {
-                    av_log(ic, AV_LOG_INFO,
+                    av_log(ic, AV_LOG_INFO,//无法解
                         "decoding for stream %d failed\n", st->index);
                 }
             }
         }
     }
-
+    //07.
     ff_rfps_calculate(ic);//real frame rate，H.264是25帧每秒，rational{3600, 90000},按TIME_BASE计算的是{25000,1000000}; 
-
+    //08.
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];
         avctx = st->internal->avctx;
@@ -4054,12 +4054,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
     }
-
+    //09.
     if (probesize)
         estimate_timings(ic, old_offset);
 
     av_opt_set(ic, "skip_clear", "0", AV_OPT_SEARCH_CHILDREN);
-
+    //10.
     if (ret >= 0 && ic->nb_streams)
         /* We could not have all the codec parameters before EOF. */
         ret = -1;
@@ -4070,15 +4070,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
         /* if no packet was ever seen, update context now for has_codec_parameters */
         if (!st->internal->avctx_inited) {//曾赋值过吗
             if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
-                st->codecpar->format == AV_SAMPLE_FMT_NONE)
-                st->codecpar->format = st->internal->avctx->sample_fmt;
-            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
+                st->codecpar->format == AV_SAMPLE_FMT_NONE)//如果音频没有st->codecpar->format
+                st->codecpar->format = st->internal->avctx->sample_fmt;//尝试使用st->internal->avctx->sample_fmt
+            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);//赋值
             if (ret < 0)
                 goto find_stream_info_err;
         }
         if (!has_codec_parameters(st, &errmsg)) {
-            char buf[256];
-            avcodec_string(buf, sizeof(buf), st->internal->avctx, 0);//打印提示信息
+            char buf[256];//若没有足够的编码信息，打印告警消息
+            avcodec_string(buf, sizeof(buf), st->internal->avctx, 0);//告警信息
             av_log(ic, AV_LOG_WARNING,
                    "Could not find codec parameters for stream %d (%s): %s\n"
                    "Consider increasing the value for the 'analyzeduration' and 'probesize' options\n",
@@ -4087,22 +4087,22 @@ FF_ENABLE_DEPRECATION_WARNINGS
             ret = 0;//有一个流有信息，返回值就为0
         }
     }
-
+    //11.chapter的结束时间没有，则计算chapter的结束时间 ==>chapter是多段的意思吗？
     compute_chapters_end(ic);//?
-
+    //12.更新：从find的codec contexts来更新st->codecpar信息
     /* update the stream parameters from the internal codec contexts */
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];
 
         if (st->internal->avctx_inited) {
-            int orig_w = st->codecpar->width;
+            int orig_w = st->codecpar->width;//只是低分辨率情况使用
             int orig_h = st->codecpar->height;
-            ret = avcodec_parameters_from_context(st->codecpar, st->internal->avctx);
+            ret = avcodec_parameters_from_context(st->codecpar, st->internal->avctx);//从find的结果里面更新信息
             if (ret < 0)
                 goto find_stream_info_err;
 #if FF_API_LOWRES
             // The decoder might reduce the video size by the lowres factor.
-            if (st->internal->avctx->lowres && orig_w) {
+            if (st->internal->avctx->lowres && orig_w) {//特例:低分辨率，如果st->codecpar->width有值，还是用原来的
                 st->codecpar->width = orig_w;
                 st->codecpar->height = orig_h;
             }
@@ -4147,17 +4147,17 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-        st->internal->avctx_inited = 0;
+        st->internal->avctx_inited = 0;//标志已处理
     }
-
+    //11. 异常或正常退出都从这里关闭
 find_stream_info_err:
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];
         if (st->info)
             av_freep(&st->info->duration_error);
-        avcodec_close(ic->streams[i]->internal->avctx);
-        av_freep(&ic->streams[i]->info);
-        av_bsf_free(&ic->streams[i]->internal->extract_extradata.bsf);//这个不理解
+        avcodec_close(ic->streams[i]->internal->avctx);//内部find时候的AVCodecContext
+        av_freep(&ic->streams[i]->info);//find 存放的信息
+        av_bsf_free(&ic->streams[i]->internal->extract_extradata.bsf);//find 用到的bitstream filter state //疑问find 的时候还回用到filter吗？
         av_packet_free(&ic->streams[i]->internal->extract_extradata.pkt);
     }
     if (ic->pb)//再次显示读了多少字节
