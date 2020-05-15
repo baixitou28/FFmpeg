@@ -37,7 +37,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/hwcontext.h>
-
+//tiger 用h264_vaapi 进行硬编码
 static int width, height;
 static AVBufferRef *hw_device_ctx = NULL;
 
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     AVCodecContext *avctx = NULL;
     AVCodec *codec = NULL;
     const char *enc_name = "h264_vaapi";
-
+	//命令行参数
     if (argc < 5) {
         fprintf(stderr, "Usage: %s <width> <height> <input file> <output file>\n", argv[0]);
         return -1;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
     width  = atoi(argv[1]);
     height = atoi(argv[2]);
     size   = width * height;
-
+	//打开输入输出文件
     if (!(fin = fopen(argv[3], "r"))) {
         fprintf(stderr, "Fail to open input file : %s\n", strerror(errno));
         return -1;
@@ -126,45 +126,45 @@ int main(int argc, char *argv[])
         err = -1;
         goto close;
     }
-
+	//创建intel硬件的上下文
     err = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI,
                                  NULL, NULL, 0);
     if (err < 0) {
         fprintf(stderr, "Failed to create a VAAPI device. Error code: %s\n", av_err2str(err));
         goto close;
     }
-
+	//找到硬件编码
     if (!(codec = avcodec_find_encoder_by_name(enc_name))) {
         fprintf(stderr, "Could not find encoder.\n");
         err = -1;
         goto close;
     }
-
+	//创建硬件编码的上下文
     if (!(avctx = avcodec_alloc_context3(codec))) {
         err = AVERROR(ENOMEM);
         goto close;
     }
-
+	//设置必要的参数，可参考tiger
     avctx->width     = width;
     avctx->height    = height;
     avctx->time_base = (AVRational){1, 25};
     avctx->framerate = (AVRational){25, 1};
     avctx->sample_aspect_ratio = (AVRational){1, 1};
     avctx->pix_fmt   = AV_PIX_FMT_VAAPI;
-
+	//绑定编码的硬编码环境
     /* set hw_frames_ctx for encoder's AVCodecContext */
     if ((err = set_hwframe_ctx(avctx, hw_device_ctx)) < 0) {
         fprintf(stderr, "Failed to set hwframe context.\n");
         goto close;
     }
-
+	//打开编码
     if ((err = avcodec_open2(avctx, codec, NULL)) < 0) {
         fprintf(stderr, "Cannot open video encoder codec. Error code: %s\n", av_err2str(err));
         goto close;
     }
 
     while (1) {
-        if (!(sw_frame = av_frame_alloc())) {
+        if (!(sw_frame = av_frame_alloc())) {//临时frame
             err = AVERROR(ENOMEM);
             goto close;
         }
@@ -172,9 +172,9 @@ int main(int argc, char *argv[])
         sw_frame->width  = width;
         sw_frame->height = height;
         sw_frame->format = AV_PIX_FMT_NV12;
-        if ((err = av_frame_get_buffer(sw_frame, 32)) < 0)
+        if ((err = av_frame_get_buffer(sw_frame, 32)) < 0)//
             goto close;
-        if ((err = fread((uint8_t*)(sw_frame->data[0]), size, 1, fin)) <= 0)
+        if ((err = fread((uint8_t*)(sw_frame->data[0]), size, 1, fin)) <= 0)//
             break;
         if ((err = fread((uint8_t*)(sw_frame->data[1]), size/2, 1, fin)) <= 0)
             break;
@@ -191,12 +191,12 @@ int main(int argc, char *argv[])
             err = AVERROR(ENOMEM);
             goto close;
         }
-        if ((err = av_hwframe_transfer_data(hw_frame, sw_frame, 0)) < 0) {
+        if ((err = av_hwframe_transfer_data(hw_frame, sw_frame, 0)) < 0) {//转化？
             fprintf(stderr, "Error while transferring frame data to surface."
                     "Error code: %s.\n", av_err2str(err));
             goto close;
         }
-
+		//编码并写入文件
         if ((err = (encode_write(avctx, hw_frame, fout))) < 0) {
             fprintf(stderr, "Failed to encode.\n");
             goto close;
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
         av_frame_free(&hw_frame);
         av_frame_free(&sw_frame);
     }
-
+	//刷新所有
     /* flush encoder */
     err = encode_write(avctx, NULL, fout);
     if (err == AVERROR_EOF)

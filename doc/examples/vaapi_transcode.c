@@ -37,7 +37,7 @@
 #include <libavutil/hwcontext.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-
+//硬件转码
 static AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
 static AVBufferRef *hw_device_ctx = NULL;
 static AVCodecContext *decoder_ctx = NULL, *encoder_ctx = NULL;
@@ -64,19 +64,19 @@ static int open_input_file(const char *filename)
     int ret;
     AVCodec *decoder = NULL;
     AVStream *video = NULL;
-
+	//打开文件
     if ((ret = avformat_open_input(&ifmt_ctx, filename, NULL, NULL)) < 0) {
         fprintf(stderr, "Cannot open input file '%s', Error code: %s\n",
                 filename, av_err2str(ret));
         return ret;
     }
-
+	//读文件猜测格式
     if ((ret = avformat_find_stream_info(ifmt_ctx, NULL)) < 0) {
         fprintf(stderr, "Cannot find input stream information. Error code: %s\n",
                 av_err2str(ret));
         return ret;
     }
-
+	//判断最可能的视频编码格式
     ret = av_find_best_stream(ifmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
     if (ret < 0) {
         fprintf(stderr, "Cannot find a video stream in the input file. "
@@ -84,53 +84,53 @@ static int open_input_file(const char *filename)
         return ret;
     }
     video_stream = ret;
-
+	//创建上下文
     if (!(decoder_ctx = avcodec_alloc_context3(decoder)))
         return AVERROR(ENOMEM);
-
+	//将解码器的信息放入context中
     video = ifmt_ctx->streams[video_stream];
     if ((ret = avcodec_parameters_to_context(decoder_ctx, video->codecpar)) < 0) {
         fprintf(stderr, "avcodec_parameters_to_context error. Error code: %s\n",
                 av_err2str(ret));
         return ret;
     }
-
+	//解码也用硬件
     decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
     if (!decoder_ctx->hw_device_ctx) {
         fprintf(stderr, "A hardware device reference create failed.\n");
         return AVERROR(ENOMEM);
     }
-    decoder_ctx->get_format    = get_vaapi_format;
-
+    decoder_ctx->get_format    = get_vaapi_format;//格式
+	//打开解码上下文
     if ((ret = avcodec_open2(decoder_ctx, decoder, NULL)) < 0)
         fprintf(stderr, "Failed to open codec for decoding. Error code: %s\n",
                 av_err2str(ret));
 
     return ret;
 }
-
+//硬编码和写文件
 static int encode_write(AVFrame *frame)
 {
     int ret = 0;
     AVPacket enc_pkt;
-
+	//编码后的packet
     av_init_packet(&enc_pkt);
     enc_pkt.data = NULL;
     enc_pkt.size = 0;
-
+	//放入一帧到encoder
     if ((ret = avcodec_send_frame(encoder_ctx, frame)) < 0) {
         fprintf(stderr, "Error during encoding. Error code: %s\n", av_err2str(ret));
         goto end;
     }
     while (1) {
-        ret = avcodec_receive_packet(encoder_ctx, &enc_pkt);
+        ret = avcodec_receive_packet(encoder_ctx, &enc_pkt);//尝试读一个packet
         if (ret)
             break;
 
-        enc_pkt.stream_index = 0;
-        av_packet_rescale_ts(&enc_pkt, ifmt_ctx->streams[video_stream]->time_base,
+        enc_pkt.stream_index = 0;//这个为什么是0？
+        av_packet_rescale_ts(&enc_pkt, ifmt_ctx->streams[video_stream]->time_base,//时间戳调整
                              ofmt_ctx->streams[0]->time_base);
-        ret = av_interleaved_write_frame(ofmt_ctx, &enc_pkt);
+        ret = av_interleaved_write_frame(ofmt_ctx, &enc_pkt);//写硬编码后的数据
         if (ret < 0) {
             fprintf(stderr, "Error during writing data to output file. "
                     "Error code: %s\n", av_err2str(ret));
@@ -149,7 +149,7 @@ static int dec_enc(AVPacket *pkt, AVCodec *enc_codec)
 {
     AVFrame *frame;
     int ret = 0;
-
+	//放入一个packet
     ret = avcodec_send_packet(decoder_ctx, pkt);
     if (ret < 0) {
         fprintf(stderr, "Error during decoding. Error code: %s\n", av_err2str(ret));
@@ -160,7 +160,7 @@ static int dec_enc(AVPacket *pkt, AVCodec *enc_codec)
         if (!(frame = av_frame_alloc()))
             return AVERROR(ENOMEM);
 
-        ret = avcodec_receive_frame(decoder_ctx, frame);
+        ret = avcodec_receive_frame(decoder_ctx, frame);//尝试获取一帧
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             av_frame_free(&frame);
             return 0;
@@ -169,10 +169,10 @@ static int dec_enc(AVPacket *pkt, AVCodec *enc_codec)
             goto fail;
         }
 
-        if (!initialized) {
+        if (!initialized) {//是否要尝试初始化
             /* we need to ref hw_frames_ctx of decoder to initialize encoder's codec.
                Only after we get a decoded frame, can we obtain its hw_frames_ctx */
-            encoder_ctx->hw_frames_ctx = av_buffer_ref(decoder_ctx->hw_frames_ctx);
+            encoder_ctx->hw_frames_ctx = av_buffer_ref(decoder_ctx->hw_frames_ctx);//编码上下文设置硬件编码
             if (!encoder_ctx->hw_frames_ctx) {
                 ret = AVERROR(ENOMEM);
                 goto fail;
@@ -181,41 +181,41 @@ static int dec_enc(AVPacket *pkt, AVCodec *enc_codec)
              * the same as decoder.
              * xxx: now the sample can't handle resolution change case.
              */
-            encoder_ctx->time_base = av_inv_q(decoder_ctx->framerate);
+            encoder_ctx->time_base = av_inv_q(decoder_ctx->framerate);//编码的设置
             encoder_ctx->pix_fmt   = AV_PIX_FMT_VAAPI;
             encoder_ctx->width     = decoder_ctx->width;
             encoder_ctx->height    = decoder_ctx->height;
-
+			//打开编码上下文
             if ((ret = avcodec_open2(encoder_ctx, enc_codec, NULL)) < 0) {
                 fprintf(stderr, "Failed to open encode codec. Error code: %s\n",
                         av_err2str(ret));
                 goto fail;
             }
-
+			//创建一个stream
             if (!(ost = avformat_new_stream(ofmt_ctx, enc_codec))) {
                 fprintf(stderr, "Failed to allocate stream for output format.\n");
                 ret = AVERROR(ENOMEM);
                 goto fail;
             }
-
+			//这个time_base需要额外设置
             ost->time_base = encoder_ctx->time_base;
-            ret = avcodec_parameters_from_context(ost->codecpar, encoder_ctx);
+            ret = avcodec_parameters_from_context(ost->codecpar, encoder_ctx);//从 context中获取codec信息
             if (ret < 0) {
                 fprintf(stderr, "Failed to copy the stream parameters. "
                         "Error code: %s\n", av_err2str(ret));
                 goto fail;
             }
-
+			//写文件头
             /* write the stream header */
             if ((ret = avformat_write_header(ofmt_ctx, NULL)) < 0) {
                 fprintf(stderr, "Error while writing stream header. "
                         "Error code: %s\n", av_err2str(ret));
                 goto fail;
             }
-
+			//标记已初始化
             initialized = 1;
         }
-
+		//硬编码并写文件
         if ((ret = encode_write(frame)) < 0)
             fprintf(stderr, "Error during encoding and writing.\n");
 
@@ -232,41 +232,41 @@ int main(int argc, char **argv)
     int ret = 0;
     AVPacket dec_pkt;
     AVCodec *enc_codec;
-
+	//用法
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <input file> <encode codec> <output file>\n"
-                "The output format is guessed according to the file extension.\n"
+                "The output format is guessed according to the file extension.\n"//输入文件的格式是猜的，或许指定更好，快
                 "\n", argv[0]);
         return -1;
     }
-
+	//创建硬件上下文
     ret = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
     if (ret < 0) {
         fprintf(stderr, "Failed to create a VAAPI device. Error code: %s\n", av_err2str(ret));
         return -1;
     }
-
+	//打开输入文件
     if ((ret = open_input_file(argv[1])) < 0)
         goto end;
-
+	//找到编码
     if (!(enc_codec = avcodec_find_encoder_by_name(argv[2]))) {
         fprintf(stderr, "Could not find encoder '%s'\n", argv[2]);
         ret = -1;
         goto end;
     }
-
+	//创建输出的上下文
     if ((ret = (avformat_alloc_output_context2(&ofmt_ctx, NULL, NULL, argv[3]))) < 0) {
         fprintf(stderr, "Failed to deduce output format from file extension. Error code: "
                 "%s\n", av_err2str(ret));
         goto end;
     }
-
+	//创建编码的上下文
     if (!(encoder_ctx = avcodec_alloc_context3(enc_codec))) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-
-    ret = avio_open(&ofmt_ctx->pb, argv[3], AVIO_FLAG_WRITE);
+	//创建输出的自定义写
+    ret = avio_open(&ofmt_ctx->pb, argv[3], AVIO_FLAG_WRITE);//如何关联的？
     if (ret < 0) {
         fprintf(stderr, "Cannot open output file. "
                 "Error code: %s\n", av_err2str(ret));
@@ -275,28 +275,28 @@ int main(int argc, char **argv)
 
     /* read all packets and only transcoding video */
     while (ret >= 0) {
-        if ((ret = av_read_frame(ifmt_ctx, &dec_pkt)) < 0)
+        if ((ret = av_read_frame(ifmt_ctx, &dec_pkt)) < 0)//读入packet
             break;
 
-        if (video_stream == dec_pkt.stream_index)
-            ret = dec_enc(&dec_pkt, enc_codec);
+        if (video_stream == dec_pkt.stream_index)//如果是视频
+            ret = dec_enc(&dec_pkt, enc_codec);//调用硬件压缩
 
-        av_packet_unref(&dec_pkt);
+        av_packet_unref(&dec_pkt);//释放
     }
 
     /* flush decoder */
     dec_pkt.data = NULL;
     dec_pkt.size = 0;
-    ret = dec_enc(&dec_pkt, enc_codec);
+    ret = dec_enc(&dec_pkt, enc_codec);//强制结束
     av_packet_unref(&dec_pkt);
 
     /* flush encoder */
-    ret = encode_write(NULL);
+    ret = encode_write(NULL);//强制刷新
 
     /* write the trailer for output stream */
-    av_write_trailer(ofmt_ctx);
+    av_write_trailer(ofmt_ctx);//写文件尾
 
-end:
+end://释放所有
     avformat_close_input(&ifmt_ctx);
     avformat_close_input(&ofmt_ctx);
     avcodec_free_context(&decoder_ctx);

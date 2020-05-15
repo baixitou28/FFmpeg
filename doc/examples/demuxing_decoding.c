@@ -33,7 +33,7 @@
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
 #include <libavformat/avformat.h>
-
+//TIGER ×ªÂë²¢±£´æ
 static AVFormatContext *fmt_ctx = NULL;
 static AVCodecContext *video_dec_ctx = NULL, *audio_dec_ctx;
 static int width, height;

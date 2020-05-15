@@ -77,14 +77,14 @@ static int init_filter_graph(AVFilterGraph **graph, AVFilterContext **src,
     uint8_t ch_layout[64];
 
     int err;
-
+	//创建filtergraph 
     /* Create a new filtergraph, which will contain all the filters. */
     filter_graph = avfilter_graph_alloc();
     if (!filter_graph) {
         fprintf(stderr, "Unable to create filter graph.\n");
         return AVERROR(ENOMEM);
     }
-
+	//创建buffer
     /* Create the abuffer filter;
      * it will be used for feeding the data into the graph. */
     abuffer = avfilter_get_by_name("abuffer");
@@ -92,20 +92,20 @@ static int init_filter_graph(AVFilterGraph **graph, AVFilterContext **src,
         fprintf(stderr, "Could not find the abuffer filter.\n");
         return AVERROR_FILTER_NOT_FOUND;
     }
-
+	//创建buffer的上下文
     abuffer_ctx = avfilter_graph_alloc_filter(filter_graph, abuffer, "src");
     if (!abuffer_ctx) {
         fprintf(stderr, "Could not allocate the abuffer instance.\n");
         return AVERROR(ENOMEM);
     }
-
+	//设置上下文选项
     /* Set the filter options through the AVOptions API. */
     av_get_channel_layout_string(ch_layout, sizeof(ch_layout), 0, INPUT_CHANNEL_LAYOUT);
     av_opt_set    (abuffer_ctx, "channel_layout", ch_layout,                            AV_OPT_SEARCH_CHILDREN);
     av_opt_set    (abuffer_ctx, "sample_fmt",     av_get_sample_fmt_name(INPUT_FORMAT), AV_OPT_SEARCH_CHILDREN);
     av_opt_set_q  (abuffer_ctx, "time_base",      (AVRational){ 1, INPUT_SAMPLERATE },  AV_OPT_SEARCH_CHILDREN);
     av_opt_set_int(abuffer_ctx, "sample_rate",    INPUT_SAMPLERATE,                     AV_OPT_SEARCH_CHILDREN);
-
+	//初始化filter
     /* Now initialize the filter; we pass NULL options, since we have already
      * set all the options above. */
     err = avfilter_init_str(abuffer_ctx, NULL);
@@ -113,14 +113,14 @@ static int init_filter_graph(AVFilterGraph **graph, AVFilterContext **src,
         fprintf(stderr, "Could not initialize the abuffer filter.\n");
         return err;
     }
-
+	//获取音量
     /* Create volume filter. */
     volume = avfilter_get_by_name("volume");
     if (!volume) {
         fprintf(stderr, "Could not find the volume filter.\n");
         return AVERROR_FILTER_NOT_FOUND;
     }
-
+	//音量
     volume_ctx = avfilter_graph_alloc_filter(filter_graph, volume, "volume");
     if (!volume_ctx) {
         fprintf(stderr, "Could not allocate the volume instance.\n");
@@ -220,7 +220,7 @@ static int process_output(struct AVMD5 *md5, AVFrame *frame)
     int bps        = av_get_bytes_per_sample(frame->format);
     int plane_size = bps * frame->nb_samples * (planar ? 1 : channels);
     int i, j;
-
+	//不同plance，计算MD5
     for (i = 0; i < planes; i++) {
         uint8_t checksum[16];
 
@@ -236,7 +236,7 @@ static int process_output(struct AVMD5 *md5, AVFrame *frame)
 
     return 0;
 }
-
+//构建一个frame
 /* Construct a frame of audio data to be filtered;
  * this simple example just synthesizes a sine wave. */
 static int get_input(AVFrame *frame, int frame_num)
@@ -251,11 +251,11 @@ static int get_input(AVFrame *frame, int frame_num)
     frame->channel_layout = INPUT_CHANNEL_LAYOUT;
     frame->nb_samples     = FRAME_SIZE;
     frame->pts            = frame_num * FRAME_SIZE;
-
+	//分配buffer
     err = av_frame_get_buffer(frame, 0);
     if (err < 0)
         return err;
-
+	//自己创建数据
     /* Fill the data for each channel. */
     for (i = 0; i < 5; i++) {
         float *data = (float*)frame->extended_data[i];
@@ -276,32 +276,32 @@ int main(int argc, char *argv[])
     uint8_t errstr[1024];
     float duration;
     int err, nb_frames, i;
-
+	//参数
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <duration>\n", argv[0]);
         return 1;
     }
-
+	//计算
     duration  = atof(argv[1]);
     nb_frames = duration * INPUT_SAMPLERATE / FRAME_SIZE;
     if (nb_frames <= 0) {
         fprintf(stderr, "Invalid duration: %s\n", argv[1]);
         return 1;
     }
-
+	//临时帧
     /* Allocate the frame we will be using to store the data. */
     frame  = av_frame_alloc();
     if (!frame) {
         fprintf(stderr, "Error allocating the frame\n");
         return 1;
     }
-
+	//m5 上下文
     md5 = av_md5_alloc();
     if (!md5) {
         fprintf(stderr, "Error allocating the MD5 context\n");
         return 1;
     }
-
+	//建立一个filter
     /* Set up the filtergraph. */
     err = init_filter_graph(&graph, &src, &sink);
     if (err < 0) {
@@ -312,12 +312,12 @@ int main(int argc, char *argv[])
     /* the main filtering loop */
     for (i = 0; i < nb_frames; i++) {
         /* get an input frame to be filtered */
-        err = get_input(frame, i);
+        err = get_input(frame, i);//自动构建一个frame，不读数据
         if (err < 0) {
             fprintf(stderr, "Error generating input frame:");
             goto fail;
         }
-
+		//加入
         /* Send the frame to the input of the filtergraph. */
         err = av_buffersrc_add_frame(src, frame);
         if (err < 0) {
@@ -325,18 +325,18 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error submitting the frame to the filtergraph:");
             goto fail;
         }
-
+		//TIGER 
         /* Get all the filtered output that is available. */
         while ((err = av_buffersink_get_frame(sink, frame)) >= 0) {
             /* now do something with our filtered frame */
-            err = process_output(md5, frame);
+            err = process_output(md5, frame);//MD5计算和并打印
             if (err < 0) {
                 fprintf(stderr, "Error processing the filtered frame:");
                 goto fail;
             }
             av_frame_unref(frame);
         }
-
+		//
         if (err == AVERROR(EAGAIN)) {
             /* Need to feed more frames in. */
             continue;
@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
             goto fail;
         }
     }
-
+	//释放
     avfilter_graph_free(&graph);
     av_frame_free(&frame);
     av_freep(&md5);

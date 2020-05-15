@@ -131,26 +131,26 @@ int main(int argc, char **argv)
     FILE *f;
     uint16_t *samples;
     float t, tincr;
-
+	//参数
     if (argc <= 1) {
         fprintf(stderr, "Usage: %s <output file>\n", argv[0]);
         return 0;
     }
     filename = argv[1];
-
+	//指定读取文件的编码格式
     /* find the MP2 encoder */
     codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
     if (!codec) {
         fprintf(stderr, "Codec not found\n");
         exit(1);
     }
-
+	//创建编码上下文
     c = avcodec_alloc_context3(codec);
     if (!c) {
         fprintf(stderr, "Could not allocate audio codec context\n");
         exit(1);
     }
-
+	//设置音频编码上下文的配置， 也可以用另外一个函数copy_xxx
     /* put sample parameters */
     c->bit_rate = 64000;
 
@@ -161,49 +161,49 @@ int main(int argc, char **argv)
                 av_get_sample_fmt_name(c->sample_fmt));
         exit(1);
     }
-
+	//tiger
     /* select other audio parameters supported by the encoder */
     c->sample_rate    = select_sample_rate(codec);
     c->channel_layout = select_channel_layout(codec);
     c->channels       = av_get_channel_layout_nb_channels(c->channel_layout);
-
+	//打开上下文
     /* open it */
     if (avcodec_open2(c, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
-
+	//打开输出文件
     f = fopen(filename, "wb");
     if (!f) {
         fprintf(stderr, "Could not open %s\n", filename);
         exit(1);
     }
-
+	//中转packet
     /* packet for holding encoded output */
     pkt = av_packet_alloc();
     if (!pkt) {
         fprintf(stderr, "could not allocate the packet\n");
         exit(1);
     }
-
+	//中转一个frame
     /* frame containing input raw audio */
     frame = av_frame_alloc();
     if (!frame) {
         fprintf(stderr, "Could not allocate audio frame\n");
         exit(1);
     }
-
+	//frame格式设置
     frame->nb_samples     = c->frame_size;
     frame->format         = c->sample_fmt;
     frame->channel_layout = c->channel_layout;
-
+	//分配frame的buffer
     /* allocate the data buffers */
     ret = av_frame_get_buffer(frame, 0);
     if (ret < 0) {
         fprintf(stderr, "Could not allocate audio data buffers\n");
         exit(1);
     }
-
+	//创建一个音频数据
     /* encode a single tone sound */
     t = 0;
     tincr = 2 * M_PI * 440.0 / c->sample_rate;
@@ -216,18 +216,18 @@ int main(int argc, char **argv)
         samples = (uint16_t*)frame->data[0];
 
         for (j = 0; j < c->frame_size; j++) {
-            samples[2*j] = (int)(sin(t) * 10000);
+            samples[2*j] = (int)(sin(t) * 10000);//曲线
 
             for (k = 1; k < c->channels; k++)
-                samples[2*j + k] = samples[2*j];
+                samples[2*j + k] = samples[2*j];//tiger todo? 如果 channel 大于2？ 这里的2是否应该是c->channels，即samples[c->channels*j + k] = samples[c->channels*j]
             t += tincr;
         }
         encode(c, frame, pkt, f);
     }
 
     /* flush the encoder */
-    encode(c, NULL, pkt, f);
-
+    encode(c, NULL, pkt, f);//刷新
+	//关闭
     fclose(f);
 
     av_frame_free(&frame);

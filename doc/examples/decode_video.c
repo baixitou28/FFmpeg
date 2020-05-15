@@ -34,7 +34,7 @@
 #include <libavcodec/avcodec.h>
 
 #define INBUF_SIZE 4096
-
+//解析AV_CODEC_ID_MPEG1VIDEO 文件
 static void pgm_save(unsigned char *buf, int wrap, int xsize, int ysize,
                      char *filename)
 {
@@ -53,7 +53,7 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt,
 {
     char buf[1024];
     int ret;
-
+	//放入解析上下文
     ret = avcodec_send_packet(dec_ctx, pkt);
     if (ret < 0) {
         fprintf(stderr, "Error sending a packet for decoding\n");
@@ -61,8 +61,8 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt,
     }
 
     while (ret >= 0) {
-        ret = avcodec_receive_frame(dec_ctx, frame);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+        ret = avcodec_receive_frame(dec_ctx, frame);//获取一帧，
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)//这里会有EAGAIN吗？好像不会有吧？
             return;
         else if (ret < 0) {
             fprintf(stderr, "Error during decoding\n");
@@ -76,7 +76,7 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt,
            free it */
         snprintf(buf, sizeof(buf), "%s-%d", filename, dec_ctx->frame_number);
         pgm_save(frame->data[0], frame->linesize[0],
-                 frame->width, frame->height, buf);
+                 frame->width, frame->height, buf);//解析出长宽
     }
 }
 
@@ -100,27 +100,27 @@ int main(int argc, char **argv)
     }
     filename    = argv[1];
     outfilename = argv[2];
-
+	//中转用的packet
     pkt = av_packet_alloc();
     if (!pkt)
         exit(1);
 
     /* set end of buffer to 0 (this ensures that no overreading happens for damaged MPEG streams) */
     memset(inbuf + INBUF_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
-
+	//找到指定解码器
     /* find the MPEG-1 video decoder */
     codec = avcodec_find_decoder(AV_CODEC_ID_MPEG1VIDEO);
     if (!codec) {
         fprintf(stderr, "Codec not found\n");
         exit(1);
     }
-
+	//	找到解析器
     parser = av_parser_init(codec->id);
     if (!parser) {
         fprintf(stderr, "parser not found\n");
         exit(1);
     }
-
+	//创建上下文
     c = avcodec_alloc_context3(codec);
     if (!c) {
         fprintf(stderr, "Could not allocate video codec context\n");
@@ -130,19 +130,19 @@ int main(int argc, char **argv)
     /* For some codecs, such as msmpeg4 and mpeg4, width and height
        MUST be initialized there because this information is not
        available in the bitstream. */
-
+	//打开
     /* open it */
     if (avcodec_open2(c, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
-
+	//打开输入文件
     f = fopen(filename, "rb");
     if (!f) {
         fprintf(stderr, "Could not open %s\n", filename);
         exit(1);
     }
-
+	//临时frame
     frame = av_frame_alloc();
     if (!frame) {
         fprintf(stderr, "Could not allocate video frame\n");
@@ -151,29 +151,29 @@ int main(int argc, char **argv)
 
     while (!feof(f)) {
         /* read raw data from the input file */
-        data_size = fread(inbuf, 1, INBUF_SIZE, f);
+        data_size = fread(inbuf, 1, INBUF_SIZE, f);//读入一块数据
         if (!data_size)
             break;
 
         /* use the parser to split the data into frames */
         data = inbuf;
         while (data_size > 0) {
-            ret = av_parser_parse2(parser, c, &pkt->data, &pkt->size,
+            ret = av_parser_parse2(parser, c, &pkt->data, &pkt->size,//解析
                                    data, data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
             if (ret < 0) {
                 fprintf(stderr, "Error while parsing\n");
                 exit(1);
             }
-            data      += ret;
+            data      += ret;//减去已解析完毕的字节
             data_size -= ret;
 
             if (pkt->size)
-                decode(c, frame, pkt, outfilename);
+                decode(c, frame, pkt, outfilename);//解析到帧
         }
     }
 
     /* flush the decoder */
-    decode(c, frame, NULL, outfilename);
+    decode(c, frame, NULL, outfilename);//强行关闭
 
     fclose(f);
 

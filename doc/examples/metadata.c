@@ -51,7 +51,7 @@ int main (int argc, char **argv)
         av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
         return ret;
     }
-
+	//看看有什么元数据
     while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
         printf("%s=%s\n", tag->key, tag->value);
 

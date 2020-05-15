@@ -23,7 +23,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
-
+ //TIGER 对文件、目录等读写，有利于跨平台。
 static const char *type_string(int type)
 {
     switch (type) {
@@ -60,7 +60,7 @@ static int list_op(const char *input_dir)
     AVIODirContext *ctx = NULL;
     int cnt, ret;
     char filemode[4], uid_and_gid[20];
-
+	//打开目录
     if ((ret = avio_open_dir(&ctx, input_dir, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot open directory: %s.\n", av_err2str(ret));
         goto fail;
@@ -68,7 +68,7 @@ static int list_op(const char *input_dir)
 
     cnt = 0;
     for (;;) {
-        if ((ret = avio_read_dir(ctx, &entry)) < 0) {
+        if ((ret = avio_read_dir(ctx, &entry)) < 0) {//读每个条目（可能是文件也可能是目录）
             av_log(NULL, AV_LOG_ERROR, "Cannot list directory: %s.\n", av_err2str(ret));
             goto fail;
         }
@@ -77,14 +77,14 @@ static int list_op(const char *input_dir)
         if (entry->filemode == -1) {
             snprintf(filemode, 4, "???");
         } else {
-            snprintf(filemode, 4, "%3"PRIo64, entry->filemode);
+            snprintf(filemode, 4, "%3"PRIo64, entry->filemode);//文件所有权
         }
-        snprintf(uid_and_gid, 20, "%"PRId64"(%"PRId64")", entry->user_id, entry->group_id);
+        snprintf(uid_and_gid, 20, "%"PRId64"(%"PRId64")", entry->user_id, entry->group_id);//组
         if (cnt == 0)
             av_log(NULL, AV_LOG_INFO, "%-9s %12s %30s %10s %s %16s %16s %16s\n",
                    "TYPE", "SIZE", "NAME", "UID(GID)", "UGO", "MODIFIED",
                    "ACCESSED", "STATUS_CHANGED");
-        av_log(NULL, AV_LOG_INFO, "%-9s %12"PRId64" %30s %10s %s %16"PRId64" %16"PRId64" %16"PRId64"\n",
+        av_log(NULL, AV_LOG_INFO, "%-9s %12"PRId64" %30s %10s %s %16"PRId64" %16"PRId64" %16"PRId64"\n",//打印条目
                type_string(entry->type),
                entry->size,
                entry->name,
@@ -93,7 +93,7 @@ static int list_op(const char *input_dir)
                entry->modification_timestamp,
                entry->access_timestamp,
                entry->status_change_timestamp);
-        avio_free_directory_entry(&entry);
+        avio_free_directory_entry(&entry);//释放
         cnt++;
     };
 
@@ -104,7 +104,7 @@ static int list_op(const char *input_dir)
 
 static int del_op(const char *url)
 {
-    int ret = avpriv_io_delete(url);
+    int ret = avpriv_io_delete(url);//删除
     if (ret < 0)
         av_log(NULL, AV_LOG_ERROR, "Cannot delete '%s': %s.\n", url, av_err2str(ret));
     return ret;
@@ -112,7 +112,7 @@ static int del_op(const char *url)
 
 static int move_op(const char *src, const char *dst)
 {
-    int ret = avpriv_io_move(src, dst);
+    int ret = avpriv_io_move(src, dst);//移动
     if (ret < 0)
         av_log(NULL, AV_LOG_ERROR, "Cannot move '%s' into '%s': %s.\n", src, dst, av_err2str(ret));
     return ret;
@@ -135,15 +135,15 @@ int main(int argc, char *argv[])
 {
     const char *op = NULL;
     int ret;
-
+	//设置调试级别 //tiger learn 有用
     av_log_set_level(AV_LOG_DEBUG);
 
     if (argc < 2) {
         usage(argv[0]);
         return 1;
     }
-
-    avformat_network_init();
+	//看个目录，这个需要吗？
+    avformat_network_init();//tiger unknown
 
     op = argv[1];
     if (strcmp(op, "list") == 0) {

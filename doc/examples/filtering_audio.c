@@ -45,22 +45,22 @@ AVFilterContext *buffersink_ctx;
 AVFilterContext *buffersrc_ctx;
 AVFilterGraph *filter_graph;
 static int audio_stream_index = -1;
-
+//TIGER 对文件实现filter
 static int open_input_file(const char *filename)
 {
     int ret;
     AVCodec *dec;
-
+	//打开文件
     if ((ret = avformat_open_input(&fmt_ctx, filename, NULL, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
         return ret;
     }
-
+	//启发式搜索流信息
     if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
         return ret;
     }
-
+	//最佳的流
     /* select the audio stream */
     ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &dec, 0);
     if (ret < 0) {
@@ -68,12 +68,12 @@ static int open_input_file(const char *filename)
         return ret;
     }
     audio_stream_index = ret;
-
+	//解码的上下文
     /* create decoding context */
     dec_ctx = avcodec_alloc_context3(dec);
     if (!dec_ctx)
         return AVERROR(ENOMEM);
-    avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[audio_stream_index]->codecpar);
+    avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[audio_stream_index]->codecpar);//tiger 从编码器里面copy进去，这个是标准用法
 
     /* init the audio decoder */
     if ((ret = avcodec_open2(dec_ctx, dec, NULL)) < 0) {

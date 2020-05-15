@@ -563,7 +563,7 @@ int main(int argc, char **argv)
     int encode_video = 0, encode_audio = 0;
     AVDictionary *opt = NULL;
     int i;
-
+	//	²ÎÊý
     if (argc < 2) {
         printf("usage: %s output_file\n"
                "API example program to output a media file with libavformat.\n"

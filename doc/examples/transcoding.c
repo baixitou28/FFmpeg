@@ -49,41 +49,41 @@ typedef struct StreamContext {
     AVCodecContext *enc_ctx;
 } StreamContext;
 static StreamContext *stream_ctx;
-
+//预测文件，创建并开启解码上下文
 static int open_input_file(const char *filename)
 {
     int ret;
     unsigned int i;
-
+	//打开文件
     ifmt_ctx = NULL;
     if ((ret = avformat_open_input(&ifmt_ctx, filename, NULL, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
         return ret;
     }
-
+	//启发式猜测
     if ((ret = avformat_find_stream_info(ifmt_ctx, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
         return ret;
     }
-
+	//创建stream 上下文的数组
     stream_ctx = av_mallocz_array(ifmt_ctx->nb_streams, sizeof(*stream_ctx));
     if (!stream_ctx)
         return AVERROR(ENOMEM);
 
     for (i = 0; i < ifmt_ctx->nb_streams; i++) {
         AVStream *stream = ifmt_ctx->streams[i];
-        AVCodec *dec = avcodec_find_decoder(stream->codecpar->codec_id);
+        AVCodec *dec = avcodec_find_decoder(stream->codecpar->codec_id);//获取解码器
         AVCodecContext *codec_ctx;
         if (!dec) {
             av_log(NULL, AV_LOG_ERROR, "Failed to find decoder for stream #%u\n", i);
             return AVERROR_DECODER_NOT_FOUND;
         }
-        codec_ctx = avcodec_alloc_context3(dec);
+        codec_ctx = avcodec_alloc_context3(dec);//创建context
         if (!codec_ctx) {
             av_log(NULL, AV_LOG_ERROR, "Failed to allocate the decoder context for stream #%u\n", i);
             return AVERROR(ENOMEM);
         }
-        ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);
+        ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);//从流里面获取格式信息，//TIGER 也可以自己赋值
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Failed to copy decoder parameters to input decoder context "
                    "for stream #%u\n", i);
@@ -93,15 +93,15 @@ static int open_input_file(const char *filename)
         if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
                 || codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO)
-                codec_ctx->framerate = av_guess_frame_rate(ifmt_ctx, stream, NULL);
+                codec_ctx->framerate = av_guess_frame_rate(ifmt_ctx, stream, NULL);//如果是视频还要猜测帧率
             /* Open decoder */
-            ret = avcodec_open2(codec_ctx, dec, NULL);
+            ret = avcodec_open2(codec_ctx, dec, NULL);//打开解码的上下文
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Failed to open decoder for stream #%u\n", i);
                 return ret;
             }
         }
-        stream_ctx[i].dec_ctx = codec_ctx;
+        stream_ctx[i].dec_ctx = codec_ctx;//放在流的dec_ctx结构中
     }
 
     av_dump_format(ifmt_ctx, 0, filename, 0);
@@ -116,7 +116,7 @@ static int open_output_file(const char *filename)
     AVCodec *encoder;
     int ret;
     unsigned int i;
-
+	//创建输出上下文
     ofmt_ctx = NULL;
     avformat_alloc_output_context2(&ofmt_ctx, NULL, NULL, filename);
     if (!ofmt_ctx) {
@@ -125,8 +125,8 @@ static int open_output_file(const char *filename)
     }
 
 
-    for (i = 0; i < ifmt_ctx->nb_streams; i++) {
-        out_stream = avformat_new_stream(ofmt_ctx, NULL);
+    for (i = 0; i < ifmt_ctx->nb_streams; i++) {//输入有几个流，就创建几次
+        out_stream = avformat_new_stream(ofmt_ctx, NULL);//创建流
         if (!out_stream) {
             av_log(NULL, AV_LOG_ERROR, "Failed allocating output stream\n");
             return AVERROR_UNKNOWN;
@@ -138,12 +138,12 @@ static int open_output_file(const char *filename)
         if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
                 || dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             /* in this example, we choose transcoding to same codec */
-            encoder = avcodec_find_encoder(dec_ctx->codec_id);
+            encoder = avcodec_find_encoder(dec_ctx->codec_id);//寻找编码器
             if (!encoder) {
                 av_log(NULL, AV_LOG_FATAL, "Necessary encoder not found\n");
                 return AVERROR_INVALIDDATA;
             }
-            enc_ctx = avcodec_alloc_context3(encoder);
+            enc_ctx = avcodec_alloc_context3(encoder);//开启上下文
             if (!enc_ctx) {
                 av_log(NULL, AV_LOG_FATAL, "Failed to allocate the encoder context\n");
                 return AVERROR(ENOMEM);
@@ -152,7 +152,7 @@ static int open_output_file(const char *filename)
             /* In this example, we transcode to same properties (picture size,
              * sample rate etc.). These properties can be changed for output
              * streams easily using filters */
-            if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+            if (dec_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {//视频编码的重要参数
                 enc_ctx->height = dec_ctx->height;
                 enc_ctx->width = dec_ctx->width;
                 enc_ctx->sample_aspect_ratio = dec_ctx->sample_aspect_ratio;
@@ -163,7 +163,7 @@ static int open_output_file(const char *filename)
                     enc_ctx->pix_fmt = dec_ctx->pix_fmt;
                 /* video time_base can be set to whatever is handy and supported by encoder */
                 enc_ctx->time_base = av_inv_q(dec_ctx->framerate);
-            } else {
+            } else {//音频编码的重要参数
                 enc_ctx->sample_rate = dec_ctx->sample_rate;
                 enc_ctx->channel_layout = dec_ctx->channel_layout;
                 enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
@@ -171,22 +171,22 @@ static int open_output_file(const char *filename)
                 enc_ctx->sample_fmt = encoder->sample_fmts[0];
                 enc_ctx->time_base = (AVRational){1, enc_ctx->sample_rate};
             }
-
+			//是否要在每个key frame里面放header，其实也不错啊 
             if (ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
                 enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
+			//打开编码上下文
             /* Third parameter can be used to pass settings to encoder */
             ret = avcodec_open2(enc_ctx, encoder, NULL);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Cannot open video encoder for stream #%u\n", i);
                 return ret;
             }
-            ret = avcodec_parameters_from_context(out_stream->codecpar, enc_ctx);
+            ret = avcodec_parameters_from_context(out_stream->codecpar, enc_ctx);//关键代码，stream从 编码context获取一些参数
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Failed to copy encoder parameters to output stream #%u\n", i);
                 return ret;
             }
-
+			//时间基点
             out_stream->time_base = enc_ctx->time_base;
             stream_ctx[i].enc_ctx = enc_ctx;
         } else if (dec_ctx->codec_type == AVMEDIA_TYPE_UNKNOWN) {
@@ -235,7 +235,7 @@ static int init_filter(FilteringContext* fctx, AVCodecContext *dec_ctx,
     AVFilterInOut *outputs = avfilter_inout_alloc();
     AVFilterInOut *inputs  = avfilter_inout_alloc();
     AVFilterGraph *filter_graph = avfilter_graph_alloc();
-
+	//内存分配错误
     if (!outputs || !inputs || !filter_graph) {
         ret = AVERROR(ENOMEM);
         goto end;
@@ -257,14 +257,14 @@ static int init_filter(FilteringContext* fctx, AVCodecContext *dec_ctx,
                 dec_ctx->sample_aspect_ratio.num,
                 dec_ctx->sample_aspect_ratio.den);
 
-        ret = avfilter_graph_create_filter(&buffersrc_ctx, buffersrc, "in",
+        ret = avfilter_graph_create_filter(&buffersrc_ctx, buffersrc, "in",//创建in
                 args, NULL, filter_graph);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot create buffer source\n");
             goto end;
         }
 
-        ret = avfilter_graph_create_filter(&buffersink_ctx, buffersink, "out",
+        ret = avfilter_graph_create_filter(&buffersink_ctx, buffersink, "out",//创建out
                 NULL, NULL, filter_graph);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Cannot create buffer sink\n");
@@ -512,41 +512,41 @@ int main(int argc, char **argv)
     unsigned int i;
     int got_frame;
     int (*dec_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
-
+	//转码参数，只有输入和输出文件
     if (argc != 3) {
         av_log(NULL, AV_LOG_ERROR, "Usage: %s <input file> <output file>\n", argv[0]);
         return 1;
     }
-
+	//打开输入，猜测解码，创建并开启每个流的上下文解码context，赋值在stream_ctx[i].dec_ctx 中
     if ((ret = open_input_file(argv[1])) < 0)
         goto end;
     if ((ret = open_output_file(argv[2])) < 0)
         goto end;
-    if ((ret = init_filters()) < 0)
+    if ((ret = init_filters()) < 0)//新建filter
         goto end;
 
     /* read all packets */
     while (1) {
-        if ((ret = av_read_frame(ifmt_ctx, &packet)) < 0)
+        if ((ret = av_read_frame(ifmt_ctx, &packet)) < 0)//读入一packet
             break;
-        stream_index = packet.stream_index;
+        stream_index = packet.stream_index;//流的index
         type = ifmt_ctx->streams[packet.stream_index]->codecpar->codec_type;
         av_log(NULL, AV_LOG_DEBUG, "Demuxer gave frame of stream_index %u\n",
                 stream_index);
 
         if (filter_ctx[stream_index].filter_graph) {
             av_log(NULL, AV_LOG_DEBUG, "Going to reencode&filter the frame\n");
-            frame = av_frame_alloc();
+            frame = av_frame_alloc();//取临时frame
             if (!frame) {
                 ret = AVERROR(ENOMEM);
                 break;
             }
             av_packet_rescale_ts(&packet,
                                  ifmt_ctx->streams[stream_index]->time_base,
-                                 stream_ctx[stream_index].dec_ctx->time_base);
+                                 stream_ctx[stream_index].dec_ctx->time_base);//时间
             dec_func = (type == AVMEDIA_TYPE_VIDEO) ? avcodec_decode_video2 :
                 avcodec_decode_audio4;
-            ret = dec_func(stream_ctx[stream_index].dec_ctx, frame,
+            ret = dec_func(stream_ctx[stream_index].dec_ctx, frame,//放入packet，尝试解一frame
                     &got_frame, &packet);
             if (ret < 0) {
                 av_frame_free(&frame);
@@ -554,7 +554,7 @@ int main(int argc, char **argv)
                 break;
             }
 
-            if (got_frame) {
+            if (got_frame) {//得到一帧
                 frame->pts = frame->best_effort_timestamp;
                 ret = filter_encode_write_frame(frame, stream_index);
                 av_frame_free(&frame);
@@ -563,13 +563,13 @@ int main(int argc, char **argv)
             } else {
                 av_frame_free(&frame);
             }
-        } else {
+        } else {//如果不用filter_graph
             /* remux this frame without reencoding */
             av_packet_rescale_ts(&packet,
                                  ifmt_ctx->streams[stream_index]->time_base,
                                  ofmt_ctx->streams[stream_index]->time_base);
 
-            ret = av_interleaved_write_frame(ofmt_ctx, &packet);
+            ret = av_interleaved_write_frame(ofmt_ctx, &packet);//直接写
             if (ret < 0)
                 goto end;
         }
@@ -595,7 +595,7 @@ int main(int argc, char **argv)
         }
     }
 
-    av_write_trailer(ofmt_ctx);
+    av_write_trailer(ofmt_ctx);//写文件尾
 end:
     av_packet_unref(&packet);
     av_frame_free(&frame);

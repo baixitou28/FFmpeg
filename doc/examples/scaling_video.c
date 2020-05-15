@@ -25,7 +25,7 @@
  * libswscale API use example.
  * @example scaling_video.c
  */
-
+//tiger 一个图片的缩放和格式转化
 #include <libavutil/imgutils.h>
 #include <libavutil/parseutils.h>
 #include <libswscale/swscale.h>
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     int dst_bufsize;
     struct SwsContext *sws_ctx;
     int i, ret;
-
+	//参数
     if (argc != 3) {
         fprintf(stderr, "Usage: %s output_file output_size\n"
                 "API example program to show how to scale an image with libswscale.\n"
@@ -72,22 +72,22 @@ int main(int argc, char **argv)
     }
     dst_filename = argv[1];
     dst_size     = argv[2];
-
+	//根据大小，计算长宽
     if (av_parse_video_size(&dst_w, &dst_h, dst_size) < 0) {
         fprintf(stderr,
                 "Invalid size '%s', must be in the form WxH or a valid size abbreviation\n",
                 dst_size);
         exit(1);
     }
-
+	//打开文件
     dst_file = fopen(dst_filename, "wb");
     if (!dst_file) {
         fprintf(stderr, "Could not open destination file %s\n", dst_filename);
         exit(1);
     }
-
+	//创建伸缩的上下文
     /* create scaling context */
-    sws_ctx = sws_getContext(src_w, src_h, src_pix_fmt,
+    sws_ctx = sws_getContext(src_w, src_h, src_pix_fmt,//宽，高，点阵格式
                              dst_w, dst_h, dst_pix_fmt,
                              SWS_BILINEAR, NULL, NULL, NULL);
     if (!sws_ctx) {
@@ -99,14 +99,14 @@ int main(int argc, char **argv)
         ret = AVERROR(EINVAL);
         goto end;
     }
-
+	//创建源buff
     /* allocate source and destination image buffers */
     if ((ret = av_image_alloc(src_data, src_linesize,
                               src_w, src_h, src_pix_fmt, 16)) < 0) {
         fprintf(stderr, "Could not allocate source image\n");
         goto end;
     }
-
+	//创建目标buffer
     /* buffer is going to be written to rawvideo file, no alignment */
     if ((ret = av_image_alloc(dst_data, dst_linesize,
                               dst_w, dst_h, dst_pix_fmt, 1)) < 0) {
@@ -117,14 +117,14 @@ int main(int argc, char **argv)
 
     for (i = 0; i < 100; i++) {
         /* generate synthetic video */
-        fill_yuv_image(src_data, src_linesize, src_w, src_h, i);
+        fill_yuv_image(src_data, src_linesize, src_w, src_h, i);//自动生成yuv数据，非文件读入
 
         /* convert to destination format */
-        sws_scale(sws_ctx, (const uint8_t * const*)src_data,
+        sws_scale(sws_ctx, (const uint8_t * const*)src_data,//开始伸缩转换
                   src_linesize, 0, src_h, dst_data, dst_linesize);
 
         /* write scaled image to file */
-        fwrite(dst_data[0], 1, dst_bufsize, dst_file);
+        fwrite(dst_data[0], 1, dst_bufsize, dst_file);//写
     }
 
     fprintf(stderr, "Scaling succeeded. Play the output file with the command:\n"

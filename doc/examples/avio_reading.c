@@ -28,7 +28,7 @@
  * AVIOContext read callback.
  * @example avio_reading.c
  */
-
+ //自定义读写，用文件映射方式，建立某块内存，来read；疑问是否有一个sdp，2个流的自定义的读写？
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
@@ -38,11 +38,11 @@ struct buffer_data {
     uint8_t *ptr;
     size_t size; ///< size left in the buffer
 };
-
+//自定义的读
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
     struct buffer_data *bd = (struct buffer_data *)opaque;
-    buf_size = FFMIN(buf_size, bd->size);
+    buf_size = FFMIN(buf_size, bd->size);//是否越界
 
     if (!buf_size)
         return AVERROR_EOF;
@@ -50,7 +50,7 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 
     /* copy internal buffer data to buf */
     memcpy(buf, bd->ptr, buf_size);
-    bd->ptr  += buf_size;
+    bd->ptr  += buf_size;//增长
     bd->size -= buf_size;
 
     return buf_size;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     char *input_filename = NULL;
     int ret = 0;
     struct buffer_data bd = { 0 };
-
+	//参数
     if (argc != 2) {
         fprintf(stderr, "usage: %s input_file\n"
                 "API example program to show how to read from a custom buffer "
@@ -73,49 +73,49 @@ int main(int argc, char *argv[])
         return 1;
     }
     input_filename = argv[1];
-
+	//文件映射，将文件映射到某个位置，buffer则指向这个位置，同时获取文件的大小到buffer_size
     /* slurp file content into buffer */
     ret = av_file_map(input_filename, &buffer, &buffer_size, 0, NULL);
     if (ret < 0)
         goto end;
-
+	//设置映射获取的内存地址和大小
     /* fill opaque structure used by the AVIOContext read callback */
     bd.ptr  = buffer;
     bd.size = buffer_size;
-
+	//自定义读写格式的上下文
     if (!(fmt_ctx = avformat_alloc_context())) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-
+	//创建自定义读写buffer，每次读取4096大小
     avio_ctx_buffer = av_malloc(avio_ctx_buffer_size);
     if (!avio_ctx_buffer) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-    avio_ctx = avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size,
+    avio_ctx = avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size,//创建自定义读写的上下文
                                   0, &bd, &read_packet, NULL, NULL);
     if (!avio_ctx) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-    fmt_ctx->pb = avio_ctx;
-
+    fmt_ctx->pb = avio_ctx;//放入自定义读写上下文中
+	//打开
     ret = avformat_open_input(&fmt_ctx, NULL, NULL, NULL);
     if (ret < 0) {
         fprintf(stderr, "Could not open input\n");
         goto end;
     }
-
-    ret = avformat_find_stream_info(fmt_ctx, NULL);
+	//根据文件内容，开启启发式搜索。这里没有用到文件名
+    ret = avformat_find_stream_info(fmt_ctx, NULL);//这里由这个函数，来调用自定义读写
     if (ret < 0) {
         fprintf(stderr, "Could not find stream information\n");
         goto end;
     }
-
+	//已经找到，输出第一个stream的格式
     av_dump_format(fmt_ctx, 0, input_filename, 0);
 
-end:
+end://需要更多的关闭
     avformat_close_input(&fmt_ctx);
 
     /* note: the internal buffer could have changed, and be != avio_ctx_buffer */

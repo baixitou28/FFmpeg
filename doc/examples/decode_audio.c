@@ -38,13 +38,13 @@
 
 #define AUDIO_INBUF_SIZE 20480
 #define AUDIO_REFILL_THRESH 4096
-
+//tiger 指定AV_CODEC_ID_MP2格式读取AV_CODEC_ID_MP2
 static void decode(AVCodecContext *dec_ctx, AVPacket *pkt, AVFrame *frame,
                    FILE *outfile)
 {
     int i, ch;
     int ret, data_size;
-
+	//将packet放入decode context
     /* send the packet with the compressed data to the decoder */
     ret = avcodec_send_packet(dec_ctx, pkt);
     if (ret < 0) {
@@ -53,21 +53,21 @@ static void decode(AVCodecContext *dec_ctx, AVPacket *pkt, AVFrame *frame,
     }
 
     /* read all the output frames (in general there may be any number of them */
-    while (ret >= 0) {
-        ret = avcodec_receive_frame(dec_ctx, frame);
+    while (ret >= 0) {//packet可能生成多个frame
+        ret = avcodec_receive_frame(dec_ctx, frame);//读frame
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             return;
         else if (ret < 0) {
             fprintf(stderr, "Error during decoding\n");
             exit(1);
         }
-        data_size = av_get_bytes_per_sample(dec_ctx->sample_fmt);
+        data_size = av_get_bytes_per_sample(dec_ctx->sample_fmt);//长度
         if (data_size < 0) {
             /* This should not occur, checking just for paranoia */
             fprintf(stderr, "Failed to calculate data size\n");
             exit(1);
         }
-        for (i = 0; i < frame->nb_samples; i++)
+        for (i = 0; i < frame->nb_samples; i++)//依次写
             for (ch = 0; ch < dec_ctx->channels; ch++)
                 fwrite(frame->data[ch] + data_size*i, 1, data_size, outfile);
     }
@@ -93,34 +93,34 @@ int main(int argc, char **argv)
     }
     filename    = argv[1];
     outfilename = argv[2];
-
+	//临时packet，中转用:注意packet和frame的区别
     pkt = av_packet_alloc();
-
+	//根据ID找到解码器
     /* find the MPEG audio decoder */
     codec = avcodec_find_decoder(AV_CODEC_ID_MP2);
     if (!codec) {
         fprintf(stderr, "Codec not found\n");
         exit(1);
     }
-
+	//解码器的解析模块
     parser = av_parser_init(codec->id);
     if (!parser) {
         fprintf(stderr, "Parser not found\n");
         exit(1);
     }
-
+	//解码器的上下文
     c = avcodec_alloc_context3(codec);
     if (!c) {
         fprintf(stderr, "Could not allocate audio codec context\n");
         exit(1);
     }
-
+	//
     /* open it */
     if (avcodec_open2(c, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
-
+	//打开输入输出文件
     f = fopen(filename, "rb");
     if (!f) {
         fprintf(stderr, "Could not open %s\n", filename);
@@ -131,19 +131,19 @@ int main(int argc, char **argv)
         av_free(c);
         exit(1);
     }
-
+	//先读一块
     /* decode until eof */
     data      = inbuf;
-    data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, f);
+    data_size = fread(inbuf, 1, AUDIO_INBUF_SIZE, f);//读入固定长度20k，这里不用考虑读的分割符，简单明了//这里的一般都是文件形式，而不是rtp形式
 
-    while (data_size > 0) {
+    while (data_size > 0) {//如果文件还可以读入
         if (!decoded_frame) {
             if (!(decoded_frame = av_frame_alloc())) {
                 fprintf(stderr, "Could not allocate audio frame\n");
                 exit(1);
             }
         }
-
+		//解析指定读入长度的数据，长度可能超过一帧，返回值ret，是已经解析完成的数据，解析完的数据放入pkt
         ret = av_parser_parse2(parser, c, &pkt->data, &pkt->size,
                                data, data_size,
                                AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
@@ -151,26 +151,26 @@ int main(int argc, char **argv)
             fprintf(stderr, "Error while parsing\n");
             exit(1);
         }
-        data      += ret;
+        data      += ret;//已解析完成的长度，
         data_size -= ret;
 
-        if (pkt->size)
+        if (pkt->size)//如果pkt里面有数据，进行下一步操作
             decode(c, pkt, decoded_frame, outfile);
 
-        if (data_size < AUDIO_REFILL_THRESH) {
+        if (data_size < AUDIO_REFILL_THRESH) {//如果剩余长度小于阈值，则继续读入
             memmove(inbuf, data, data_size);
             data = inbuf;
-            len = fread(data + data_size, 1,
+            len = fread(data + data_size, 1,//读
                         AUDIO_INBUF_SIZE - data_size, f);
-            if (len > 0)
+            if (len > 0)//也可能已经结束了，没有数据了
                 data_size += len;
         }
     }
 
     /* flush the decoder */
-    pkt->data = NULL;
+    pkt->data = NULL;		
     pkt->size = 0;
-    decode(c, pkt, decoded_frame, outfile);
+    decode(c, pkt, decoded_frame, outfile);//pkt指定为0，强制结束
 
     fclose(outfile);
     fclose(f);
