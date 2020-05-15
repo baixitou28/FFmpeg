@@ -55,7 +55,7 @@ if test "$E1" != 0 || test "$E2" = 0; then
 fi
 
 test -d /usr/xpg4/bin && PATH=/usr/xpg4/bin:$PATH
-#tiger 帮助
+#tiger 帮助，这里也可以这么做：list-protocols
 show_help(){
     cat <<EOF
 Usage: configure [options]
@@ -93,14 +93,14 @@ Standard options:
                            not part of the dynamic linker search path
                            use rpath when linking programs (USE WITH CARE)
   --install-name-dir=DIR   Darwin directory name for installed targets
-
+#对于某些公司nonfree还是重要的
 Licensing options:
   --enable-gpl             allow use of GPL code, the resulting libs
                            and binaries will be under GPL [no]
   --enable-version3        upgrade (L)GPL to version 3 [no]
   --enable-nonfree         allow use of nonfree code, the resulting libs
                            and binaries will be unredistributable [no]
-
+#tiger 默认编译静态，不编动态？
 Configuration options:
   --disable-static         do not build static libraries [no]
   --enable-shared          build shared libraries [no]
@@ -110,20 +110,20 @@ Configuration options:
   --disable-swscale-alpha  disable alpha channel support in swscale
   --disable-all            disable building components, libraries and programs
   --disable-autodetect     disable automatically detected external libraries [no]
-
+#可以不编译命令，比如只是开发版
 Program options:
   --disable-programs       do not build command line programs
   --disable-ffmpeg         disable ffmpeg build
   --disable-ffplay         disable ffplay build
   --disable-ffprobe        disable ffprobe build
-
+#稳定不编译省下不少空间
 Documentation options:
   --disable-doc            do not build documentation
   --disable-htmlpages      do not build HTML documentation pages
   --disable-manpages       do not build man documentation pages
   --disable-podpages       do not build POD documentation pages
   --disable-txtpages       do not build text documentation pages
-
+#某些模块不编译
 Component options:
   --disable-avdevice       disable libavdevice build
   --disable-avcodec        disable libavcodec build
@@ -147,7 +147,7 @@ Component options:
   --disable-fft            disable FFT code
   --disable-faan           disable floating point AAN (I)DCT code
   --disable-pixelutils     disable pixel utils in libavutil
-
+#某些component如编解码等
 Individual component options:
   --disable-everything     disable all components listed below
   --disable-encoder=NAME   disable encoder NAME
@@ -199,7 +199,7 @@ External library support:
 
   Also note that the following help text describes the purpose of the libraries
   themselves, not all their features will necessarily be usable by FFmpeg.
-
+#tiger 某些库
   --disable-alsa           disable ALSA support [autodetect]
   --disable-appkit         disable Apple AppKit framework [autodetect]
   --disable-avfoundation   disable Apple AVFoundation framework [autodetect]
@@ -340,7 +340,7 @@ External library support:
   --disable-vaapi          disable Video Acceleration API (mainly Unix/Intel) code [autodetect]
   --disable-vdpau          disable Nvidia Video Decode and Presentation API for Unix code [autodetect]
   --disable-videotoolbox   disable VideoToolbox code [autodetect]
-
+#tiger toolchain相关
 Toolchain options:
   --arch=ARCH              select architecture [$arch]
   --cpu=CPU                select the minimum required CPU (affects
@@ -399,7 +399,7 @@ Toolchain options:
   --enable-thumb           compile for Thumb instruction set
   --enable-lto             use link-time optimization
   --env="ENV=override"     override the environment variables
-
+# tiger 高级选项，disable-safe-bitstream-reader 会快一点？
 Advanced options (experts only):
   --malloc-prefix=PREFIX   prefix malloc and related names with PREFIX
   --custom-allocator=NAME  use a supported custom allocator
@@ -409,7 +409,7 @@ Advanced options (experts only):
                            disable buffer boundary checking in bitreaders
                            (faster, but may crash)
   --sws-max-filter-size=N  the max filter size swscale uses [$sws_max_filter_size_default]
-
+#tiger 关闭某些针对cpu的优化，测试对比？
 Optimization options (experts only):
   --disable-asm            disable all assembly optimizations
   --disable-altivec        disable AltiVec optimizations
@@ -446,7 +446,7 @@ Optimization options (experts only):
   --disable-mipsfpu        disable floating point MIPS optimizations
   --disable-mmi            disable Loongson SIMD optimizations
   --disable-fast-unaligned consider unaligned accesses slow
-
+#tiger program  调试代码最好是disable-optimizations， --enable-linux-perf 
 Developer options (useful when working on FFmpeg itself):
   --disable-debug          disable debugging symbols
   --enable-debug=LEVEL     set the debug level [$debuglevel]
@@ -499,7 +499,7 @@ if test -t 1 && which tput >/dev/null 2>&1; then
     ncols=$(tput cols)
 fi
 : ${ncols:=72}
-#tiger 几种日志类型
+#tiger configure时候的几种日志类型
 log(){
     echo "$@" >> $logfile
 }
@@ -7243,7 +7243,7 @@ echo "config:$arch:$subarch:$cpu:$target_os:$(esc $cc_ident):$(esc $FFMPEG_CONFI
 
 enabled stripping || strip="echo skipping strip"
 enabled stripping || striptype=""
-#tiger configure 动态生成的配置文件 config_files:config.h config.mak config.texi
+#tiger configure 动态生成的配置文件 config_files:config.h config.mak doc/config.texi
 config_files="$TMPH ffbuild/config.mak doc/config.texi"
 
 cat > ffbuild/config.mak <<EOF
@@ -7423,7 +7423,7 @@ if enabled x86asm; then
 ; Automatically generated by configure - do not modify!
 EOF
 fi
-#tiger configure 疑问：打印什么不知道
+#tiger configure 生成doc/config.texi 可以动态生成适配的文档
 enabled getenv || echo "#define getenv(x) NULL" >> $TMPH
 
 
@@ -7536,4 +7536,5 @@ for lib in $LIBRARY_LIST; do
 done
 #tiger configure 生成文件config.sh 根目录的Makefile include library.mak文件，library.mak 的 all-$(CONFIG_STATIC) 依赖 $(SUBDIR)lib$(FULLNAME).pc ，它再依赖config.sh,生成libavcodec.pc等
 cp_if_changed $TMPH ffbuild/config.sh
-#tiger 总结：生成config.mak config.asm config.h ffbuild/config.sh，其他的common.mak libversion.h pkgconfig_generate.sh?
+#tiger 总结：生成config.mak config.asm config.h ffbuild/config.sh，doc/config.texi 其他的common.mak libversion.h pkgconfig_generate.sh 已经存在，不是自动生成
+#  configure命令有很多选项，也能探测用户已存在的库，进行更多的配置如valgrind
