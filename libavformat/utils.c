@@ -3571,7 +3571,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
     AVStream *st;
     AVCodecContext *avctx;//指向内部的结构体st->internal->avctx
     AVPacket pkt1, *pkt;
-    int64_t old_offset  = avio_tell(ic->pb);
+    int64_t old_offset  = avio_tell(ic->pb);//自定义
     // new streams might appear, no options for those
     int orig_nb_streams = ic->nb_streams;
     int flush_codecs;
