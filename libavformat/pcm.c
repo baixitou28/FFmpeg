@@ -38,7 +38,7 @@ int ff_pcm_read_packet(AVFormatContext *s, AVPacket *pkt)
      * Compute read size to complete a read every 62ms.
      * Clamp to RAW_SAMPLES if larger.
      */
-    size = FFMAX(par->sample_rate/25, 1);//par->sample_rate 44100，44100/25=1764，但我测试的8k，8*1024/25
+    size = FFMAX(par->sample_rate/25, 1);//par->sample_rate 44100，44100/25=1764，但我测试的8k，8*1024/25=327.68  这里有累计误差吗？
     size = FFMIN(size, RAW_SAMPLES) * par->block_align;//最多是1024
 
     ret = av_get_packet(s->pb, pkt, size);//取一固定长度

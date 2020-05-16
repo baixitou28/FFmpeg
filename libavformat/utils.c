@@ -269,7 +269,7 @@ int ffio_limit(AVIOContext *s, int size)
 static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)
 {
     int64_t orig_pos   = pkt->pos; // av_grow_packet might reset pos
-    int orig_size      = pkt->size;
+    int orig_size      = pkt->size;//允许pkt原来有数据
     int ret;
 
     do {
@@ -279,32 +279,32 @@ static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)
         /* When the caller requests a lot of data, limit it to the amount
          * left in file or SANE_CHUNK_SIZE when it is not known. */
         read_size = size;
-        if (read_size > SANE_CHUNK_SIZE/10) {
-            read_size = ffio_limit(s, read_size);
+        if (read_size > SANE_CHUNK_SIZE/10) {//修正read_size范围，不要太大
+            read_size = ffio_limit(s, read_size);//io 可能没这么大，根据io长度修正read_size读数。
             // If filesize/maxsize is unknown, limit to SANE_CHUNK_SIZE
             if (s->maxsize < 0)
                 read_size = FFMIN(read_size, SANE_CHUNK_SIZE);
         }
-
+        //tiger
         ret = av_grow_packet(pkt, read_size);
         if (ret < 0)
             break;
 
         ret = avio_read(s, pkt->data + prev_size, read_size);
-        if (ret != read_size) {
-            av_shrink_packet(pkt, prev_size + FFMAX(ret, 0));
+        if (ret != read_size) {//如果没有读到修正后的read_size，说明读有点问题？还是放弃读比较安全
+            av_shrink_packet(pkt, prev_size + FFMAX(ret, 0));//调整pkt的大小
             break;
         }
-
-        size -= read_size;
-    } while (size > 0);
+        //能够安全读，可以尝试再读。
+        size -= read_size;//
+    } while (size > 0);//如果还没有读全
     if (size > 0)
-        pkt->flags |= AV_PKT_FLAG_CORRUPT;
+        pkt->flags |= AV_PKT_FLAG_CORRUPT;//如果size不为零，因为种种原因说明读不全，标记包未读全。
 
-    pkt->pos = orig_pos;
-    if (!pkt->size)
+    pkt->pos = orig_pos;//恢复原来的位置
+    if (!pkt->size)//如果没有读到数据，要自己释放pkt
         av_packet_unref(pkt);
-    return pkt->size > orig_size ? pkt->size - orig_size : ret;
+    return pkt->size > orig_size ? pkt->size - orig_size : ret;//减去原来的长度orig_size，就是读到的长度
 }
 
 int av_get_packet(AVIOContext *s, AVPacket *pkt, int size)

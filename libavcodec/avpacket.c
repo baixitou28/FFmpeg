@@ -105,29 +105,29 @@ void av_shrink_packet(AVPacket *pkt, int size)
     pkt->size = size;
     memset(pkt->data + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 }
-
+//TIGER
 int av_grow_packet(AVPacket *pkt, int grow_by)
 {
     int new_size;
     av_assert0((unsigned)pkt->size <= INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE);
     if ((unsigned)grow_by >
         INT_MAX - (pkt->size + AV_INPUT_BUFFER_PADDING_SIZE))
-        return AVERROR(ENOMEM);
+        return AVERROR(ENOMEM);//grow_by长度太大了，INT_MAX 这个值设得太大了吧
 
-    new_size = pkt->size + grow_by + AV_INPUT_BUFFER_PADDING_SIZE;
+    new_size = pkt->size + grow_by + AV_INPUT_BUFFER_PADDING_SIZE;//考虑对齐
     if (pkt->buf) {
         size_t data_offset;
         uint8_t *old_data = pkt->data;
-        if (pkt->data == NULL) {
+        if (pkt->data == NULL) {//如果为0，直接指向buff
             data_offset = 0;
             pkt->data = pkt->buf->data;
         } else {
-            data_offset = pkt->data - pkt->buf->data;
-            if (data_offset > INT_MAX - new_size)
+            data_offset = pkt->data - pkt->buf->data;//如果不为零，算出offset
+            if (data_offset > INT_MAX - new_size)//验证data_offset 的长度是否合理
                 return AVERROR(ENOMEM);
         }
 
-        if (new_size + data_offset > pkt->buf->size) {
+        if (new_size + data_offset > pkt->buf->size) {//如果内存不够大，重新分配
             int ret = av_buffer_realloc(&pkt->buf, new_size + data_offset);
             if (ret < 0) {
                 pkt->data = old_data;
@@ -135,16 +135,16 @@ int av_grow_packet(AVPacket *pkt, int grow_by)
             }
             pkt->data = pkt->buf->data + data_offset;
         }
-    } else {
-        pkt->buf = av_buffer_alloc(new_size);
+    } else {// pkt->buf还未分配内存
+        pkt->buf = av_buffer_alloc(new_size);//分配内存
         if (!pkt->buf)
             return AVERROR(ENOMEM);
         if (pkt->size > 0)
-            memcpy(pkt->buf->data, pkt->data, pkt->size);
-        pkt->data = pkt->buf->data;
+            memcpy(pkt->buf->data, pkt->data, pkt->size);//复制原有的数据
+        pkt->data = pkt->buf->data;//data指向新的buff， //疑问：pkt->data需要释放内存吗？
     }
-    pkt->size += grow_by;
-    memset(pkt->data + pkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    pkt->size += grow_by;//更改长度
+    memset(pkt->data + pkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);//对齐部分，填0,需要吗？
 
     return 0;
 }
