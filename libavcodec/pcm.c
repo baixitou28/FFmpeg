@@ -50,7 +50,7 @@ static av_cold int pcm_encode_init(AVCodecContext *avctx)
     }
     //alaw 的话编码后，8bit，8k，mon的话，64kbit
     avctx->bits_per_coded_sample = av_get_bits_per_sample(avctx->codec->id);//每次sample后是8bit
-    avctx->block_align           = avctx->channels * avctx->bits_per_coded_sample / 8;//block_align为1
+    avctx->block_align           = avctx->channels * avctx->bits_per_coded_sample / 8;//block_align为1, 立体声应该是2
     avctx->bit_rate              = avctx->block_align * 8LL * avctx->sample_rate;//block_align一般为1，8k，所以比特率是64kit
 
     return 0;
@@ -73,11 +73,11 @@ static av_cold int pcm_encode_init(AVCodecContext *avctx)
         bytestream_put_ ## endian(&dst, v);                             \
     }
 
-#define ENCODE_PLANAR(type, endian, dst, n, shift, offset)              \
-    n /= avctx->channels;                                               \
+#define ENCODE_PLANAR(type, endian, dst, n, shift, offset)              \//tiger Packed: L R L R L R L R， Planar: L L L L R R R R
+    n /= avctx->channels;                                               \//和声道数channels有关
     for (c = 0; c < avctx->channels; c++) {                             \
         int i;                                                          \
-        samples_ ## type = (const type *) frame->extended_data[c];      \
+        samples_ ## type = (const type *) frame->extended_data[c];      \//从extended_data中获取，位置不同
         for (i = n; i > 0; i--) {                                       \
             register type v = (*samples_ ## type++ >> shift) + offset;  \
             bytestream_put_ ## endian(&dst, v);                         \
@@ -97,7 +97,7 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     const uint16_t *samples_uint16_t;
     const uint32_t *samples_uint32_t;
 
-    sample_size = av_get_bits_per_sample(avctx->codec->id) / 8;
+    sample_size = av_get_bits_per_sample(avctx->codec->id) / 8;//
     n           = frame->nb_samples * avctx->channels;
     samples     = (const short *)frame->data[0];
 
@@ -107,16 +107,16 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
 
     switch (avctx->codec->id) {
     case AV_CODEC_ID_PCM_U32LE:
-        ENCODE(uint32_t, le32, samples, dst, n, 0, 0x80000000)
+        ENCODE(uint32_t, le32, samples, dst, n, 0, 0x80000000)//这里le32 是little dedian的缩写
         break;
     case AV_CODEC_ID_PCM_U32BE:
         ENCODE(uint32_t, be32, samples, dst, n, 0, 0x80000000)
         break;
     case AV_CODEC_ID_PCM_S24LE:
-        ENCODE(int32_t, le24, samples, dst, n, 8, 0)
+        ENCODE(int32_t, le24, samples, dst, n, 8, 0)//shift 8 没有见过
         break;
     case AV_CODEC_ID_PCM_S24LE_PLANAR:
-        ENCODE_PLANAR(int32_t, le24, dst, n, 8, 0)
+        ENCODE_PLANAR(int32_t, le24, dst, n, 8, 0)//tiger Packed: L R L R L R L R， Planar: L L L L R R R R
         break;
     case AV_CODEC_ID_PCM_S24BE:
         ENCODE(int32_t, be24, samples, dst, n, 8, 0)
@@ -201,20 +201,20 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     case AV_CODEC_ID_PCM_S16LE_PLANAR:
     case AV_CODEC_ID_PCM_S32LE_PLANAR:
 #endif /* HAVE_BIGENDIAN */
-        n /= avctx->channels;
-        for (c = 0; c < avctx->channels; c++) {
-            const uint8_t *src = frame->extended_data[c];
+        n /= avctx->channels;//每声道多少个，
+        for (c = 0; c < avctx->channels; c++) {//几个声道执行几次
+            const uint8_t *src = frame->extended_data[c];//取地址，在extended_data
             bytestream_put_buffer(&dst, src, n * sample_size);
         }
         break;
     case AV_CODEC_ID_PCM_ALAW://TIGER PCM ALAW
-        for (; n > 0; n--) {
-            v      = *samples++;//注意这个samples的单位是short，数据是13位
+        for (; n > 0; n--) {//一个字节转换一次
+            v      = *samples++;//注意这个samples的单位是short，数据是13位,借用16位
             *dst++ = linear_to_alaw[(v + 32768) >> 2];//映射//TIGER PCM ALAW 关键代码
         }
         break;
     case AV_CODEC_ID_PCM_MULAW:
-        for (; n > 0; n--) {
+        for (; n > 0; n--) {//每字节转化
             v      = *samples++;
             *dst++ = linear_to_ulaw[(v + 32768) >> 2];
         }
@@ -229,7 +229,7 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
         return -1;
     }
 
-    *got_packet_ptr = 1;//标记编码成功
+    *got_packet_ptr = 1;//标记编码成功，对于pcm，几乎就没有失败的
     return 0;
 }
 
@@ -244,14 +244,14 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
     PCMDecode *s = avctx->priv_data;
     int i;
 
-    if (avctx->channels <= 0) {
+    if (avctx->channels <= 0) {//如果没有声道数
         av_log(avctx, AV_LOG_ERROR, "PCM channels out of bounds\n");
         return AVERROR(EINVAL);
     }
 
-    switch (avctx->codec_id) {
+    switch (avctx->codec_id) {//根据声音的编码ID选择
     case AV_CODEC_ID_PCM_ALAW:
-        for (i = 0; i < 256; i++)
+        for (i = 0; i < 256; i++)//2固定的56字节处理，如果不足256呢？
             s->table[i] = alaw2linear(i);//TIGER PCM 初始化
         break;
     case AV_CODEC_ID_PCM_MULAW:
@@ -262,7 +262,7 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
         for (i = 0; i < 256; i++)
             s->table[i] = vidc2linear(i);
         break;
-    case AV_CODEC_ID_PCM_F16LE:
+    case AV_CODEC_ID_PCM_F16LE://浮点
     case AV_CODEC_ID_PCM_F24LE:
         if (avctx->bits_per_coded_sample < 1 || avctx->bits_per_coded_sample > 24)
             return AVERROR_INVALIDDATA;

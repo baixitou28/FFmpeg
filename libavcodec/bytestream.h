@@ -29,29 +29,29 @@
 #include "libavutil/avassert.h"
 #include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
-
+//tiger 有了这个context 更好的记录：字符串的指针，起始位置
 typedef struct GetByteContext {
     const uint8_t *buffer, *buffer_end, *buffer_start;
 } GetByteContext;
-
+//tiger 有了这个context 更好的记录：字符串的指针，起始位置
 typedef struct PutByteContext {
     uint8_t *buffer, *buffer_end, *buffer_start;
     int eof;
 } PutByteContext;
-
+//tiger bytestream_put_ 定义
 #define DEF(type, name, bytes, read, write)                                  \
-static av_always_inline type bytestream_get_ ## name(const uint8_t **b)        \
+static av_always_inline type bytestream_get_ ## name(const uint8_t **b)        \//TIGER 
 {                                                                              \
-    (*b) += bytes;                                                             \
+    (*b) += bytes;                                                             \//末尾的地址计算出开始的位置
     return read(*b - bytes);                                                   \
 }                                                                              \
 static av_always_inline void bytestream_put_ ## name(uint8_t **b,              \
                                                      const type value)         \
 {                                                                              \
-    write(*b, value);                                                          \
+    write(*b, value);                                                          \//
     (*b) += bytes;                                                             \
 }                                                                              \
-static av_always_inline void bytestream2_put_ ## name ## u(PutByteContext *p,  \
+static av_always_inline void bytestream2_put_ ## name ## u(PutByteContext *p,  \//tiger 用PutByteContext
                                                            const type value)   \
 {                                                                              \
     bytestream_put_ ## name(&p->buffer, value);                                \
@@ -60,10 +60,10 @@ static av_always_inline void bytestream2_put_ ## name(PutByteContext *p,       \
                                                       const type value)        \
 {                                                                              \
     if (!p->eof && (p->buffer_end - p->buffer >= bytes)) {                     \
-        write(p->buffer, value);                                               \
+        write(p->buffer, value);                                               \//没有结束，也足够写，
         p->buffer += bytes;                                                    \
     } else                                                                     \
-        p->eof = 1;                                                            \
+        p->eof = 1;                                                            \//写不下了
 }                                                                              \
 static av_always_inline type bytestream2_get_ ## name ## u(GetByteContext *g)  \
 {                                                                              \
@@ -194,12 +194,12 @@ static av_always_inline int bytestream2_tell_p(PutByteContext *p)
 {
     return (int)(p->buffer - p->buffer_start);
 }
-
+//tiger 长度
 static av_always_inline int bytestream2_size(GetByteContext *g)
 {
     return (int)(g->buffer_end - g->buffer_start);
 }
-
+//tiger putContext 的长度
 static av_always_inline int bytestream2_size_p(PutByteContext *p)
 {
     return (int)(p->buffer_end - p->buffer_start);
@@ -355,7 +355,7 @@ static av_always_inline unsigned int bytestream2_copy_buffer(PutByteContext *p,
 
     return bytestream2_copy_bufferu(p, g, size2);
 }
-
+//tiger 从bytestream 里
 static av_always_inline unsigned int bytestream_get_buffer(const uint8_t **b,
                                                            uint8_t *dst,
                                                            unsigned int size)
@@ -364,7 +364,7 @@ static av_always_inline unsigned int bytestream_get_buffer(const uint8_t **b,
     (*b) += size;
     return size;
 }
-
+//tiger 放到bytestream里
 static av_always_inline void bytestream_put_buffer(uint8_t **b,
                                                    const uint8_t *src,
                                                    unsigned int size)
