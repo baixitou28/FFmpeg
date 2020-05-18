@@ -243,22 +243,22 @@ int av_format_get_probe_score(const AVFormatContext *s)
 
 /* an arbitrarily chosen "sane" max packet size -- 50M */
 #define SANE_CHUNK_SIZE (50000000)
-
+//tiger 有点绕 ==> 没完全理解
 int ffio_limit(AVIOContext *s, int size)
 {
-    if (s->maxsize>= 0) {
+    if (s->maxsize>= 0) {//如果s->maxsize不为负
         int64_t remaining= s->maxsize - avio_tell(s);
-        if (remaining < size) {
+        if (remaining < size) {//而且剩余的长度比最大值还小，
             int64_t newsize = avio_size(s);
             if (!s->maxsize || s->maxsize<newsize)
-                s->maxsize = newsize - !newsize;
-            remaining= s->maxsize - avio_tell(s);
-            remaining= FFMAX(remaining, 0);
+                s->maxsize = newsize - !newsize;//如果最大值为0 或者小于newsize，则设置为newsize，
+            remaining= s->maxsize - avio_tell(s);//需要调整为
+            remaining= FFMAX(remaining, 0);//至少为0
         }
 
-        if (s->maxsize>= 0 && remaining+1 < size) {
+        if (s->maxsize>= 0 && remaining+1 < size) {//如果？
             av_log(NULL, remaining ? AV_LOG_ERROR : AV_LOG_DEBUG, "Truncating packet of size %d to %"PRId64"\n", size, remaining+1);
-            size = remaining+1;
+            size = remaining+1;//多读1个字节？
         }
     }
     return size;
@@ -266,7 +266,7 @@ int ffio_limit(AVIOContext *s, int size)
 
 /* Read the data in sane-sized chunks and append to pkt.
  * Return the number of bytes read or an error. */
-static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)
+static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)//少量多次循环读avio_read，可能循环多次。内存不够自动分配
 {
     int64_t orig_pos   = pkt->pos; // av_grow_packet might reset pos
     int orig_size      = pkt->size;//允许pkt原来有数据
@@ -279,18 +279,18 @@ static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)
         /* When the caller requests a lot of data, limit it to the amount
          * left in file or SANE_CHUNK_SIZE when it is not known. */
         read_size = size;
-        if (read_size > SANE_CHUNK_SIZE/10) {//修正read_size范围，不要太大
+        if (read_size > SANE_CHUNK_SIZE/10) {//修正read_size范围，不要太大，但SANE_CHUNK_SIZE/10 也有5M，够大的
             read_size = ffio_limit(s, read_size);//io 可能没这么大，根据io长度修正read_size读数。
             // If filesize/maxsize is unknown, limit to SANE_CHUNK_SIZE
-            if (s->maxsize < 0)
-                read_size = FFMIN(read_size, SANE_CHUNK_SIZE);
+            if (s->maxsize < 0)//tiger 注释说负数为不知道的情况
+                read_size = FFMIN(read_size, SANE_CHUNK_SIZE);//好吧，我就只能填个50M
         }
-        //tiger
+        //tiger 分配read_size内存
         ret = av_grow_packet(pkt, read_size);
         if (ret < 0)
             break;
 
-        ret = avio_read(s, pkt->data + prev_size, read_size);
+        ret = avio_read(s, pkt->data + prev_size, read_size);//pkt->data的基础上，再读取read_size。
         if (ret != read_size) {//如果没有读到修正后的read_size，说明读有点问题？还是放弃读比较安全
             av_shrink_packet(pkt, prev_size + FFMAX(ret, 0));//调整pkt的大小
             break;
@@ -299,14 +299,14 @@ static int append_packet_chunked(AVIOContext *s, AVPacket *pkt, int size)
         size -= read_size;//
     } while (size > 0);//如果还没有读全
     if (size > 0)
-        pkt->flags |= AV_PKT_FLAG_CORRUPT;//如果size不为零，因为种种原因说明读不全，标记包未读全。
+        pkt->flags |= AV_PKT_FLAG_CORRUPT;//如果size不为零，说明因为种种原因说明读不全，标记包未读全。
 
     pkt->pos = orig_pos;//恢复原来的位置
     if (!pkt->size)//如果没有读到数据，要自己释放pkt
         av_packet_unref(pkt);
     return pkt->size > orig_size ? pkt->size - orig_size : ret;//减去原来的长度orig_size，就是读到的长度
 }
-
+//读size的长度，可能要重新分配内存
 int av_get_packet(AVIOContext *s, AVPacket *pkt, int size)
 {
     av_init_packet(pkt);
@@ -314,14 +314,14 @@ int av_get_packet(AVIOContext *s, AVPacket *pkt, int size)
     pkt->size = 0;
     pkt->pos  = avio_tell(s);
 
-    return append_packet_chunked(s, pkt, size);
+    return append_packet_chunked(s, pkt, size);//循环读，内存不够自动分配
 }
-
+//追加读size长度，自己保证pkt有这个长度
 int av_append_packet(AVIOContext *s, AVPacket *pkt, int size)
 {
-    if (!pkt->size)
+    if (!pkt->size)//如果pkt长度为0，先分配size的长度
         return av_get_packet(s, pkt, size);
-    return append_packet_chunked(s, pkt, size);
+    return append_packet_chunked(s, pkt, size);//循环读，内存不够自动分配
 }
 
 int av_filename_number_test(const char *filename)

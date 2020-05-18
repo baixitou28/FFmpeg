@@ -1457,7 +1457,7 @@ typedef struct AVPacket {
      * stored.
      * May be NULL, then the packet data is not reference-counted.
      */
-    AVBufferRef *buf;
+    AVBufferRef *buf;//实际分配的内存
     /**
      * Presentation timestamp in AVStream->time_base units; the time at which
      * the decompressed packet will be presented to the user.
@@ -1474,8 +1474,8 @@ typedef struct AVPacket {
      * Can be AV_NOPTS_VALUE if it is not stored in the file.
      */
     int64_t dts;
-    uint8_t *data;
-    int   size;
+    uint8_t *data;//数据的当前地址，指向buf的某个位置
+    int   size;//可存放数据的长度，不是实际数据的长度
     int   stream_index;
     /**
      * A combination of AV_PKT_FLAG values

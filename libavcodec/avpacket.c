@@ -105,20 +105,20 @@ void av_shrink_packet(AVPacket *pkt, int size)
     pkt->size = size;
     memset(pkt->data + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 }
-//TIGER
+//TIGER buf增加grow_by的长度
 int av_grow_packet(AVPacket *pkt, int grow_by)
 {
     int new_size;
     av_assert0((unsigned)pkt->size <= INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE);
     if ((unsigned)grow_by >
         INT_MAX - (pkt->size + AV_INPUT_BUFFER_PADDING_SIZE))
-        return AVERROR(ENOMEM);//grow_by长度太大了，INT_MAX 这个值设得太大了吧
+        return AVERROR(ENOMEM);//grow_by长度太大了，但INT_MAX 这个值也设得太大了吧
 
-    new_size = pkt->size + grow_by + AV_INPUT_BUFFER_PADDING_SIZE;//考虑对齐
+    new_size = pkt->size + grow_by + AV_INPUT_BUFFER_PADDING_SIZE;//原有的长度，再加上增加的长度，并考虑对齐
     if (pkt->buf) {
         size_t data_offset;
         uint8_t *old_data = pkt->data;
-        if (pkt->data == NULL) {//如果为0，直接指向buff
+        if (pkt->data == NULL) {//如果为0，没有处理过数据，直接指向buff
             data_offset = 0;
             pkt->data = pkt->buf->data;
         } else {
@@ -133,7 +133,7 @@ int av_grow_packet(AVPacket *pkt, int grow_by)
                 pkt->data = old_data;
                 return ret;
             }
-            pkt->data = pkt->buf->data + data_offset;
+            pkt->data = pkt->buf->data + data_offset;//重新设置
         }
     } else {// pkt->buf还未分配内存
         pkt->buf = av_buffer_alloc(new_size);//分配内存
@@ -141,7 +141,7 @@ int av_grow_packet(AVPacket *pkt, int grow_by)
             return AVERROR(ENOMEM);
         if (pkt->size > 0)
             memcpy(pkt->buf->data, pkt->data, pkt->size);//复制原有的数据
-        pkt->data = pkt->buf->data;//data指向新的buff， //疑问：pkt->data需要释放内存吗？
+        pkt->data = pkt->buf->data;//data指向新的buff， //疑问：pkt->data需要释放内存吗？==>如果buf为0，data是可能有地址的。
     }
     pkt->size += grow_by;//更改长度
     memset(pkt->data + pkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);//对齐部分，填0,需要吗？
