@@ -514,8 +514,8 @@ void parse_loglevel(int argc, char **argv, const OptionDef *options)
         idx = locate_option(argc, argv, options, "v");
     if (idx && argv[idx + 1])
         opt_loglevel(NULL, "loglevel", argv[idx + 1]);
-    idx = locate_option(argc, argv, options, "report");
-    if ((env = getenv("FFREPORT")) || idx) {
+    idx = locate_option(argc, argv, options, "report");//用参数开启统计
+    if ((env = getenv("FFREPORT")) || idx) {//用环境变量开启统计
         init_report(env);
         if (report_file) {
             int i;

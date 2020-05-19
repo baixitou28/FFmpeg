@@ -22,7 +22,7 @@
  * @file
  * simple media player based on the FFmpeg libraries
  */
-
+//参考：雷神 https://blog.csdn.net/leixiaohua1020/article/details/40525591
 #include "config.h"
 #include <inttypes.h>
 #include <math.h>
@@ -77,9 +77,9 @@ const int program_birth_year = 2003;
 #define SDL_VOLUME_STEP (0.75)
 
 /* no AV sync correction is done if below the minimum AV sync threshold */
-#define AV_SYNC_THRESHOLD_MIN 0.04
+#define AV_SYNC_THRESHOLD_MIN 0.04//25帧
 /* AV sync correction is done if above the maximum AV sync threshold */
-#define AV_SYNC_THRESHOLD_MAX 0.1
+#define AV_SYNC_THRESHOLD_MAX 0.1//10帧
 /* If a frame duration is longer than this, it will not be duplicated to compensate AV sync */
 #define AV_SYNC_FRAMEDUP_THRESHOLD 0.1
 /* no AV correction is done if too big error */
@@ -268,7 +268,7 @@ typedef struct VideoState {
     int rdft_bits;
     FFTSample *rdft_data;
     int xpos;
-    double last_vis_time;
+    double last_vis_time;//最后一次刷新时间：秒
     SDL_Texture *vis_texture;
     SDL_Texture *sub_texture;
     SDL_Texture *vid_texture;
@@ -277,7 +277,7 @@ typedef struct VideoState {
     AVStream *subtitle_st;
     PacketQueue subtitleq;
 
-    double frame_timer;
+    double frame_timer;//得到frame的时间，秒
     double frame_last_returned_time;
     double frame_last_filter_delay;
     int video_stream;
@@ -729,7 +729,7 @@ static void frame_queue_signal(FrameQueue *f)
 //
 static Frame *frame_queue_peek(FrameQueue *f)
 {
-    return &f->queue[(f->rindex + f->rindex_shown) % f->max_size];
+    return &f->queue[(f->rindex + f->rindex_shown) % f->max_size];//避免溢出，使用f->max_size做余数
 }
 //
 static Frame *frame_queue_peek_next(FrameQueue *f)
@@ -783,7 +783,7 @@ static void frame_queue_push(FrameQueue *f)
     SDL_CondSignal(f->cond);
     SDL_UnlockMutex(f->mutex);
 }
-//
+//消费当前帧，进入下一帧
 static void frame_queue_next(FrameQueue *f)
 {
     if (f->keep_last && !f->rindex_shown) {
@@ -957,11 +957,11 @@ static int upload_texture(SDL_Texture **tex, AVFrame *frame, struct SwsContext *
 
 static void set_sdl_yuv_conversion_mode(AVFrame *frame)
 {
-#if SDL_VERSION_ATLEAST(2,0,8)
+#if SDL_VERSION_ATLEAST(2,0,8)//TIGER CENTOS 8正好是2.0.8
     SDL_YUV_CONVERSION_MODE mode = SDL_YUV_CONVERSION_AUTOMATIC;
     if (frame && (frame->format == AV_PIX_FMT_YUV420P || frame->format == AV_PIX_FMT_YUYV422 || frame->format == AV_PIX_FMT_UYVY422)) {
         if (frame->color_range == AVCOL_RANGE_JPEG)
-            mode = SDL_YUV_CONVERSION_JPEG;
+            mode = SDL_YUV_CONVERSION_JPEG;//一般用这个
         else if (frame->colorspace == AVCOL_SPC_BT709)
             mode = SDL_YUV_CONVERSION_BT709;
         else if (frame->colorspace == AVCOL_SPC_BT470BG || frame->colorspace == AVCOL_SPC_SMPTE170M || frame->colorspace == AVCOL_SPC_SMPTE240M)
@@ -977,8 +977,8 @@ static void video_image_display(VideoState *is)
     Frame *sp = NULL;
     SDL_Rect rect;
 
-    vp = frame_queue_peek_last(&is->pictq);//取一张图片
-    if (is->subtitle_st) {
+    vp = frame_queue_peek_last(&is->pictq);//取最早frame的地址
+    if (is->subtitle_st) {//如果有字幕
         if (frame_queue_nb_remaining(&is->subpq) > 0) {//还有数据
             sp = frame_queue_peek(&is->subpq);//取字幕
 
@@ -1318,7 +1318,7 @@ static void do_exit(VideoState *is)
 
 static void sigterm_handler(int sig)
 {
-    exit(123);
+    exit(123);//真直接，直接退出，最好设标志位。退出循环
 }
 
 static void set_default_window_size(int width, int height, AVRational sar)
@@ -1382,12 +1382,12 @@ static double get_clock(Clock *c)
         return c->pts_drift + time - (time - c->last_updated) * (1.0 - c->speed);
     }
 }
-
+//更新pts和最后更新时间，pts_drift可以作为参考
 static void set_clock_at(Clock *c, double pts, int serial, double time)
 {
     c->pts = pts;
     c->last_updated = time;
-    c->pts_drift = c->pts - time;
+    c->pts_drift = c->pts - time;//漂移的时间
     c->serial = serial;
 }
 
@@ -1410,13 +1410,13 @@ static void init_clock(Clock *c, int *queue_serial)
     c->queue_serial = queue_serial;
     set_clock(c, NAN, -1);
 }
-//?
+//大于0.1秒，强行同步
 static void sync_clock_to_slave(Clock *c, Clock *slave)
 {
     double clock = get_clock(c);
     double slave_clock = get_clock(slave);
     if (!isnan(slave_clock) && (isnan(clock) || fabs(clock - slave_clock) > AV_NOSYNC_THRESHOLD))
-        set_clock(c, slave_clock, slave->serial);
+        set_clock(c, slave_clock, slave->serial);//
 }
 //
 static int get_master_sync_type(VideoState *is) {
@@ -1453,18 +1453,18 @@ static double get_master_clock(VideoState *is)
     }
     return val;
 }
-//
+//TIGER 
 static void check_external_clock_speed(VideoState *is) {
-   if (is->video_stream >= 0 && is->videoq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES ||
-       is->audio_stream >= 0 && is->audioq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES) {
-       set_clock_speed(&is->extclk, FFMAX(EXTERNAL_CLOCK_SPEED_MIN, is->extclk.speed - EXTERNAL_CLOCK_SPEED_STEP));
-   } else if ((is->video_stream < 0 || is->videoq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES) &&
-              (is->audio_stream < 0 || is->audioq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES)) {
-       set_clock_speed(&is->extclk, FFMIN(EXTERNAL_CLOCK_SPEED_MAX, is->extclk.speed + EXTERNAL_CLOCK_SPEED_STEP));
+   if (is->video_stream >= 0 && is->videoq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES ||//视频2帧以内
+       is->audio_stream >= 0 && is->audioq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES) {//音频2帧以内
+       set_clock_speed(&is->extclk, FFMAX(EXTERNAL_CLOCK_SPEED_MIN, is->extclk.speed - EXTERNAL_CLOCK_SPEED_STEP));//设置不大于0.900
+   } else if ((is->video_stream < 0 || is->videoq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES) &&//没有视频或者大于10帧
+              (is->audio_stream < 0 || is->audioq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES)) {//没有音频或者大于10帧
+       set_clock_speed(&is->extclk, FFMIN(EXTERNAL_CLOCK_SPEED_MAX, is->extclk.speed + EXTERNAL_CLOCK_SPEED_STEP));//设置至少大于1.010
    } else {
        double speed = is->extclk.speed;
        if (speed != 1.0)
-           set_clock_speed(&is->extclk, speed + EXTERNAL_CLOCK_SPEED_STEP * (1.0 - speed) / fabs(1.0 - speed));
+           set_clock_speed(&is->extclk, speed + EXTERNAL_CLOCK_SPEED_STEP * (1.0 - speed) / fabs(1.0 - speed));//？
    }
 }
 
@@ -1527,7 +1527,7 @@ static double compute_target_delay(double delay, VideoState *is)
     double sync_threshold, diff = 0;
 
     /* update delay to follow master synchronisation source */
-    if (get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER) {
+    if (get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER) {//如果视频是从模式
         /* if video is slave, we try to correct big delays by
            duplicating or deleting a frame */
         diff = get_clock(&is->vidclk) - get_master_clock(is);
@@ -1535,7 +1535,7 @@ static double compute_target_delay(double delay, VideoState *is)
         /* skip or repeat frame. We take into account the
            delay to compute the threshold. I still don't know
            if it is the best guess */
-        sync_threshold = FFMAX(AV_SYNC_THRESHOLD_MIN, FFMIN(AV_SYNC_THRESHOLD_MAX, delay));
+        sync_threshold = FFMAX(AV_SYNC_THRESHOLD_MIN, FFMIN(AV_SYNC_THRESHOLD_MAX, delay));//
         if (!isnan(diff) && fabs(diff) < is->max_frame_duration) {
             if (diff <= -sync_threshold)
                 delay = FFMAX(0, delay + diff);
@@ -1546,7 +1546,7 @@ static double compute_target_delay(double delay, VideoState *is)
         }
     }
 
-    av_log(NULL, AV_LOG_TRACE, "video: delay=%0.3f A-V=%f\n",
+    av_log(NULL, AV_LOG_TRACE, "video: delay=%0.3f A-V=%f\n",//tiger program 打印trace日志
             delay, -diff);
 
     return delay;
@@ -1566,8 +1566,8 @@ static double vp_duration(VideoState *is, Frame *vp, Frame *nextvp) {
 
 static void update_video_pts(VideoState *is, double pts, int64_t pos, int serial) {
     /* update current video pts */
-    set_clock(&is->vidclk, pts, serial);
-    sync_clock_to_slave(&is->extclk, &is->vidclk);
+    set_clock(&is->vidclk, pts, serial);//设置pts和更新时间
+    sync_clock_to_slave(&is->extclk, &is->vidclk);//和主时钟同步
 }
 //刷新
 /* called to display each frame */
@@ -1577,125 +1577,125 @@ static void video_refresh(void *opaque, double *remaining_time)
     double time;
 
     Frame *sp, *sp2;
-
+    //01.
     if (!is->paused && get_master_sync_type(is) == AV_SYNC_EXTERNAL_CLOCK && is->realtime)
-        check_external_clock_speed(is);
-
-    if (!display_disable && is->show_mode != SHOW_MODE_VIDEO && is->audio_st) {
-        time = av_gettime_relative() / 1000000.0;
-        if (is->force_refresh || is->last_vis_time + rdftspeed < time) {
+        check_external_clock_speed(is);//不好理解？
+    //02.若是显示音频信息
+    if (!display_disable && is->show_mode != SHOW_MODE_VIDEO && is->audio_st) {//如果是显示音频的波形或者rdft图像
+        time = av_gettime_relative() / 1000000.0;//当前秒数
+        if (is->force_refresh || is->last_vis_time + rdftspeed < time) {//强制刷新或者上次刷新时间已经过去很久了
             video_display(is);//视频显示
-            is->last_vis_time = time;
+            is->last_vis_time = time;//更新刷新的时间
         }
-        *remaining_time = FFMIN(*remaining_time, is->last_vis_time + rdftspeed - time);
+        *remaining_time = FFMIN(*remaining_time, is->last_vis_time + rdftspeed - time);//取最小
     }
-
+    //03.若是显示视频
     if (is->video_st) {
 retry:
-        if (frame_queue_nb_remaining(&is->pictq) == 0) {
+        if (frame_queue_nb_remaining(&is->pictq) == 0) {//还有缓存的帧吗
             // nothing to do, no picture to display in the queue
         } else {
             double last_duration, duration, delay;
             Frame *vp, *lastvp;
 
             /* dequeue the picture */
-            lastvp = frame_queue_peek_last(&is->pictq);
-            vp = frame_queue_peek(&is->pictq);
+            lastvp = frame_queue_peek_last(&is->pictq);//最早的
+            vp = frame_queue_peek(&is->pictq);//最晚的
 
-            if (vp->serial != is->videoq.serial) {
+            if (vp->serial != is->videoq.serial) {//不理解==>
                 frame_queue_next(&is->pictq);
                 goto retry;
             }
 
-            if (lastvp->serial != vp->serial)
-                is->frame_timer = av_gettime_relative() / 1000000.0;
+            if (lastvp->serial != vp->serial)//
+                is->frame_timer = av_gettime_relative() / 1000000.0;//更新时间
 
-            if (is->paused)
+            if (is->paused)//如果暂停
                 goto display;
 
             /* compute nominal last_duration */
             last_duration = vp_duration(is, lastvp, vp);
-            delay = compute_target_delay(last_duration, is);
+            delay = compute_target_delay(last_duration, is);//视频从模式，delay的修正，否则直接用last_duration
 
             time= av_gettime_relative()/1000000.0;
-            if (time < is->frame_timer + delay) {
-                *remaining_time = FFMIN(is->frame_timer + delay - time, *remaining_time);
+            if (time < is->frame_timer + delay) {//如果frame时间间隔没有到，//分析：如果是流一般不会出现，如果是文件可能会出现？
+                *remaining_time = FFMIN(is->frame_timer + delay - time, *remaining_time);//更新等待时间
                 goto display;
             }
 
-            is->frame_timer += delay;
+            is->frame_timer += delay;//更新下一个frame的时间
             if (delay > 0 && time - is->frame_timer > AV_SYNC_THRESHOLD_MAX)
-                is->frame_timer = time;
+                is->frame_timer = time;//如果大于0.1秒，强行使用当前时间 即跳过，强行同步吗？
 
             SDL_LockMutex(is->pictq.mutex);
-            if (!isnan(vp->pts))
-                update_video_pts(is, vp->pts, vp->pos, vp->serial);
+            if (!isnan(vp->pts))//如果pts存在
+                update_video_pts(is, vp->pts, vp->pos, vp->serial);//设置时钟和同步时间，并考虑和主时钟同步
             SDL_UnlockMutex(is->pictq.mutex);
 
-            if (frame_queue_nb_remaining(&is->pictq) > 1) {
-                Frame *nextvp = frame_queue_peek_next(&is->pictq);
+            if (frame_queue_nb_remaining(&is->pictq) > 1) {//如果大于一帧
+                Frame *nextvp = frame_queue_peek_next(&is->pictq);//下一帧
                 duration = vp_duration(is, vp, nextvp);
                 if(!is->step && (framedrop>0 || (framedrop && get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER)) && time > is->frame_timer + duration){
-                    is->frame_drops_late++;
-                    frame_queue_next(&is->pictq);
+                    is->frame_drops_late++;//丢一帧
+                    frame_queue_next(&is->pictq);//消费当前帧
                     goto retry;
                 }
             }
 
-            if (is->subtitle_st) {
-                    while (frame_queue_nb_remaining(&is->subpq) > 0) {
+            if (is->subtitle_st) {//如果有字幕
+                    while (frame_queue_nb_remaining(&is->subpq) > 0) {//有字幕帧
                         sp = frame_queue_peek(&is->subpq);
 
                         if (frame_queue_nb_remaining(&is->subpq) > 1)
-                            sp2 = frame_queue_peek_next(&is->subpq);
+                            sp2 = frame_queue_peek_next(&is->subpq);//如果有2帧以上，则取第二帧
                         else
                             sp2 = NULL;
 
-                        if (sp->serial != is->subtitleq.serial
-                                || (is->vidclk.pts > (sp->pts + ((float) sp->sub.end_display_time / 1000)))
-                                || (sp2 && is->vidclk.pts > (sp2->pts + ((float) sp2->sub.start_display_time / 1000))))
+                        if (sp->serial != is->subtitleq.serial//
+                                || (is->vidclk.pts > (sp->pts + ((float) sp->sub.end_display_time / 1000)))//
+                                || (sp2 && is->vidclk.pts > (sp2->pts + ((float) sp2->sub.start_display_time / 1000))))//
                         {
-                            if (sp->uploaded) {
+                            if (sp->uploaded) {//
                                 int i;
-                                for (i = 0; i < sp->sub.num_rects; i++) {
+                                for (i = 0; i < sp->sub.num_rects; i++) {//
                                     AVSubtitleRect *sub_rect = sp->sub.rects[i];
                                     uint8_t *pixels;
                                     int pitch, j;
-
+                                    //字幕
                                     if (!SDL_LockTexture(is->sub_texture, (SDL_Rect *)sub_rect, (void **)&pixels, &pitch)) {
-                                        for (j = 0; j < sub_rect->h; j++, pixels += pitch)
+                                        for (j = 0; j < sub_rect->h; j++, pixels += pitch)//
                                             memset(pixels, 0, sub_rect->w << 2);
                                         SDL_UnlockTexture(is->sub_texture);
                                     }
                                 }
                             }
-                            frame_queue_next(&is->subpq);
+                            frame_queue_next(&is->subpq);//
                         } else {
                             break;
                         }
                     }
             }
 
-            frame_queue_next(&is->pictq);
-            is->force_refresh = 1;
+            frame_queue_next(&is->pictq);//
+            is->force_refresh = 1;//
 
-            if (is->step && !is->paused)
-                stream_toggle_pause(is);
+            if (is->step && !is->paused)//
+                stream_toggle_pause(is);//
         }
 display:
         /* display picture */
         if (!display_disable && is->force_refresh && is->show_mode == SHOW_MODE_VIDEO && is->pictq.rindex_shown)
-            video_display(is);
+            video_display(is);//显示波形、rdft或者视频
     }
-    is->force_refresh = 0;
-    if (show_status) {//显示统计值
+    is->force_refresh = 0;//04.不需要强制刷新吗？
+    if (show_status) {//05.显示统计值
         static int64_t last_time;
         int64_t cur_time;
         int aqsize, vqsize, sqsize;
         double av_diff;
 
-        cur_time = av_gettime_relative();
-        if (!last_time || (cur_time - last_time) >= 30000) {
+        cur_time = av_gettime_relative();//当前秒
+        if (!last_time || (cur_time - last_time) >= 30000) {//30毫秒
             aqsize = 0;
             vqsize = 0;
             sqsize = 0;
@@ -1706,11 +1706,11 @@ display:
             if (is->subtitle_st)
                 sqsize = is->subtitleq.size;
             av_diff = 0;
-            if (is->audio_st && is->video_st)
+            if (is->audio_st && is->video_st)//如果AV模式，差值为音频-视频
                 av_diff = get_clock(&is->audclk) - get_clock(&is->vidclk);
-            else if (is->video_st)
+            else if (is->video_st)//如果只有视频，差值为实际时钟-视频时钟
                 av_diff = get_master_clock(is) - get_clock(&is->vidclk);
-            else if (is->audio_st)
+            else if (is->audio_st)//
                 av_diff = get_master_clock(is) - get_clock(&is->audclk);
             av_log(NULL, AV_LOG_INFO,
                    "%7.2f %s:%7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%"PRId64"/%"PRId64"   \r",
@@ -1723,8 +1723,8 @@ display:
                    sqsize,//字幕字节数
                    is->video_st ? is->viddec.avctx->pts_correction_num_faulty_dts : 0,//不正确的dts个数
                    is->video_st ? is->viddec.avctx->pts_correction_num_faulty_pts : 0);//不正确的pts个数
-            fflush(stdout);
-            last_time = cur_time;
+            fflush(stdout);//立即更新
+            last_time = cur_time;//更新时间
         }
     }
 }
@@ -3214,7 +3214,7 @@ static void toggle_audio_display(VideoState *is)
 }
 //tiger
 static void refresh_loop_wait_event(VideoState *is, SDL_Event *event) {
-    double remaining_time = 0.0;
+    double remaining_time = 0.0;//每次处理，10ms中剩余的时间
     SDL_PumpEvents();//收集键盘事件
     while (!SDL_PeepEvents(event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT)) {//取一个事件,返回一个真实获取的数字，如果没有事件，在这里循环
         if (!cursor_hidden && av_gettime_relative() - cursor_last_shown > CURSOR_HIDE_DELAY) {
@@ -3222,10 +3222,10 @@ static void refresh_loop_wait_event(VideoState *is, SDL_Event *event) {
             cursor_hidden = 1;
         }
         if (remaining_time > 0.0)//第一次不睡眠
-            av_usleep((int64_t)(remaining_time * 1000000.0));
+            av_usleep((int64_t)(remaining_time * 1000000.0));//处理刷新，10ms，还有的多
         remaining_time = REFRESH_RATE;//刷新率，10ms，至少满足视频帧率的处理速度
         if (is->show_mode != SHOW_MODE_NONE && (!is->paused || is->force_refresh))
-            video_refresh(is, &remaining_time);//更新视频
+            video_refresh(is, &remaining_time);//更新图像
         SDL_PumpEvents();//查询得到Use this function to pump the event loop, gathering events from the input devices//不过它还有一个作用是进行视频子系统的设备状态更新，如果不调用这个函数，所显示的视频会在大约10秒后丢失色彩
     }//若有事件，或者SDL_PeepEvents有错误，则停止循环
 }
@@ -3661,7 +3661,7 @@ void show_help_default(const char *opt, const char *arg)
            "left double-click   toggle full screen\n"
            );
 }
-
+//TIGER 入口
 /* Called from the main */
 int main(int argc, char **argv)
 {
@@ -3671,7 +3671,7 @@ int main(int argc, char **argv)
     init_dynload();
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);//有什么用？
-    parse_loglevel(argc, argv, options);
+    parse_loglevel(argc, argv, options);//解析命令行，将配置放在options里
 
     /* register all codecs, demux and protocols */
 #if CONFIG_AVDEVICE

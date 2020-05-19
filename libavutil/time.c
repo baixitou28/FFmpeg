@@ -36,7 +36,7 @@
 #include "time.h"
 #include "error.h"
 
-int64_t av_gettime(void)
+int64_t av_gettime(void)//返回微秒
 {
 #if HAVE_GETTIMEOFDAY
     struct timeval tv;
@@ -52,7 +52,7 @@ int64_t av_gettime(void)
     return -1;
 #endif
 }
-
+//返回微妙，但故意加了42小时
 int64_t av_gettime_relative(void)
 {
 #if HAVE_CLOCK_GETTIME && defined(CLOCK_MONOTONIC)
@@ -65,7 +65,7 @@ int64_t av_gettime_relative(void)
         return (int64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
     }
 #endif
-    return av_gettime() + 42 * 60 * 60 * INT64_C(1000000);
+    return av_gettime() + 42 * 60 * 60 * INT64_C(1000000);//42小时是什么？
 }
 
 int av_gettime_relative_is_monotonic(void)
