@@ -2709,7 +2709,7 @@ out:
     return ret;
 }
 
-static int decode_interrupt_cb(void *ctx)
+static int decode_interrupt_cb(void *ctx)//只是看是否停止处理
 {
     VideoState *is = ctx;
     return is->abort_request;//是否已经被中断
@@ -2749,22 +2749,22 @@ static int read_thread(void *arg)
     int64_t stream_start_time;
     int pkt_in_play_range = 0;
     AVDictionaryEntry *t;
-    SDL_mutex *wait_mutex = SDL_CreateMutex();
+    SDL_mutex *wait_mutex = SDL_CreateMutex();//01. 创建
     int scan_all_pmts_set = 0;
     int64_t pkt_ts;
 
-    if (!wait_mutex) {
+    if (!wait_mutex) {//分配失败
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateMutex(): %s\n", SDL_GetError());
         ret = AVERROR(ENOMEM);
         goto fail;
     }
-
+    //02. 初始化
     memset(st_index, -1, sizeof(st_index));
     is->last_video_stream = is->video_stream = -1;
     is->last_audio_stream = is->audio_stream = -1;
     is->last_subtitle_stream = is->subtitle_stream = -1;
     is->eof = 0;
-    //分配context
+    //03. 分配回调的context
     ic = avformat_alloc_context();
     if (!ic) {
         av_log(NULL, AV_LOG_FATAL, "Could not allocate context.\n");
@@ -2773,11 +2773,11 @@ static int read_thread(void *arg)
     }
     ic->interrupt_callback.callback = decode_interrupt_cb;//回调，是否中断
     ic->interrupt_callback.opaque = is;
-    if (!av_dict_get(format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE)) {//tiger 这个不理解
+    if (!av_dict_get(format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE)) {//scan_all_pmts， 扫描全部的ts流的"Program Map Table"表 tiger 需要进一步了解
         av_dict_set(&format_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
         scan_all_pmts_set = 1;
     }
-    err = avformat_open_input(&ic, is->filename, is->iformat, &format_opts);//用指定格式，和options打开文件
+    err = avformat_open_input(&ic, is->filename, is->iformat, &format_opts);//04. 用指定格式，和options打开文件
     if (err < 0) {
         print_error(is->filename, err);
         ret = -1;
