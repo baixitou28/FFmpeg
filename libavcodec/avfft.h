@@ -33,7 +33,7 @@
  */
 
 typedef float FFTSample;
-
+//¸´Êý
 typedef struct FFTComplex {
     FFTSample re, im;
 } FFTComplex;
@@ -82,7 +82,7 @@ typedef struct RDFTContext RDFTContext;
  * @param nbits           log2 of the length of the input array
  * @param trans           the type of transform
  */
-RDFTContext *av_rdft_init(int nbits, enum RDFTransformType trans);
+RDFTContext *av_rdft_init(int nbits, enum RDFTransformType trans);//³õÊ¼»¯
 void av_rdft_calc(RDFTContext *s, FFTSample *data);
 void av_rdft_end(RDFTContext *s);
 

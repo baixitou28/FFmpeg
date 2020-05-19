@@ -91,7 +91,7 @@ av_cold void av_mdct_end(FFTContext *s)
 #endif /* CONFIG_MDCT */
 
 #if CONFIG_RDFT
-
+//tiger
 RDFTContext *av_rdft_init(int nbits, enum RDFTransformType trans)
 {
     RDFTContext *s = av_malloc(sizeof(*s));

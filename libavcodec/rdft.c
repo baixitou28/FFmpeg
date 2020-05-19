@@ -84,28 +84,28 @@ static void rdft_calc_c(RDFTContext *s, FFTSample *data)
         s->fft.fft_calc(&s->fft, (FFTComplex*)data);
     }
 }
-
+//TIGER 
 av_cold int ff_rdft_init(RDFTContext *s, int nbits, enum RDFTransformType trans)
 {
     int n = 1 << nbits;
     int ret;
-
+    //
     s->nbits           = nbits;
     s->inverse         = trans == IDFT_C2R || trans == DFT_C2R;
     s->sign_convention = trans == IDFT_R2C || trans == DFT_C2R ? 1 : -1;
     s->negative_sin    = trans == DFT_C2R || trans == DFT_R2C;
-
+    //
     if (nbits < 4 || nbits > 16)
         return AVERROR(EINVAL);
 
     if ((ret = ff_fft_init(&s->fft, nbits-1, trans == IDFT_C2R || trans == IDFT_R2C)) < 0)
         return ret;
-
+    //
     ff_init_ff_cos_tabs(nbits);
     s->tcos = ff_cos_tabs[nbits];
     s->tsin = ff_cos_tabs[nbits] + (n >> 2);
     s->rdft_calc   = rdft_calc_c;
-
+    //
     if (ARCH_ARM) ff_rdft_init_arm(s);
 
     return 0;

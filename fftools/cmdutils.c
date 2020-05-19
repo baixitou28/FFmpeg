@@ -84,7 +84,7 @@ enum show_muxdemuxers {
 
 void init_opts(void)
 {
-    av_dict_set(&sws_dict, "flags", "bicubic", 0);
+    av_dict_set(&sws_dict, "flags", "bicubic", 0); //双三次缩放算法
 }
 
 void uninit_opts(void)

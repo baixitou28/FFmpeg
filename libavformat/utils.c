@@ -3588,7 +3588,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
     //设置默认的一些时间
     max_stream_analyze_duration = max_analyze_duration;//最大的探测时间
     max_subtitle_analyze_duration = max_analyze_duration;
-    if (!max_analyze_duration) {//如果用户没有写，就写默认值
+    if (!max_analyze_duration) {//如果用户没有设置时间，就写默认值
         max_stream_analyze_duration =
         max_analyze_duration        = 5*AV_TIME_BASE;//5秒
         max_subtitle_analyze_duration = 30*AV_TIME_BASE;//30秒,比较长，还好目前一般没有字幕，
@@ -3612,7 +3612,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
             st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
 /*            if (!st->time_base.num)
                 st->time_base = */
-            if (!avctx->time_base.num)//这个？
+            if (!avctx->time_base.num)//如果没有设置time_base，采用流的设定值-->
                 avctx->time_base = st->time_base;
         }
 
