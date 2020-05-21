@@ -504,7 +504,7 @@ int avformat_init_output(AVFormatContext *s, AVDictionary **options)
 
     return AVSTREAM_INIT_IN_WRITE_HEADER;
 }
-
+//TIGER
 int avformat_write_header(AVFormatContext *s, AVDictionary **options)
 {
     int ret = 0;

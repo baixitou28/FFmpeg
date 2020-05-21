@@ -24,29 +24,29 @@
 #include "rtpenc_chain.h"
 #include "rtp.h"
 #include "libavutil/opt.h"
-
+//tiger program 被ff_rtsp_open_transport_ctx 调用
 int ff_rtp_chain_mux_open(AVFormatContext **out, AVFormatContext *s,
                           AVStream *st, URLContext *handle, int packet_size,
                           int idx)
 {
     AVFormatContext *rtpctx = NULL;
     int ret;
-    ff_const59 AVOutputFormat *rtp_format = av_guess_format("rtp", NULL, NULL);
+    ff_const59 AVOutputFormat *rtp_format = av_guess_format("rtp", NULL, NULL);//没有上下文，如何猜测哪个最好？
     uint8_t *rtpflags;
     AVDictionary *opts = NULL;
-
-    if (!rtp_format) {
+    //01.
+    if (!rtp_format) {//如果一个rtp的格式都没有，肯定出错了
         ret = AVERROR(ENOSYS);
         goto fail;
     }
-
+    //02. 
     /* Allocate an AVFormatContext for each output stream */
     rtpctx = avformat_alloc_context();
     if (!rtpctx) {
         ret = AVERROR(ENOMEM);
         goto fail;
     }
-
+    //03. 设置context
     rtpctx->oformat = rtp_format;
     if (!avformat_new_stream(rtpctx, NULL)) {
         ret = AVERROR(ENOMEM);
@@ -60,7 +60,7 @@ int ff_rtp_chain_mux_open(AVFormatContext **out, AVFormatContext *s,
     rtpctx->streams[0]->sample_aspect_ratio = st->sample_aspect_ratio;
     rtpctx->flags |= s->flags & AVFMT_FLAG_BITEXACT;
     rtpctx->strict_std_compliance = s->strict_std_compliance;
-
+    //是符合RFC的payload
     /* Get the payload type from the codec */
     if (st->id < RTP_PT_PRIVATE)
         rtpctx->streams[0]->id =
@@ -79,7 +79,7 @@ int ff_rtp_chain_mux_open(AVFormatContext **out, AVFormatContext *s,
     rtpctx->streams[0]->time_base = st->time_base;
 
     if (handle) {
-        ret = ffio_fdopen(&rtpctx->pb, handle);
+        ret = ffio_fdopen(&rtpctx->pb, handle);//tiger rtp 从这里打开
         if (ret < 0)
             ffurl_close(handle);
     } else

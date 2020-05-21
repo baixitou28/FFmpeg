@@ -42,16 +42,16 @@ static const struct {
   {0, "PCMU",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_MULAW, 8000, 1},
   {3, "GSM",         AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
   {4, "G723",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_G723_1, 8000, 1},
-  {5, "DVI4",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
+  {5, "DVI4",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},//相同编码的音频不同的sample rate，不同的payload
   {6, "DVI4",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 16000, 1},
   {7, "LPC",         AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
   {8, "PCMA",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_ALAW, 8000, 1},
   {9, "G722",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_ADPCM_G722, 8000, 1},
-  {10, "L16",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_S16BE, 44100, 2},
+  {10, "L16",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_S16BE, 44100, 2},//相同编码的音频不同的声道，不同的payload
   {11, "L16",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_S16BE, 44100, 1},
   {12, "QCELP",      AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_QCELP, 8000, 1},
   {13, "CN",         AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
-  {14, "MPA",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_MP2, -1, -1},
+  {14, "MPA",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_MP2, -1, -1},//允许相同payload type，不同的编码，
   {14, "MPA",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_MP3, -1, -1},
   {15, "G728",       AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
   {16, "DVI4",       AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 11025, 1},
@@ -61,7 +61,7 @@ static const struct {
   {26, "JPEG",       AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_MJPEG, 90000, -1},
   {28, "nv",         AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_NONE, 90000, -1},
   {31, "H261",       AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_H261, 90000, -1},
-  {32, "MPV",        AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_MPEG1VIDEO, 90000, -1},
+  {32, "MPV",        AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_MPEG1VIDEO, 90000, -1},//允许相同payload type，相同编码器，不同编码ID
   {32, "MPV",        AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_MPEG2VIDEO, 90000, -1},
   {33, "MP2T",       AVMEDIA_TYPE_DATA,    AV_CODEC_ID_MPEG2TS, 90000, -1},
   {34, "H263",       AVMEDIA_TYPE_VIDEO,   AV_CODEC_ID_H263, 90000, -1},
@@ -86,7 +86,7 @@ int ff_rtp_get_codec_info(AVCodecParameters *par, int payload_type)
         }
     return -1;
 }
-
+//匹配payload type，音频还需考虑sample rate和channel
 int ff_rtp_get_payload_type(AVFormatContext *fmt,
                             AVCodecParameters *par, int idx)
 {
@@ -106,14 +106,14 @@ int ff_rtp_get_payload_type(AVFormatContext *fmt,
         if (rtp_payload_types[i].codec_id == par->codec_id) {
             if (par->codec_id == AV_CODEC_ID_H263 && (!fmt || !fmt->oformat ||
                 !fmt->oformat->priv_class || !fmt->priv_data ||
-                !av_opt_flag_is_set(fmt->priv_data, "rtpflags", "rfc2190")))
+                !av_opt_flag_is_set(fmt->priv_data, "rtpflags", "rfc2190")))//
                 continue;
             /* G722 has 8000 as nominal rate even if the sample rate is 16000,
              * see section 4.5.2 in RFC 3551. */
             if (par->codec_id == AV_CODEC_ID_ADPCM_G722 &&
                 par->sample_rate == 16000 && par->channels == 1)
                 return rtp_payload_types[i].pt;
-            if (par->codec_type == AVMEDIA_TYPE_AUDIO &&
+            if (par->codec_type == AVMEDIA_TYPE_AUDIO &&//如果是音频，有些有不同的clock_rate和audio_channels，需要精确匹配，参看rtp_payload_types的注释
                 ((rtp_payload_types[i].clock_rate > 0 &&
                   par->sample_rate != rtp_payload_types[i].clock_rate) ||
                  (rtp_payload_types[i].audio_channels > 0 &&
@@ -126,7 +126,7 @@ int ff_rtp_get_payload_type(AVFormatContext *fmt,
         idx = par->codec_type == AVMEDIA_TYPE_AUDIO;
 
     /* dynamic payload type */
-    return RTP_PT_PRIVATE + idx;
+    return RTP_PT_PRIVATE + idx;//动态是这么写的吗？
 }
 
 const char *ff_rtp_enc_name(int payload_type)
@@ -135,7 +135,7 @@ const char *ff_rtp_enc_name(int payload_type)
 
     for (i = 0; rtp_payload_types[i].pt >= 0; i++)
         if (rtp_payload_types[i].pt == payload_type)
-            return rtp_payload_types[i].enc_name;
+            return rtp_payload_types[i].enc_name;//payload，肯定对应一个相同的编码器 
 
     return "";
 }
@@ -146,7 +146,7 @@ enum AVCodecID ff_rtp_codec_id(const char *buf, enum AVMediaType codec_type)
 
     for (i = 0; rtp_payload_types[i].pt >= 0; i++)
         if (!av_strcasecmp(buf, rtp_payload_types[i].enc_name) && (codec_type == rtp_payload_types[i].codec_type))
-            return rtp_payload_types[i].codec_id;
+            return rtp_payload_types[i].codec_id;//编码ID，需要匹配编码codec_id或codec_type
 
     return AV_CODEC_ID_NONE;
 }

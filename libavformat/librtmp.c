@@ -351,7 +351,7 @@ RTMP_CLASS(rtmp)
 const URLProtocol ff_librtmp_protocol = {
     .name                = "rtmp",
     .url_open            = rtmp_open,
-    .url_read            = rtmp_read,
+    .url_read            = rtmp_read,//TIGER RTMP
     .url_write           = rtmp_write,
     .url_close           = rtmp_close,
     .url_read_pause      = rtmp_read_pause,

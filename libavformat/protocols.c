@@ -91,7 +91,7 @@ const AVClass *ff_urlcontext_child_class_next(const AVClass *prev)
 }
 
 
-const char *avio_enum_protocols(void **opaque, int output)
+const char *avio_enum_protocols(void **opaque, int output)//不停查找协议类型
 {
     const URLProtocol **p = *opaque;
 
@@ -99,11 +99,11 @@ const char *avio_enum_protocols(void **opaque, int output)
     *opaque = p;
     if (!*p) {
         *opaque = NULL;
-        return NULL;
+        return NULL;//确实没有了
     }
-    if ((output && (*p)->url_write) || (!output && (*p)->url_read))
-        return (*p)->name;
-    return avio_enum_protocols(opaque, output);
+    if ((output && (*p)->url_write) || (!output && (*p)->url_read))//TIGER RTP URL READ
+        return (*p)->name;//只有有效的才能返回
+    return avio_enum_protocols(opaque, output);//否则继续查找 ==>这里为什么要用递归呢？
 }
 
 const URLProtocol **ffurl_get_protocols(const char *whitelist,

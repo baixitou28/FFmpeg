@@ -194,7 +194,7 @@ static void build_udp_url(RTPContext *s,
     if (exclude_sources && exclude_sources[0])
         url_add_option(buf, buf_size, "block=%s", exclude_sources);
 }
-
+//TIGER RTP 比较复杂的rtp参数，诸多选项，我居然有忘记了。
 /**
  * url syntax: rtp://host:port[?option=val...]
  * option: 'ttl=n'            : set the ttl value (for multicast only)
@@ -372,37 +372,37 @@ static int rtp_open(URLContext *h, const char *uri, int flags)
     av_dict_free(&fec_opts);
     return AVERROR(EIO);
 }
-
+//TIGER RTP READ
 static int rtp_read(URLContext *h, uint8_t *buf, int size)
 {
     RTPContext *s = h->priv_data;
     int len, n, i;
-    struct pollfd p[2] = {{s->rtp_fd, POLLIN, 0}, {s->rtcp_fd, POLLIN, 0}};
-    int poll_delay = h->flags & AVIO_FLAG_NONBLOCK ? 0 : 100;
+    struct pollfd p[2] = {{s->rtp_fd, POLLIN, 0}, {s->rtcp_fd, POLLIN, 0}};//2个输入
+    int poll_delay = h->flags & AVIO_FLAG_NONBLOCK ? 0 : 100;//是非阻塞，还是延时100ms
     struct sockaddr_storage *addrs[2] = { &s->last_rtp_source, &s->last_rtcp_source };
     socklen_t *addr_lens[2] = { &s->last_rtp_source_len, &s->last_rtcp_source_len };
 
     for(;;) {
-        if (ff_check_interrupt(&h->interrupt_callback))
+        if (ff_check_interrupt(&h->interrupt_callback))//检查用户的callback
             return AVERROR_EXIT;
-        n = poll(p, 2, poll_delay);
+        n = poll(p, 2, poll_delay);//读2个输入源
         if (n > 0) {
             /* first try RTCP, then RTP */
-            for (i = 1; i >= 0; i--) {
+            for (i = 1; i >= 0; i--) {//先优先处理rtcp，因为数据相对少
                 if (!(p[i].revents & POLLIN))
                     continue;
                 *addr_lens[i] = sizeof(*addrs[i]);
                 len = recvfrom(p[i].fd, buf, size, 0,
-                                (struct sockaddr *)addrs[i], addr_lens[i]);
+                                (struct sockaddr *)addrs[i], addr_lens[i]);//读
                 if (len < 0) {
                     if (ff_neterrno() == AVERROR(EAGAIN) ||
                         ff_neterrno() == AVERROR(EINTR))
                         continue;
                     return AVERROR(EIO);
                 }
-                if (ff_ip_check_source_lists(addrs[i], &s->filters))
+                if (ff_ip_check_source_lists(addrs[i], &s->filters))//
                     continue;
-                return len;
+                return len;//返回目前有多少字节
             }
         } else if (n < 0) {
             if (ff_neterrno() == AVERROR(EINTR))
@@ -438,7 +438,7 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
             return size;
         }
 
-        if (RTP_PT_IS_RTCP(buf[1])) {
+        if (RTP_PT_IS_RTCP(buf[1])) {//buf第一位来判断是否是rtcp
             fd = s->rtcp_fd;
             source     = &s->last_rtcp_source;
             source_len = &s->last_rtcp_source_len;
@@ -450,14 +450,14 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
         if (!source->ss_family) {
             source      = &temp_source;
             source_len  = &temp_len;
-            if (RTP_PT_IS_RTCP(buf[1])) {
+            if (RTP_PT_IS_RTCP(buf[1])) {//通过payload 来判断
                 temp_source = s->last_rtp_source;
                 temp_len    = s->last_rtp_source_len;
-                set_port(source, get_port(source) + 1);
+                set_port(source, get_port(source) + 1);//
                 av_log(h, AV_LOG_INFO,
                        "Not received any RTCP packets yet, inferring peer port "
                        "from the RTP port\n");
-            } else {
+            } else {//如果是rtp 用rtcp来床
                 temp_source = s->last_rtcp_source;
                 temp_len    = s->last_rtcp_source_len;
                 set_port(source, get_port(source) - 1);
@@ -468,17 +468,17 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
         }
 
         if (!(h->flags & AVIO_FLAG_NONBLOCK)) {
-            ret = ff_network_wait_fd(fd, 1);
+            ret = ff_network_wait_fd(fd, 1);//TIGER 最大等待100ms
             if (ret < 0)
                 return ret;
         }
-        ret = sendto(fd, buf, size, 0, (struct sockaddr *) source,
+        ret = sendto(fd, buf, size, 0, (struct sockaddr *) source,//这个也是阻塞式发送？
                      *source_len);
 
         return ret < 0 ? ff_neterrno() : ret;
     }
 
-    if (RTP_PT_IS_RTCP(buf[1])) {
+    if (RTP_PT_IS_RTCP(buf[1])) {//tiger rtcp 根据数据类型来选择发送的句柄， 从这里看buf的数据是上层给的。不是这里生成的
         /* RTCP payload type */
         hd = s->rtcp_hd;
     } else {
@@ -486,7 +486,7 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
         hd = s->rtp_hd;
     }
 
-    if ((ret = ffurl_write(hd, buf, size)) < 0) {
+    if ((ret = ffurl_write(hd, buf, size)) < 0) {//写
         return ret;
     }
 
@@ -503,12 +503,12 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
 static int rtp_close(URLContext *h)
 {
     RTPContext *s = h->priv_data;
-
+    //可过滤的ip
     ff_ip_reset_filters(&s->filters);
 
     ffurl_close(s->rtp_hd);
     ffurl_close(s->rtcp_hd);
-    ffurl_closep(&s->fec_hd);
+    ffurl_closep(&s->fec_hd);//还有fec
     return 0;
 }
 
@@ -549,15 +549,15 @@ static int rtp_get_multi_file_handle(URLContext *h, int **handles,
     return 0;
 }
 
-const URLProtocol ff_rtp_protocol = {
+const URLProtocol ff_rtp_protocol = {//tiger rtp
     .name                      = "rtp",
     .url_open                  = rtp_open,
-    .url_read                  = rtp_read,
+    .url_read                  = rtp_read,//这里真的只是读，也没有什么操作rtp字段什么的
     .url_write                 = rtp_write,
     .url_close                 = rtp_close,
-    .url_get_file_handle       = rtp_get_file_handle,
-    .url_get_multi_file_handle = rtp_get_multi_file_handle,
+    .url_get_file_handle       = rtp_get_file_handle,//获取最重要的rtp，而不是rtcp
+    .url_get_multi_file_handle = rtp_get_multi_file_handle,//可同时获取rtp和rtcp
     .priv_data_size            = sizeof(RTPContext),
-    .flags                     = URL_PROTOCOL_FLAG_NETWORK,
+    .flags                     = URL_PROTOCOL_FLAG_NETWORK,//通过这个flag，可以适当时候对网络初始化和关闭
     .priv_data_class           = &rtp_class,
 };

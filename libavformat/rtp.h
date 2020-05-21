@@ -93,7 +93,7 @@ enum RTCPType {
     RTCP_FIR    = 192,
     RTCP_NACK, // 193
     RTCP_SMPTETC,// 194
-    RTCP_IJ,   // 195
+    RTCP_IJ,   // 195//tiger 196-199， >210才是安全的
     RTCP_SR     = 200,
     RTCP_RR,   // 201
     RTCP_SDES, // 202

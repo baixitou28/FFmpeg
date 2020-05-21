@@ -310,7 +310,7 @@ static int tcp_get_window_size(URLContext *h)
     return avail;
 }
 
-const URLProtocol ff_tcp_protocol = {
+const URLProtocol ff_tcp_protocol = {//TIGER TCP
     .name                = "tcp",
     .url_open            = tcp_open,
     .url_accept          = tcp_accept,
