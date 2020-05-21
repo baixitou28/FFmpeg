@@ -344,7 +344,7 @@ sigterm_handler(int sig)
     received_sigterm = sig;
     received_nb_signals++;
     term_exit_sigsafe();
-    if(received_nb_signals > 3) {
+    if(received_nb_signals > 3) {//得多按两次
         ret = write(2/*STDERR_FILENO*/, "Received > 3 system signals, hard exiting\n",
                     strlen("Received > 3 system signals, hard exiting\n"));
         if (ret < 0) { /* Do nothing */ };

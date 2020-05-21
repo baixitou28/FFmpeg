@@ -291,7 +291,7 @@ typedef struct FilterGraph {
     OutputFilter **outputs;
     int         nb_outputs;
 } FilterGraph;
-
+//TIGER InputStream
 typedef struct InputStream {
     int file_index;
     AVStream *st;
@@ -306,14 +306,14 @@ typedef struct InputStream {
     AVFrame *decoded_frame;
     AVFrame *filter_frame; /* a ref of decoded_frame, to be sent to filters */
 
-    int64_t       start;     /* time when read started */
+    int64_t       start;     /* time when read started */ //微秒
     /* predicted dts of the next packet read for this stream or (when there are
      * several frames in a packet) of the next frame in current packet (in AV_TIME_BASE units) */
     int64_t       next_dts;
-    int64_t       dts;       ///< dts of the last packet read for this stream (in AV_TIME_BASE units)
+    int64_t       dts;       ///< dts of the last packet read for this stream (in AV_TIME_BASE units) 微秒
 
     int64_t       next_pts;  ///< synthetic pts for the next decode frame (in AV_TIME_BASE units)
-    int64_t       pts;       ///< current pts of the decoded frame  (in AV_TIME_BASE units)
+    int64_t       pts;       ///< current pts of the decoded frame  (in AV_TIME_BASE units) 微秒
     int           wrap_correction_done;
 
     int64_t filter_in_rescale_delta_last;
@@ -389,7 +389,7 @@ typedef struct InputStream {
 
     int got_output;
 } InputStream;
-
+//TIGER InputFile
 typedef struct InputFile {
     AVFormatContext *ctx;
     int eof_reached;      /* true if eof reached */
@@ -438,7 +438,7 @@ typedef enum {
     ENCODER_FINISHED = 1,
     MUXER_FINISHED = 2,
 } OSTFinished ;
-
+//TIGER OutputStream
 typedef struct OutputStream {
     int file_index;          /* file index */
     int index;               /* stream index in the output file */
@@ -448,7 +448,7 @@ typedef struct OutputStream {
     int frame_number;
     /* input pts and corresponding output pts
        for A/V sync */
-    struct InputStream *sync_ist; /* input stream to sync against */
+    struct InputStream *sync_ist; /* input stream to sync against *///一般都是和输入对应的
     int64_t sync_opts;       /* output frame counter, could be changed to some true timestamp */ // FIXME look at frame_number
     /* pts of the first frame encoded for this stream, used for limiting
      * recording time */
@@ -550,7 +550,7 @@ typedef struct OutputStream {
     /* frame encode sum of squared error values */
     int64_t error[4];
 } OutputStream;
-
+//TIGER OutputFile
 typedef struct OutputFile {
     AVFormatContext *ctx;
     AVDictionary *opts;
@@ -563,7 +563,7 @@ typedef struct OutputFile {
 
     int header_written;
 } OutputFile;
-
+//tiger 全局变量
 extern InputStream **input_streams;
 extern int        nb_input_streams;
 extern InputFile   **input_files;
@@ -610,7 +610,7 @@ extern char *videotoolbox_pixfmt;
 extern int filter_nbthreads;
 extern int filter_complex_nbthreads;
 extern int vstats_version;
-
+//
 extern const AVIOInterruptCB int_cb;
 
 extern const OptionDef options[];
@@ -621,7 +621,7 @@ extern char *qsv_device;
 #endif
 extern HWDevice *filter_hw_device;
 
-
+//初始化，包含终端和信号
 void term_init(void);
 void term_exit(void);
 
@@ -655,7 +655,7 @@ int ffmpeg_parse_options(int argc, char **argv);
 int videotoolbox_init(AVCodecContext *s);
 int qsv_init(AVCodecContext *s);
 int cuvid_init(AVCodecContext *s);
-
+//硬编解码
 HWDevice *hw_device_get_by_name(const char *name);
 int hw_device_init_from_string(const char *arg, HWDevice **dev);
 void hw_device_free_all(void);

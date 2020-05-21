@@ -90,39 +90,39 @@ static int is_supported(enum AVCodecID id)
     }
 }
 
-static int rtp_write_header(AVFormatContext *s1)
+static int rtp_write_header(AVFormatContext *s1)//tiger rtp 在发送包以前，做一些参数设置，buf前面的位置预留等
 {
     RTPMuxContext *s = s1->priv_data;
     int n, ret = AVERROR(EINVAL);
     AVStream *st;
 
-    if (s1->nb_streams != 1) {
+    if (s1->nb_streams != 1) {//只支持一个流
         av_log(s1, AV_LOG_ERROR, "Only one stream supported in the RTP muxer\n");
         return AVERROR(EINVAL);
     }
     st = s1->streams[0];
-    if (!is_supported(st->codecpar->codec_id)) {
+    if (!is_supported(st->codecpar->codec_id)) {//仅支持有限解码ID
         av_log(s1, AV_LOG_ERROR, "Unsupported codec %s\n", avcodec_get_name(st->codecpar->codec_id));
 
         return -1;
     }
 
-    if (s->payload_type < 0) {
+    if (s->payload_type < 0) {//如果没有pt，
         /* Re-validate non-dynamic payload types */
         if (st->id < RTP_PT_PRIVATE)
-            st->id = ff_rtp_get_payload_type(s1, st->codecpar, -1);
+            st->id = ff_rtp_get_payload_type(s1, st->codecpar, -1);//看看是否是96以下RFC规定类型
 
-        s->payload_type = st->id;
+        s->payload_type = st->id;//否则就是动态的pt
     } else {
         /* private option takes priority */
-        st->id = s->payload_type;
+        st->id = s->payload_type;//用已经定义的
     }
 
-    s->base_timestamp = av_get_random_seed();
+    s->base_timestamp = av_get_random_seed();//起始最好是随机数
     s->timestamp = s->base_timestamp;
-    s->cur_timestamp = 0;
+    s->cur_timestamp = 0;//当前时间为0
     if (!s->ssrc)
-        s->ssrc = av_get_random_seed();
+        s->ssrc = av_get_random_seed();//ssrc如果不指定，就用随机数 //tiger program 这个编程需要设置
     s->first_packet = 1;
     s->first_rtcp_ntp_time = ff_ntp_time();
     if (s1->start_time_realtime != 0  &&  s1->start_time_realtime != AV_NOPTS_VALUE)
@@ -131,12 +131,12 @@ static int rtp_write_header(AVFormatContext *s1)
                                  NTP_OFFSET_US;
     // Pick a random sequence start number, but in the lower end of the
     // available range, so that any wraparound doesn't happen immediately.
-    // (Immediate wraparound would be an issue for SRTP.)
+    // (Immediate wraparound would be an issue for SRTP.)//对于SRTP需要额外处理
     if (s->seq < 0) {
         if (s1->flags & AVFMT_FLAG_BITEXACT) {
             s->seq = 0;
         } else
-            s->seq = av_get_random_seed() & 0x0fff;
+            s->seq = av_get_random_seed() & 0x0fff;//随机数不能太小
     } else
         s->seq &= 0xffff; // Use the given parameter, wrapped to the right interval
 
@@ -146,20 +146,20 @@ static int rtp_write_header(AVFormatContext *s1)
                                     s1->pb->max_packet_size);
     } else
         s1->packet_size = s1->pb->max_packet_size;
-    if (s1->packet_size <= 12) {
+    if (s1->packet_size <= 12) {//太小
         av_log(s1, AV_LOG_ERROR, "Max packet size %u too low\n", s1->packet_size);
         return AVERROR(EIO);
     }
-    s->buf = av_malloc(s1->packet_size);
+    s->buf = av_malloc(s1->packet_size);//分配内存
     if (!s->buf) {
         return AVERROR(ENOMEM);
     }
-    s->max_payload_size = s1->packet_size - 12;
+    s->max_payload_size = s1->packet_size - 12;//
 
     if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-        avpriv_set_pts_info(st, 32, 1, st->codecpar->sample_rate);
+        avpriv_set_pts_info(st, 32, 1, st->codecpar->sample_rate);//如果是音频，使用sample_rate？音视频的rtp 不是90k？还是前面步骤预先设置为90k
     } else {
-        avpriv_set_pts_info(st, 32, 1, 90000);
+        avpriv_set_pts_info(st, 32, 1, 90000);//rtp视频目前只有90k
     }
     s->buf_ptr = s->buf;
     switch(st->codecpar->codec_id) {
@@ -202,7 +202,7 @@ static int rtp_write_header(AVFormatContext *s1)
     case AV_CODEC_ID_H264:
         /* check for H.264 MP4 syntax */
         if (st->codecpar->extradata_size > 4 && st->codecpar->extradata[0] == 1) {
-            s->nal_length_size = (st->codecpar->extradata[4] & 0x03) + 1;
+            s->nal_length_size = (st->codecpar->extradata[4] & 0x03) + 1;//NAL 每包预留长度
         }
         break;
     case AV_CODEC_ID_HEVC:
@@ -268,7 +268,7 @@ static int rtp_write_header(AVFormatContext *s1)
         }
         break;
     case AV_CODEC_ID_AAC:
-        s->max_frames_per_packet = 50;
+        s->max_frames_per_packet = 50;//每包不超过50个frames
         break;
     default:
         break;
@@ -329,22 +329,22 @@ static void rtcp_send_sr(AVFormatContext *s1, int64_t ntp_time, int bye)
 
 /* send an rtp packet. sequence number is incremented, but the caller
    must update the timestamp itself */
-void ff_rtp_send_data(AVFormatContext *s1, const uint8_t *buf1, int len, int m)
+void ff_rtp_send_data(AVFormatContext *s1, const uint8_t *buf1, int len, int m)//发送单条数据
 {
     RTPMuxContext *s = s1->priv_data;
 
     av_log(s1, AV_LOG_TRACE, "rtp_send_data size=%d\n", len);
 
-    /* build the RTP header */
+    /* build the RTP header *///写头
     avio_w8(s1->pb, RTP_VERSION << 6);
     avio_w8(s1->pb, (s->payload_type & 0x7f) | ((m & 0x01) << 7));
     avio_wb16(s1->pb, s->seq);
     avio_wb32(s1->pb, s->timestamp);
     avio_wb32(s1->pb, s->ssrc);
 
-    avio_write(s1->pb, buf1, len);
-    avio_flush(s1->pb);
-
+    avio_write(s1->pb, buf1, len);//写实际的数据
+    avio_flush(s1->pb);//发送
+    //递增序列号，和统计值
     s->seq = (s->seq + 1) & 0xffff;
     s->octet_count += len;
     s->packet_count++;
@@ -358,24 +358,24 @@ static int rtp_send_samples(AVFormatContext *s1,
     RTPMuxContext *s = s1->priv_data;
     int len, max_packet_size, n;
     /* Calculate the number of bytes to get samples aligned on a byte border */
-    int aligned_samples_size = sample_size_bits/av_gcd(sample_size_bits, 8);
+    int aligned_samples_size = sample_size_bits/av_gcd(sample_size_bits, 8);//考虑对齐
 
     max_packet_size = (s->max_payload_size / aligned_samples_size) * aligned_samples_size;
     /* Not needed, but who knows. Don't check if samples aren't an even number of bytes. */
-    if ((sample_size_bits % 8) == 0 && ((8 * size) % sample_size_bits) != 0)
+    if ((sample_size_bits % 8) == 0 && ((8 * size) % sample_size_bits) != 0)//数据是否有错误
         return AVERROR(EINVAL);
     n = 0;
     while (size > 0) {
         s->buf_ptr = s->buf;
-        len = FFMIN(max_packet_size, size);
+        len = FFMIN(max_packet_size, size);//也可能太长了，需要循环多次发送
 
         /* copy data */
         memcpy(s->buf_ptr, buf1, len);
         s->buf_ptr += len;
         buf1 += len;
         size -= len;
-        s->timestamp = s->cur_timestamp + n * 8 / sample_size_bits;
-        ff_rtp_send_data(s1, s->buf, s->buf_ptr - s->buf, 0);
+        s->timestamp = s->cur_timestamp + n * 8 / sample_size_bits;//时间是增长的
+        ff_rtp_send_data(s1, s->buf, s->buf_ptr - s->buf, 0);//先发一包
         n += (s->buf_ptr - s->buf);
     }
     return 0;
@@ -446,7 +446,7 @@ static void rtp_send_raw(AVFormatContext *s1,
         if (len > size)
             len = size;
 
-        s->timestamp = s->cur_timestamp;
+        s->timestamp = s->cur_timestamp;//时间不需要增加，一直用一个
         ff_rtp_send_data(s1, buf1, len, (len == size));
 
         buf1 += len;
@@ -513,7 +513,7 @@ static int rtp_send_ilbc(AVFormatContext *s1, const uint8_t *buf, int size)
     }
     return 0;
 }
-
+//TIGER RTP
 static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
 {
     RTPMuxContext *s = s1->priv_data;
@@ -528,18 +528,18 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
     if ((s->first_packet || ((rtcp_bytes >= RTCP_SR_SIZE) &&
                             (ff_ntp_time() - s->last_rtcp_ntp_time > 5000000))) &&
         !(s->flags & FF_RTP_FLAG_SKIP_RTCP)) {
-        rtcp_send_sr(s1, ff_ntp_time(), 0);
+        rtcp_send_sr(s1, ff_ntp_time(), 0);//发送rtcp
         s->last_octet_count = s->octet_count;
         s->first_packet = 0;
     }
-    s->cur_timestamp = s->base_timestamp + pkt->pts;
+    s->cur_timestamp = s->base_timestamp + pkt->pts;//计算当前时间
 
     switch(st->codecpar->codec_id) {
     case AV_CODEC_ID_PCM_MULAW:
     case AV_CODEC_ID_PCM_ALAW:
     case AV_CODEC_ID_PCM_U8:
     case AV_CODEC_ID_PCM_S8:
-        return rtp_send_samples(s1, pkt->data, size, 8 * st->codecpar->channels);
+        return rtp_send_samples(s1, pkt->data, size, 8 * st->codecpar->channels);//最简单的发送
     case AV_CODEC_ID_PCM_U16BE:
     case AV_CODEC_ID_PCM_U16LE:
     case AV_CODEC_ID_PCM_S16BE:
@@ -565,7 +565,7 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
     case AV_CODEC_ID_MPEG2VIDEO:
         ff_rtp_send_mpegvideo(s1, pkt->data, size);
         break;
-    case AV_CODEC_ID_AAC:
+    case AV_CODEC_ID_AAC://aac 的2种rtp sdp模式
         if (s->flags & FF_RTP_FLAG_MP4A_LATM)
             ff_rtp_send_latm(s1, pkt->data, size);
         else
@@ -581,7 +581,7 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
     case AV_CODEC_ID_DIRAC:
         ff_rtp_send_vc2hq(s1, pkt->data, size, st->codecpar->field_order != AV_FIELD_PROGRESSIVE ? 1 : 0);
         break;
-    case AV_CODEC_ID_H264:
+    case AV_CODEC_ID_H264://TIGER H264
         ff_rtp_send_h264_hevc(s1, pkt->data, size);
         break;
     case AV_CODEC_ID_H261:
@@ -600,7 +600,7 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
     case AV_CODEC_ID_H263P:
         ff_rtp_send_h263(s1, pkt->data, size);
         break;
-    case AV_CODEC_ID_HEVC:
+    case AV_CODEC_ID_HEVC://TIGER HEVC
         ff_rtp_send_h264_hevc(s1, pkt->data, size);
         break;
     case AV_CODEC_ID_VORBIS:
@@ -642,7 +642,7 @@ static int rtp_write_trailer(AVFormatContext *s1)
     /* If the caller closes and recreates ->pb, this might actually
      * be NULL here even if it was successfully allocated at the start. */
     if (s1->pb && (s->flags & FF_RTP_FLAG_SEND_BYE))
-        rtcp_send_sr(s1, ff_ntp_time(), 1);
+        rtcp_send_sr(s1, ff_ntp_time(), 1);//发送rtcp结束
     av_freep(&s->buf);
 
     return 0;
@@ -652,8 +652,8 @@ AVOutputFormat ff_rtp_muxer = {
     .name              = "rtp",
     .long_name         = NULL_IF_CONFIG_SMALL("RTP output"),
     .priv_data_size    = sizeof(RTPMuxContext),
-    .audio_codec       = AV_CODEC_ID_PCM_MULAW,
-    .video_codec       = AV_CODEC_ID_MPEG4,
+    .audio_codec       = AV_CODEC_ID_PCM_MULAW,//TIGER MULAW
+    .video_codec       = AV_CODEC_ID_MPEG4,//tiger mpeg4
     .write_header      = rtp_write_header,
     .write_packet      = rtp_write_packet,
     .write_trailer     = rtp_write_trailer,

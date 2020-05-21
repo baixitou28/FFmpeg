@@ -33,7 +33,7 @@
 #include "avc.h"
 #include "rtpenc.h"
 
-static void flush_buffered(AVFormatContext *s1, int last)
+static void flush_buffered(AVFormatContext *s1, int last)//发送多条数据
 {
     RTPMuxContext *s = s1->priv_data;
     if (s->buf_ptr != s->buf) {
@@ -51,7 +51,7 @@ static void flush_buffered(AVFormatContext *s1, int last)
     s->buf_ptr = s->buf;
     s->buffered_nals = 0;
 }
-
+//tiger h264 nal 
 static void nal_send(AVFormatContext *s1, const uint8_t *buf, int size, int last)
 {
     RTPMuxContext *s = s1->priv_data;
@@ -111,7 +111,7 @@ static void nal_send(AVFormatContext *s1, const uint8_t *buf, int size, int last
         if (codec == AV_CODEC_ID_H264) {
             uint8_t type = buf[0] & 0x1F;
             uint8_t nri = buf[0] & 0x60;
-
+            //写FU头
             s->buf[0] = 28;        /* FU Indicator; Type = 28 ---> FU-A */
             s->buf[0] |= nri;
             s->buf[1] = type;
@@ -166,14 +166,14 @@ static void nal_send(AVFormatContext *s1, const uint8_t *buf, int size, int last
 
         while (size + header_size > s->max_payload_size) {
             memcpy(&s->buf[header_size], buf, s->max_payload_size - header_size);
-            ff_rtp_send_data(s1, s->buf, s->max_payload_size, 0);
+            ff_rtp_send_data(s1, s->buf, s->max_payload_size, 0);//单条记录，多次发送
             buf  += s->max_payload_size - header_size;
             size -= s->max_payload_size - header_size;
             s->buf[flag_byte] &= ~(1 << 7);
         }
         s->buf[flag_byte] |= 1 << 6;
         memcpy(&s->buf[header_size], buf, size);
-        ff_rtp_send_data(s1, s->buf, size + header_size, last);
+        ff_rtp_send_data(s1, s->buf, size + header_size, last);//
     }
 }
 
@@ -184,11 +184,11 @@ void ff_rtp_send_h264_hevc(AVFormatContext *s1, const uint8_t *buf1, int size)
 
     s->timestamp = s->cur_timestamp;
     s->buf_ptr   = s->buf;
-    if (s->nal_length_size)
+    if (s->nal_length_size)//查找startcode 00，00，00，01
         r = ff_avc_mp4_find_startcode(buf1, end, s->nal_length_size) ? buf1 : end;
     else
         r = ff_avc_find_startcode(buf1, end);
-    while (r < end) {
+    while (r < end) {//也是个死循环
         const uint8_t *r1;
 
         if (s->nal_length_size) {
@@ -197,10 +197,10 @@ void ff_rtp_send_h264_hevc(AVFormatContext *s1, const uint8_t *buf1, int size)
                 r1 = end;
             r += s->nal_length_size;
         } else {
-            while (!*(r++));
+            while (!*(r++));//死循环
             r1 = ff_avc_find_startcode(r, end);
         }
-        nal_send(s1, r, r1 - r, r1 == end);
+        nal_send(s1, r, r1 - r, r1 == end);//发送一个nal
         r = r1;
     }
     flush_buffered(s1, 1);

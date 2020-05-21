@@ -23,7 +23,7 @@
 #include "avformat.h"
 #include "rtpenc.h"
 
-
+ //TIGER AAC 
 void ff_rtp_send_aac(AVFormatContext *s1, const uint8_t *buff, int size)
 {
     RTPMuxContext *s = s1->priv_data;
@@ -33,7 +33,7 @@ void ff_rtp_send_aac(AVFormatContext *s1, const uint8_t *buff, int size)
     uint8_t *p;
 
     /* skip ADTS header, if present */
-    if ((s1->streams[0]->codecpar->extradata_size) == 0) {
+    if ((s1->streams[0]->codecpar->extradata_size) == 0) {//tiger Ìø¹ıadtsÍ·
         size -= 7;
         buff += 7;
     }
