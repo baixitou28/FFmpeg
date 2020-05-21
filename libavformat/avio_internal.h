@@ -130,7 +130,7 @@ int ffio_open_dyn_packet_buf(AVIOContext **s, int max_packet_size);
  * @return >= 0 in case of success, a negative value corresponding to an
  * AVERROR code in case of failure
  */
-int ffio_fdopen(AVIOContext **s, URLContext *h);
+int ffio_fdopen(AVIOContext **s, URLContext *h);//TIGER 
 
 /**
  * Return the URLContext associated with the AVIOContext

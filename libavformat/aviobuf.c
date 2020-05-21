@@ -88,13 +88,13 @@ int ffio_init_context(AVIOContext *s,
                   int64_t (*seek)(void *opaque, int64_t offset, int whence))
 {
     memset(s, 0, sizeof(AVIOContext));
-
+    //TIGER 初始化项很多
     s->buffer      = buffer;
     s->orig_buffer_size =
     s->buffer_size = buffer_size;
     s->buf_ptr     = buffer;
     s->buf_ptr_max = buffer;
-    s->opaque      = opaque;
+    s->opaque      = opaque;//可能绑定的是AVIOInternal *internal
     s->direct      = 0;
 
     url_resetbuf(s, write_flag ? AVIO_FLAG_WRITE : AVIO_FLAG_READ);
@@ -127,7 +127,7 @@ int ffio_init_context(AVIOContext *s,
 
     return 0;
 }
-
+//简单的分配AVIOContext内存，并初始化
 AVIOContext *avio_alloc_context(
                   unsigned char *buffer,
                   int buffer_size,
@@ -937,7 +937,7 @@ uint64_t ffio_read_varlen(AVIOContext *bc){
     return val;
 }
 
-static int io_read_packet(void *opaque, uint8_t *buf, int buf_size)
+static int io_read_packet(void *opaque, uint8_t *buf, int buf_size)//调用url_read
 {
     AVIOInternal *internal = opaque;
     return ffurl_read(internal->h, buf, buf_size);
@@ -976,31 +976,31 @@ static int64_t io_read_seek(void *opaque, int stream_index, int64_t timestamp, i
         return AVERROR(ENOSYS);
     return internal->h->prot->url_read_seek(internal->h, stream_index, timestamp, flags);
 }
-
+//创建AVIOContext,初始化，opaque里面保存AVIOInternal，设置io_read_packet，io_write_packet 等函数 io_read_packet -->ffurl_read-->retry_transfer_wrapper(h, buf, size, 1, h->prot->url_read)
 int ffio_fdopen(AVIOContext **s, URLContext *h)
 {
     AVIOInternal *internal = NULL;
     uint8_t *buffer = NULL;
     int buffer_size, max_packet_size;
 
-    max_packet_size = h->max_packet_size;
+    max_packet_size = h->max_packet_size;//设置buffer size
     if (max_packet_size) {
         buffer_size = max_packet_size; /* no need to bufferize more than one packet */
     } else {
         buffer_size = IO_BUFFER_SIZE;
     }
-    buffer = av_malloc(buffer_size);
+    buffer = av_malloc(buffer_size);//分配buff内存
     if (!buffer)
         return AVERROR(ENOMEM);
 
-    internal = av_mallocz(sizeof(*internal));
+    internal = av_mallocz(sizeof(*internal));//分配AVIOInternal结构体
     if (!internal)
         goto fail;
 
-    internal->h = h;
-
+    internal->h = h;//相互指向， avio_alloc_context里面将s->opaque里面保存internal
+    //创建AVIOContext，初始化的记过保存所有参数
     *s = avio_alloc_context(buffer, buffer_size, h->flags & AVIO_FLAG_WRITE,
-                            internal, io_read_packet, io_write_packet, io_seek);
+                            internal, io_read_packet, io_write_packet, io_seek);//TIGER io_read_packet 设置
     if (!*s)
         goto fail;
 
@@ -1014,12 +1014,12 @@ int ffio_fdopen(AVIOContext **s, URLContext *h)
         avio_closep(s);
         goto fail;
     }
-    (*s)->direct = h->flags & AVIO_FLAG_DIRECT;
+    (*s)->direct = h->flags & AVIO_FLAG_DIRECT;//
 
     (*s)->seekable = h->is_streamed ? 0 : AVIO_SEEKABLE_NORMAL;
     (*s)->max_packet_size = max_packet_size;
     (*s)->min_packet_size = h->min_packet_size;
-    if(h->prot) {
+    if(h->prot) {//更多的设置
         (*s)->read_pause = io_read_pause;
         (*s)->read_seek  = io_read_seek;
 
@@ -1027,7 +1027,7 @@ int ffio_fdopen(AVIOContext **s, URLContext *h)
             (*s)->seekable |= AVIO_SEEKABLE_TIME;
     }
     (*s)->short_seek_get = io_short_seek;
-    (*s)->av_class = &ff_avio_class;
+    (*s)->av_class = &ff_avio_class;//啥应用需要
     return 0;
 fail:
     av_freep(&internal);
@@ -1042,7 +1042,7 @@ URLContext* ffio_geturlcontext(AVIOContext *s)
         return NULL;
 
     internal = s->opaque;
-    if (internal && s->read_packet == io_read_packet)
+    if (internal && s->read_packet == io_read_packet)//tiger io_read_packet 通过是否有函数来判断
         return internal->h;
     else
         return NULL;
@@ -1149,7 +1149,7 @@ int ffio_rewind_with_probe_data(AVIOContext *s, unsigned char **bufp, int buf_si
 
     return 0;
 }
-
+//TIGER avio_open-->avio_open2-->ffio_open_whitelist -->(ffurl_open_whitelist + ffio_fdopen)
 int avio_open(AVIOContext **s, const char *filename, int flags)
 {
     return avio_open2(s, filename, flags, NULL, NULL);
@@ -1173,7 +1173,7 @@ int ffio_open_whitelist(AVIOContext **s, const char *filename, int flags,
     }
     return 0;
 }
-
+//TIGER avio_open2-->ffio_open_whitelist -->(ffurl_open_whitelist + ffio_fdopen)
 int avio_open2(AVIOContext **s, const char *filename, int flags,
                const AVIOInterruptCB *int_cb, AVDictionary **options)
 {

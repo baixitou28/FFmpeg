@@ -408,14 +408,14 @@ int ffurl_read(URLContext *h, unsigned char *buf, int size)
 {
     if (!(h->flags & AVIO_FLAG_READ))
         return AVERROR(EIO);
-    return retry_transfer_wrapper(h, buf, size, 1, h->prot->url_read);
+    return retry_transfer_wrapper(h, buf, size, 1, h->prot->url_read);//TIGER RTP URL READ
 }
 
 int ffurl_read_complete(URLContext *h, unsigned char *buf, int size)
 {
     if (!(h->flags & AVIO_FLAG_READ))
         return AVERROR(EIO);
-    return retry_transfer_wrapper(h, buf, size, size, h->prot->url_read);
+    return retry_transfer_wrapper(h, buf, size, size, h->prot->url_read);//TIGER RTP URL READ
 }
 
 int ffurl_write(URLContext *h, const unsigned char *buf, int size)
