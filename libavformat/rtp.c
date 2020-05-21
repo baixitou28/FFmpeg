@@ -38,7 +38,7 @@ static const struct {
     enum AVCodecID codec_id;
     int clock_rate;
     int audio_channels;
-} rtp_payload_types[] = {
+} rtp_payload_types[] = {//这里的音频基本都是单声道的，仅有L16是双声道的，换言之，RFC规定的pt都是双声道，音质一般，也可能是freeswitch采用L16，(含双声道，44k)来混合声音了，便于统一。
   {0, "PCMU",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_MULAW, 8000, 1},
   {3, "GSM",         AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
   {4, "G723",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_G723_1, 8000, 1},
@@ -73,7 +73,7 @@ int ff_rtp_get_codec_info(AVCodecParameters *par, int payload_type)
     int i = 0;
 
     for (i = 0; rtp_payload_types[i].pt >= 0; i++)
-        if (rtp_payload_types[i].pt == payload_type) {
+        if (rtp_payload_types[i].pt == payload_type) {//如果pt 相同，可能还需要对比channels和sample_rate
             if (rtp_payload_types[i].codec_id != AV_CODEC_ID_NONE) {
                 par->codec_type = rtp_payload_types[i].codec_type;
                 par->codec_id = rtp_payload_types[i].codec_id;
@@ -106,7 +106,7 @@ int ff_rtp_get_payload_type(AVFormatContext *fmt,
         if (rtp_payload_types[i].codec_id == par->codec_id) {
             if (par->codec_id == AV_CODEC_ID_H263 && (!fmt || !fmt->oformat ||
                 !fmt->oformat->priv_class || !fmt->priv_data ||
-                !av_opt_flag_is_set(fmt->priv_data, "rtpflags", "rfc2190")))//
+                !av_opt_flag_is_set(fmt->priv_data, "rtpflags", "rfc2190")))//如果是H263，一定要指定这个？
                 continue;
             /* G722 has 8000 as nominal rate even if the sample rate is 16000,
              * see section 4.5.2 in RFC 3551. */
