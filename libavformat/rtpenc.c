@@ -654,9 +654,9 @@ AVOutputFormat ff_rtp_muxer = {
     .priv_data_size    = sizeof(RTPMuxContext),
     .audio_codec       = AV_CODEC_ID_PCM_MULAW,//TIGER MULAW
     .video_codec       = AV_CODEC_ID_MPEG4,//tiger mpeg4
-    .write_header      = rtp_write_header,
+    .write_header      = rtp_write_header,//相当于是rtp的初始化，如找编码
     .write_packet      = rtp_write_packet,
-    .write_trailer     = rtp_write_trailer,
+    .write_trailer     = rtp_write_trailer,//就发送了一个rtcp结束的消息
     .priv_class        = &rtp_muxer_class,
     .flags             = AVFMT_TS_NONSTRICT,
 };

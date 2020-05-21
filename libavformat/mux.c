@@ -65,8 +65,8 @@ static void frac_init(FFFrac *f, int64_t val, int64_t num, int64_t den)
 {
     num += (den >> 1);
     if (num >= den) {
-        val += num / den;
-        num  = num % den;
+        val += num / den;//四舍五入
+        num  = num % den;//但num不对？
     }
     f->val = val;
     f->num = num;
@@ -144,27 +144,27 @@ enum AVChromaLocation ff_choose_chroma_location(AVFormatContext *s, AVStream *st
     return AVCHROMA_LOC_UNSPECIFIED;
 
 }
-
+//TIGER
 int avformat_alloc_output_context2(AVFormatContext **avctx, ff_const59 AVOutputFormat *oformat,
                                    const char *format, const char *filename)
 {
-    AVFormatContext *s = avformat_alloc_context();
+    AVFormatContext *s = avformat_alloc_context();//01. 内存
     int ret = 0;
 
     *avctx = NULL;
     if (!s)
         goto nomem;
 
-    if (!oformat) {
+    if (!oformat) {//如果没有输出格式，猜一下
         if (format) {
-            oformat = av_guess_format(format, NULL, NULL);
+            oformat = av_guess_format(format, NULL, NULL);//按输入格式猜
             if (!oformat) {
                 av_log(s, AV_LOG_ERROR, "Requested output format '%s' is not a suitable output format\n", format);
                 ret = AVERROR(EINVAL);
                 goto error;
             }
         } else {
-            oformat = av_guess_format(NULL, filename, NULL);
+            oformat = av_guess_format(NULL, filename, NULL);//按文件名猜
             if (!oformat) {
                 ret = AVERROR(EINVAL);
                 av_log(s, AV_LOG_ERROR, "Unable to find a suitable output format for '%s'\n",
@@ -175,16 +175,16 @@ int avformat_alloc_output_context2(AVFormatContext **avctx, ff_const59 AVOutputF
     }
 
     s->oformat = oformat;
-    if (s->oformat->priv_data_size > 0) {
+    if (s->oformat->priv_data_size > 0) {//输出格式有自定义数据
         s->priv_data = av_mallocz(s->oformat->priv_data_size);
         if (!s->priv_data)
             goto nomem;
         if (s->oformat->priv_class) {
             *(const AVClass**)s->priv_data= s->oformat->priv_class;
-            av_opt_set_defaults(s->priv_data);
+            av_opt_set_defaults(s->priv_data);//设置默认参数
         }
     } else
-        s->priv_data = NULL;
+        s->priv_data = NULL;//也可能没有
 
     if (filename) {
 #if FF_API_FORMAT_FILENAME
@@ -192,7 +192,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
         av_strlcpy(s->filename, filename, sizeof(s->filename));
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-        if (!(s->url = av_strdup(filename)))
+        if (!(s->url = av_strdup(filename)))//复制文件名
             goto nomem;
 
     }
@@ -205,7 +205,7 @@ error:
     avformat_free_context(s);
     return ret;
 }
-
+//匹配tag和id，或者仅仅是id
 static int validate_codec_tag(AVFormatContext *s, AVStream *st)
 {
     const AVCodecTag *avctag;
@@ -222,12 +222,12 @@ static int validate_codec_tag(AVFormatContext *s, AVStream *st)
     for (n = 0; s->oformat->codec_tag[n]; n++) {
         avctag = s->oformat->codec_tag[n];
         while (avctag->id != AV_CODEC_ID_NONE) {
-            if (avpriv_toupper4(avctag->tag) == avpriv_toupper4(st->codecpar->codec_tag)) {
+            if (avpriv_toupper4(avctag->tag) == avpriv_toupper4(st->codecpar->codec_tag)) {//对比tag
                 id = avctag->id;
-                if (id == st->codecpar->codec_id)
-                    return 1;
+                if (id == st->codecpar->codec_id)//对比id
+                    return 1;//tag和id都匹配上
             }
-            if (avctag->id == st->codecpar->codec_id)
+            if (avctag->id == st->codecpar->codec_id)//如果不严格，仅仅codec_id对比吧，
                 tag = avctag->tag;
             avctag++;
         }
@@ -236,10 +236,10 @@ static int validate_codec_tag(AVFormatContext *s, AVStream *st)
         return 0;
     if (tag >= 0 && (s->strict_std_compliance >= FF_COMPLIANCE_NORMAL))
         return 0;
-    return 1;
+    return 1;//如果不严格，codec_id相等即可
 }
 
-
+//tiger
 static int init_muxer(AVFormatContext *s, AVDictionary **options)
 {
     int ret = 0, i;
@@ -249,10 +249,10 @@ static int init_muxer(AVFormatContext *s, AVDictionary **options)
     const AVOutputFormat *of = s->oformat;
     const AVCodecDescriptor *desc;
     AVDictionaryEntry *e;
-
+    //01. 选项
     if (options)
         av_dict_copy(&tmp, *options, 0);
-
+    //02. 选项设置到context
     if ((ret = av_opt_set_dict(s, &tmp)) < 0)
         goto fail;
     if (s->priv_data && s->oformat->priv_class && *(const AVClass**)s->priv_data==s->oformat->priv_class &&
@@ -284,20 +284,20 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
     // some sanity checks
-    if (s->nb_streams == 0 && !(of->flags & AVFMT_NOSTREAMS)) {
+    if (s->nb_streams == 0 && !(of->flags & AVFMT_NOSTREAMS)) {//03.特例:没有stream
         av_log(s, AV_LOG_ERROR, "No streams to mux were specified\n");
         ret = AVERROR(EINVAL);
         goto fail;
     }
 
-    for (i = 0; i < s->nb_streams; i++) {
+    for (i = 0; i < s->nb_streams; i++) {//04.
         st  = s->streams[i];
         par = st->codecpar;
 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         if (st->codecpar->codec_type == AVMEDIA_TYPE_UNKNOWN &&
-            st->codec->codec_type    != AVMEDIA_TYPE_UNKNOWN) {
+            st->codec->codec_type    != AVMEDIA_TYPE_UNKNOWN) {//使用解码的codec的参数
             av_log(s, AV_LOG_WARNING, "Using AVStream.codec to pass codec "
                    "parameters to muxers is deprecated, use AVStream.codecpar "
                    "instead.\n");
@@ -307,37 +307,37 @@ FF_DISABLE_DEPRECATION_WARNINGS
         }
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-
-        if (!st->time_base.num) {
+        //04.01.PTS设置
+        if (!st->time_base.num) {//如果没有设置
             /* fall back on the default timebase values */
             if (par->codec_type == AVMEDIA_TYPE_AUDIO && par->sample_rate)
-                avpriv_set_pts_info(st, 64, 1, par->sample_rate);
+                avpriv_set_pts_info(st, 64, 1, par->sample_rate);//TIGER ?
             else
-                avpriv_set_pts_info(st, 33, 1, 90000);
+                avpriv_set_pts_info(st, 33, 1, 90000);//tiger ? 33==>
         }
-
+        //04.02.
         switch (par->codec_type) {
-        case AVMEDIA_TYPE_AUDIO:
+        case AVMEDIA_TYPE_AUDIO://音频设置block_align
             if (par->sample_rate <= 0) {
                 av_log(s, AV_LOG_ERROR, "sample rate not set\n");
                 ret = AVERROR(EINVAL);
                 goto fail;
             }
             if (!par->block_align)
-                par->block_align = par->channels *
-                                   av_get_bits_per_sample(par->codec_id) >> 3;
+                par->block_align = par->channels *//如果1声道就是按1对齐(8k,8bit)
+                                   av_get_bits_per_sample(par->codec_id) >> 3;//除以8
             break;
-        case AVMEDIA_TYPE_VIDEO:
+        case AVMEDIA_TYPE_VIDEO://视频：验证是否有宽和高，是否时间精度匹配
             if ((par->width <= 0 || par->height <= 0) &&
                 !(of->flags & AVFMT_NODIMENSIONS)) {//TIGER 自定义时 不设置会报错
                 av_log(s, AV_LOG_ERROR, "dimensions not set\n");
                 ret = AVERROR(EINVAL);
                 goto fail;
             }
-            if (av_cmp_q(st->sample_aspect_ratio, par->sample_aspect_ratio)
-                && fabs(av_q2d(st->sample_aspect_ratio) - av_q2d(par->sample_aspect_ratio)) > 0.004*av_q2d(st->sample_aspect_ratio)
-            ) {
-                if (st->sample_aspect_ratio.num != 0 &&
+            if (av_cmp_q(st->sample_aspect_ratio, par->sample_aspect_ratio)//如果AVStream st的精度比解码器par高
+                && fabs(av_q2d(st->sample_aspect_ratio) - av_q2d(par->sample_aspect_ratio)) > 0.004*av_q2d(st->sample_aspect_ratio)//绝对值 超过千分之4 
+            ) {//特例：一般什么情况会发生
+                if (st->sample_aspect_ratio.num != 0 &&//比例都存在的情况下，才合理
                     st->sample_aspect_ratio.den != 0 &&
                     par->sample_aspect_ratio.num != 0 &&
                     par->sample_aspect_ratio.den != 0) {
@@ -352,11 +352,11 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
             break;
         }
-
+        //04.03.查询解码器信息
         desc = avcodec_descriptor_get(par->codec_id);
         if (desc && desc->props & AV_CODEC_PROP_REORDER)
-            st->internal->reorder = 1;
-
+            st->internal->reorder = 1;//是否允许reorder
+        //04.04.
         if (of->codec_tag) {
             if (   par->codec_tag
                 && par->codec_id == AV_CODEC_ID_RAWVIDEO
@@ -365,10 +365,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 && !validate_codec_tag(s, st)) {
                 // the current rawvideo encoding system ends up setting
                 // the wrong codec_tag for avi/mov, we override it here
-                par->codec_tag = 0;
+                par->codec_tag = 0;//特例：
             }
             if (par->codec_tag) {
-                if (!validate_codec_tag(s, st)) {
+                if (!validate_codec_tag(s, st)) {//如果存在，则要匹配tag和id
                     const uint32_t otag = av_codec_get_tag(s->oformat->codec_tag, par->codec_id);
                     av_log(s, AV_LOG_ERROR,
                            "Tag %s incompatible with output codec id '%d' (%s)\n",
@@ -377,13 +377,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
                     goto fail;
                 }
             } else
-                par->codec_tag = av_codec_get_tag(of->codec_tag, par->codec_id);
+                par->codec_tag = av_codec_get_tag(of->codec_tag, par->codec_id);//没有，直接查询
         }
-
+        //04.05 增加一个有效的stream
         if (par->codec_type != AVMEDIA_TYPE_ATTACHMENT)
             s->internal->nb_interleaved_streams++;
     }
-
+    //05.如果of有私有数据，则复制一份
     if (!s->priv_data && of->priv_data_size > 0) {
         s->priv_data = av_mallocz(of->priv_data_size);
         if (!s->priv_data) {
@@ -397,24 +397,24 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 goto fail;
         }
     }
-
+    //06. 特例：
     /* set muxer identification string */
     if (!(s->flags & AVFMT_FLAG_BITEXACT)) {
         av_dict_set(&s->metadata, "encoder", LIBAVFORMAT_IDENT, 0);
     } else {
         av_dict_set(&s->metadata, "encoder", NULL, 0);
     }
-
+    //07. 查询编码参数
     for (e = NULL; e = av_dict_get(s->metadata, "encoder-", e, AV_DICT_IGNORE_SUFFIX); ) {
         av_dict_set(&s->metadata, e->key, NULL, 0);
     }
-
+    //08.
     if (options) {
          av_dict_free(options);
          *options = tmp;
     }
-
-    if (s->oformat->init) {
+    //09.是否有初始化函数
+    if (s->oformat->init) {//举例?
         if ((ret = s->oformat->init(s)) < 0) {
             if (s->oformat->deinit)
                 s->oformat->deinit(s);
@@ -439,31 +439,31 @@ static int init_pts(AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         int64_t den = AV_NOPTS_VALUE;
         st = s->streams[i];
-
+        //01.
         switch (st->codecpar->codec_type) {
         case AVMEDIA_TYPE_AUDIO:
-            den = (int64_t)st->time_base.num * st->codecpar->sample_rate;
+            den = (int64_t)st->time_base.num * st->codecpar->sample_rate;//直接用采样率表示
             break;
         case AVMEDIA_TYPE_VIDEO:
-            den = (int64_t)st->time_base.num * st->time_base.den;
+            den = (int64_t)st->time_base.num * st->time_base.den;//用den，90k?
             break;
         default:
             break;
         }
-
+        //02.分配内存
         if (!st->internal->priv_pts)
             st->internal->priv_pts = av_mallocz(sizeof(*st->internal->priv_pts));
         if (!st->internal->priv_pts)
             return AVERROR(ENOMEM);
-
+        //03.设置
         if (den != AV_NOPTS_VALUE) {
             if (den <= 0)
                 return AVERROR_INVALIDDATA;
-
-            frac_init(st->internal->priv_pts, 0, 0, den);
+            //设置FFFrac
+            frac_init(st->internal->priv_pts, 0, 0, den);//初始化num已加0.5
         }
     }
-
+    //是否允许负数
     if (s->avoid_negative_ts < 0) {
         av_assert2(s->avoid_negative_ts == AVFMT_AVOID_NEG_TS_AUTO);
         if (s->oformat->flags & (AVFMT_TS_NEGATIVE | AVFMT_NOTIMESTAMPS)) {
@@ -484,17 +484,17 @@ static void flush_if_needed(AVFormatContext *s)
             avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_FLUSH_POINT);
     }
 }
-
+//TIGER 
 int avformat_init_output(AVFormatContext *s, AVDictionary **options)
 {
     int ret = 0;
-
+    //01.mux的初始化
     if ((ret = init_muxer(s, options)) < 0)
         return ret;
-
+    //02.标识已经初始化
     s->internal->initialized = 1;
     s->internal->streams_initialized = ret;
-
+    //02.音视频的pts初始化
     if (s->oformat->init && ret) {
         if ((ret = init_pts(s)) < 0)
             return ret;
@@ -661,7 +661,7 @@ static int compute_muxer_pkt_fields(AVFormatContext *s, AVStream *st, AVPacket *
 }
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-
+//TIGER 
 /**
  * Make timestamps non negative, move side data from payload to internal struct, call muxer, and restore
  * sidedata.
@@ -874,7 +874,7 @@ static int do_packet_auto_bsf(AVFormatContext *s, AVPacket *pkt) {
     }
     return 1;
 }
-
+//TIGER 
 int av_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret;
@@ -915,7 +915,7 @@ int av_write_frame(AVFormatContext *s, AVPacket *pkt)
 }
 
 #define CHUNK_START 0x1000
-
+//TIGER
 int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
                              int (*compare)(AVFormatContext *, AVPacket *, AVPacket *))
 {
@@ -993,7 +993,7 @@ next_non_null:
 
     return 0;
 }
-
+//TIGER
 static int interleave_compare_dts(AVFormatContext *s, AVPacket *next,
                                   AVPacket *pkt)
 {
@@ -1023,7 +1023,7 @@ static int interleave_compare_dts(AVFormatContext *s, AVPacket *next,
         return pkt->stream_index < next->stream_index;
     return comp > 0;
 }
-
+//TIGER
 int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
                                  AVPacket *pkt, int flush)
 {
@@ -1142,7 +1142,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
         return 0;
     }
 }
-
+//TIGER
 int ff_interleaved_peek(AVFormatContext *s, int stream,
                         AVPacket *pkt, int add_offset)
 {
@@ -1209,7 +1209,7 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
         if (s->debug & FF_FDEBUG_TS)
             av_log(s, AV_LOG_DEBUG, "av_interleaved_write_frame size:%d dts:%s pts:%s\n",
                 pkt->size, av_ts2str(pkt->dts), av_ts2str(pkt->pts));
-        //高版本打印更多，保守做法，只59以上，目前是58版本
+        //高版本打印更多，保守做法，只59以下，目前是58版本==>如果上新的avformat，就不打印？
 #if FF_API_COMPUTE_PKT_FIELDS2 && FF_API_LAVF_AVCTX
         if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS))
             goto fail;
@@ -1250,20 +1250,20 @@ fail:
     av_packet_unref(pkt);
     return ret;
 }
-
+//写尾部:
 int av_write_trailer(AVFormatContext *s)
 {
     int ret, i;
 
     for (;; ) {
         AVPacket pkt;
-        ret = interleave_packet(s, &pkt, NULL, 1);
+        ret = interleave_packet(s, &pkt, NULL, 1);//用null，迫使结束
         if (ret < 0)
             goto fail;
         if (!ret)
             break;
 
-        ret = write_packet(s, &pkt);
+        ret = write_packet(s, &pkt);//写
         if (ret >= 0)
             s->streams[pkt.stream_index]->nb_frames++;
 
@@ -1275,28 +1275,28 @@ int av_write_trailer(AVFormatContext *s)
             goto fail;
     }
 
-fail:
+fail://
     if (s->oformat->write_trailer) {
         if (!(s->oformat->flags & AVFMT_NOFILE) && s->pb)
             avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_TRAILER);
         if (ret >= 0) {
-        ret = s->oformat->write_trailer(s);
+        ret = s->oformat->write_trailer(s);//关闭前的一些调用，比如rtp里发送rtcp的结束消息
         } else {
             s->oformat->write_trailer(s);
         }
     }
-
+    //析构
     if (s->oformat->deinit)
         s->oformat->deinit(s);
 
     s->internal->initialized =
     s->internal->streams_initialized = 0;
-
+    //刷新
     if (s->pb)
        avio_flush(s->pb);
     if (ret == 0)
        ret = s->pb ? s->pb->error : 0;
-    for (i = 0; i < s->nb_streams; i++) {
+    for (i = 0; i < s->nb_streams; i++) {//内存释放
         av_freep(&s->streams[i]->priv_data);
         av_freep(&s->streams[i]->index_entries);
     }
@@ -1305,7 +1305,7 @@ fail:
     av_freep(&s->priv_data);
     return ret;
 }
-
+//
 int av_get_output_timestamp(struct AVFormatContext *s, int stream,
                             int64_t *dts, int64_t *wall)
 {
@@ -1314,7 +1314,7 @@ int av_get_output_timestamp(struct AVFormatContext *s, int stream,
     s->oformat->get_output_timestamp(s, stream, dts, wall);
     return 0;
 }
-
+//
 int ff_write_chained(AVFormatContext *dst, int dst_stream, AVPacket *pkt,
                      AVFormatContext *src, int interleave)
 {
@@ -1343,7 +1343,7 @@ int ff_write_chained(AVFormatContext *dst, int dst_stream, AVPacket *pkt,
     pkt->side_data_elems = local_pkt.side_data_elems;
     return ret;
 }
-
+//TIGER uncoded含义
 static int av_write_uncoded_frame_internal(AVFormatContext *s, int stream_index,
                                            AVFrame *frame, int interleaved)
 {

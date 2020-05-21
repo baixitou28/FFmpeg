@@ -223,7 +223,7 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .type      = AVMEDIA_TYPE_VIDEO,
         .name      = "h264",
         .long_name = NULL_IF_CONFIG_SMALL("H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"),
-        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_REORDER,
+        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_REORDER,//AV_CODEC_PROP_REORDER ÔÊÐí
         .profiles  = NULL_IF_CONFIG_SMALL(ff_h264_profiles),
     },
     {
@@ -1782,7 +1782,7 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .type      = AVMEDIA_TYPE_AUDIO,
         .name      = "pcm_alaw",
         .long_name = NULL_IF_CONFIG_SMALL("PCM A-law / G.711 A-law"),
-        .props     = AV_CODEC_PROP_LOSSY,
+        .props     = AV_CODEC_PROP_LOSSY,//ÓÐËðÑ¹Ëõ£¿
     },
     {
         .id        = AV_CODEC_ID_PCM_S32LE,

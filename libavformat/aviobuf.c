@@ -65,7 +65,7 @@ static const AVOption ff_avio_options[] = {
     {"protocol_whitelist", "List of protocols that are allowed to be used", OFFSET(protocol_whitelist), AV_OPT_TYPE_STRING, { .str = NULL },  CHAR_MIN, CHAR_MAX, D },
     { NULL },
 };
-
+//TIGER
 const AVClass ff_avio_class = {
     .class_name = "AVIOContext",
     .item_name  = av_default_item_name,
@@ -152,15 +152,15 @@ void avio_context_free(AVIOContext **ps)
 
 static void writeout(AVIOContext *s, const uint8_t *data, int len)
 {
-    if (!s->error) {
+    if (!s->error) {//如果AVIOContext没有异常
         int ret = 0;
-        if (s->write_data_type)
-            ret = s->write_data_type(s->opaque, (uint8_t *)data,
+        if (s->write_data_type)//01.
+            ret = s->write_data_type(s->opaque, (uint8_t *)data,//仅测试用例用到io_write_data_type
                                      len,
                                      s->current_type,
                                      s->last_time);
-        else if (s->write_packet)
-            ret = s->write_packet(s->opaque, (uint8_t *)data, len);
+        else if (s->write_packet)//02.
+            ret = s->write_packet(s->opaque, (uint8_t *)data, len);//如：rtp_write_packet
         if (ret < 0) {
             s->error = ret;
         } else {
@@ -173,16 +173,16 @@ static void writeout(AVIOContext *s, const uint8_t *data, int len)
         s->current_type = AVIO_DATA_MARKER_UNKNOWN;
     }
     s->last_time = AV_NOPTS_VALUE;
-    s->writeout_count ++;
-    s->pos += len;
+    s->writeout_count ++;//次数
+    s->pos += len;//长度
 }
 
 static void flush_buffer(AVIOContext *s)
 {
     s->buf_ptr_max = FFMAX(s->buf_ptr, s->buf_ptr_max);
     if (s->write_flag && s->buf_ptr_max > s->buffer) {
-        writeout(s, s->buffer, s->buf_ptr_max - s->buffer);
-        if (s->update_checksum) {
+        writeout(s, s->buffer, s->buf_ptr_max - s->buffer);//写
+        if (s->update_checksum) {//
             s->checksum     = s->update_checksum(s->checksum, s->checksum_ptr,
                                                  s->buf_ptr_max - s->checksum_ptr);
             s->checksum_ptr = s->buffer;
@@ -214,23 +214,23 @@ void ffio_fill(AVIOContext *s, int b, int count)
         count -= len;
     }
 }
-
+//TIGER 
 void avio_write(AVIOContext *s, const unsigned char *buf, int size)
 {
-    if (s->direct && !s->update_checksum) {
-        avio_flush(s);
+    if (s->direct && !s->update_checksum) {//01.直接写的话，不要写到s->buf_ptr中去  //TIGER 用direct 好像没有什么用？==>
+        avio_flush(s);//调用的flush也不一样，但也调用了flush_buffer，是为了保险？
         writeout(s, buf, size);
         return;
     }
     while (size > 0) {
-        int len = FFMIN(s->buf_end - s->buf_ptr, size);
-        memcpy(s->buf_ptr, buf, len);
+        int len = FFMIN(s->buf_end - s->buf_ptr, size);//保证数据长度的有效性
+        memcpy(s->buf_ptr, buf, len);//复制
         s->buf_ptr += len;
 
         if (s->buf_ptr >= s->buf_end)
-            flush_buffer(s);
+            flush_buffer(s);//间接调用writeout
 
-        buf += len;
+        buf += len; //标识已写的长度
         size -= len;
     }
 }
@@ -489,7 +489,7 @@ void avio_wb24(AVIOContext *s, unsigned int val)
     avio_wb16(s, (int)val >> 8);
     avio_w8(s, (uint8_t)val);
 }
-
+//TIGER 
 void avio_write_marker(AVIOContext *s, int64_t time, enum AVIODataMarkerType type)
 {
     if (type == AVIO_DATA_MARKER_FLUSH_POINT) {
@@ -525,14 +525,14 @@ void avio_write_marker(AVIOContext *s, int64_t time, enum AVIODataMarkerType typ
     s->current_type = type;
     s->last_time = time;
 }
-
+//TIGER RTP READ 
 static int read_packet_wrapper(AVIOContext *s, uint8_t *buf, int size)
 {
     int ret;
 
     if (!s->read_packet)
         return AVERROR(EINVAL);
-    ret = s->read_packet(s->opaque, buf, size);
+    ret = s->read_packet(s->opaque, buf, size);//直接使用AVIOContext的read函数，一般再调用s->opaque的read， //TIGER STACK 看一下堆栈
 #if FF_API_OLD_AVIO_EOF_0
     if (!ret && !s->max_packet_size) {
         av_log(NULL, AV_LOG_WARNING, "Invalid return value 0 for stream protocol\n");
@@ -545,7 +545,7 @@ static int read_packet_wrapper(AVIOContext *s, uint8_t *buf, int size)
 }
 
 /* Input stream */
-
+//tiger 调用read_packet_wrapper读入数据
 static void fill_buffer(AVIOContext *s)
 {
     int max_buffer_size = s->max_packet_size ?
@@ -643,18 +643,18 @@ int avio_r8(AVIOContext *s)
         return *s->buf_ptr++;
     return 0;
 }
-
+//tiger 
 int avio_read(AVIOContext *s, unsigned char *buf, int size)
 {
     int len, size1;
 
     size1 = size;
     while (size > 0) {
-        len = FFMIN(s->buf_end - s->buf_ptr, size);
-        if (len == 0 || s->write_flag) {
+        len = FFMIN(s->buf_end - s->buf_ptr, size);//验证长度
+        if (len == 0 || s->write_flag) {//如果长度为0
             if((s->direct || size > s->buffer_size) && !s->update_checksum) {
                 // bypass the buffer and read data directly into buf
-                len = read_packet_wrapper(s, buf, size);
+                len = read_packet_wrapper(s, buf, size);//让AVIOContext读
                 if (len == AVERROR_EOF) {
                     /* do not modify buffer if EOF reached so that a seek back can
                     be done without rereading data */
@@ -674,13 +674,13 @@ int avio_read(AVIOContext *s, unsigned char *buf, int size)
                     s->buf_end = s->buffer/* + len*/;
                 }
             } else {
-                fill_buffer(s);
+                fill_buffer(s);//填充数据
                 len = s->buf_end - s->buf_ptr;
                 if (len == 0)
                     break;
             }
         } else {
-            memcpy(buf, s->buf_ptr, len);
+            memcpy(buf, s->buf_ptr, len);//复制
             buf += len;
             s->buf_ptr += len;
             size -= len;
@@ -690,7 +690,7 @@ int avio_read(AVIOContext *s, unsigned char *buf, int size)
         if (s->error)      return s->error;
         if (avio_feof(s))  return AVERROR_EOF;
     }
-    return size1 - size;
+    return size1 - size;//返回长度
 }
 
 int ffio_read_size(AVIOContext *s, unsigned char *buf, int size)
