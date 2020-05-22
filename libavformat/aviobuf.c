@@ -644,9 +644,9 @@ int avio_r8(AVIOContext *s)
     return 0;
 }
 //tiger 
-int avio_read(AVIOContext *s, unsigned char *buf, int size)
-{
-    int len, size1;
+int avio_read(AVIOContext *s, unsigned char *buf, int size)//tiger avio_read 如果direct: -->read_packet_wrappers-> s->read_packet(io_read_packet)-->
+{//如果普通文件 avio_read-->fill_buffer-->read_packet_wrappers-> s->read_packet(io_read_packet) -->ffurl_read-->retry_transfer_wrapper(h->prot->url_read==file_read, h->proto==ff_file_protocol) -->file_read
+    int len, size1; 
 
     size1 = size;
     while (size > 0) {
@@ -674,13 +674,13 @@ int avio_read(AVIOContext *s, unsigned char *buf, int size)
                     s->buf_end = s->buffer/* + len*/;
                 }
             } else {
-                fill_buffer(s);//填充数据
+                fill_buffer(s);///如果是普通文件，走这个分支，填充数据
                 len = s->buf_end - s->buf_ptr;
                 if (len == 0)
                     break;
             }
         } else {
-            memcpy(buf, s->buf_ptr, len);//复制
+            memcpy(buf, s->buf_ptr, len);//如果是普通文件，走这个分支，复制
             buf += len;
             s->buf_ptr += len;
             size -= len;
@@ -1019,7 +1019,7 @@ int ffio_fdopen(AVIOContext **s, URLContext *h)
     (*s)->seekable = h->is_streamed ? 0 : AVIO_SEEKABLE_NORMAL;
     (*s)->max_packet_size = max_packet_size;
     (*s)->min_packet_size = h->min_packet_size;
-    if(h->prot) {//更多的设置
+    if(h->prot) {//更多的设置 h->prot如: ff_file_protocol 
         (*s)->read_pause = io_read_pause;
         (*s)->read_seek  = io_read_seek;
 
@@ -1107,7 +1107,7 @@ static int url_resetbuf(AVIOContext *s, int flags)
     return 0;
 }
 
-int ffio_rewind_with_probe_data(AVIOContext *s, unsigned char **bufp, int buf_size)
+int ffio_rewind_with_probe_data(AVIOContext *s, unsigned char **bufp, int buf_size)//TIGER ffio_rewind_with_probe_data
 {
     int64_t buffer_start;
     int buffer_size;

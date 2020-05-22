@@ -219,7 +219,7 @@ ff_const59 AVInputFormat *av_probe_input_format(ff_const59 AVProbeData *pd, int 
     return av_probe_input_format2(pd, is_opened, &score);
 }
 
-int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
+int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,//TIGER av_probe_input_buffer2
                           const char *filename, void *logctx,
                           unsigned int offset, unsigned int max_probe_size)
 {
@@ -228,7 +228,7 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
     int ret = 0, probe_size, buf_offset = 0;
     int score = 0;
     int ret2;
-
+    //01. 探测的长度限制
     if (!max_probe_size)
         max_probe_size = PROBE_BUF_MAX;
     else if (max_probe_size < PROBE_BUF_MIN) {
@@ -236,10 +236,10 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
                "Specified probe size value %u cannot be < %u\n", max_probe_size, PROBE_BUF_MIN);
         return AVERROR(EINVAL);
     }
-
+    //02. 长度超了吗
     if (offset >= max_probe_size)
         return AVERROR(EINVAL);
-
+    //03.
     if (pb->av_class) {
         uint8_t *mime_type_opt = NULL;
         char *semi;
@@ -250,17 +250,17 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
             *semi = '\0';
         }
     }
-
+    //04.如果没有格式，不断尝试
     for (probe_size = PROBE_BUF_MIN; probe_size <= max_probe_size && !*fmt;
          probe_size = FFMIN(probe_size << 1,
-                            FFMAX(max_probe_size, probe_size + 1))) {
-        score = probe_size < max_probe_size ? AVPROBE_SCORE_RETRY : 0;
+                            FFMAX(max_probe_size, probe_size + 1))) {//probe_size 从2048 开始，2的倍数增长。
+        score = probe_size < max_probe_size ? AVPROBE_SCORE_RETRY : 0;//04.01.如果比最大的探测长度短，则先得1分
 
         /* Read probe data. */
-        if ((ret = av_reallocp(&buf, probe_size + AVPROBE_PADDING_SIZE)) < 0)
+        if ((ret = av_reallocp(&buf, probe_size + AVPROBE_PADDING_SIZE)) < 0)//04.02.分配内存
             goto fail;
-        if ((ret = avio_read(pb, buf + buf_offset,
-                             probe_size - buf_offset)) < 0) {
+        if ((ret = avio_read(pb, buf + buf_offset,//avio_read-->read_packet_wrapper
+                             probe_size - buf_offset)) < 0) {//04.03. 读取指定长度
             /* Fail if error was not end of file, otherwise, lower score. */
             if (ret != AVERROR_EOF)
                 goto fail;
@@ -295,18 +295,18 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,
 #endif
         }
     }
-
+    //05.没有格式设置错误返回值
     if (!*fmt)
         ret = AVERROR_INVALIDDATA;
 
-fail:
+fail://06.
     /* Rewind. Reuse probe buffer to avoid seeking. */
     ret2 = ffio_rewind_with_probe_data(pb, &buf, buf_offset);
     if (ret >= 0)
         ret = ret2;
 
     av_freep(&pd.mime_type);
-    return ret < 0 ? ret : score;
+    return ret < 0 ? ret : score;//07.
 }
 
 int av_probe_input_buffer(AVIOContext *pb, ff_const59 AVInputFormat **fmt,

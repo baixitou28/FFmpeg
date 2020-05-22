@@ -430,13 +430,13 @@ static int init_input(AVFormatContext *s, const char *filename,//TIGER init_inpu
                                       "will be ignored with AVFMT_NOFILE format.\n");
         return 0;
     }
-    //02.使用probe处输入格式
+    //02.使用probe处输入格式 //举例：s->iformat=ff_pcm_alaw_demuxer
     if ((s->iformat && s->iformat->flags & AVFMT_NOFILE) ||
         (!s->iformat && (s->iformat = av_probe_input_format2(&pd, 0, &score))))
         return score;
-    //03. 调用io_open
+    //03. 调用io_open  
     if ((ret = s->io_open(s, &s->pb, filename, AVIO_FLAG_READ | s->avio_flags, options)) < 0)//io_open ==io_open_default
-        return ret;
+        return ret; 
     //04.
     if (s->iformat)
         return 0;

@@ -353,7 +353,7 @@ static int file_close_dir(URLContext *h)
 #endif /* HAVE_LSTAT */
 }
 
-const URLProtocol ff_file_protocol = {
+const URLProtocol ff_file_protocol = {//TIGER ff_file_protocol tiger URLProtocol文件调用
     .name                = "file",
     .url_open            = file_open,
     .url_read            = file_read,

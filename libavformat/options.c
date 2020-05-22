@@ -116,7 +116,7 @@ static int io_open_default(AVFormatContext *s, AVIOContext **pb,
 
 #if FF_API_OLD_OPEN_CALLBACKS
 FF_DISABLE_DEPRECATION_WARNINGS
-    if (s->open_cb)
+    if (s->open_cb)//是否是调用callback
         return s->open_cb(s, pb, url, flags, &s->interrupt_callback, options);
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
