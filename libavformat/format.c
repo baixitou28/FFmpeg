@@ -124,8 +124,8 @@ ff_const59 AVInputFormat *av_find_input_format(const char *short_name)
             return (AVInputFormat*)fmt;
     return NULL;
 }
-
-ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int is_opened,
+//tiger probe函数也没有想象的厉害，只是通过文件扩展名，或者打开文件内容的头部信息来判断输入的类型
+ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int is_opened,//tiger av_probe_input_format3
                                       int *score_ret)
 {
     AVProbeData lpd = *pd;
@@ -140,10 +140,10 @@ ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int
         ID3_GREATER_PROBE,
         ID3_GREATER_MAX_PROBE,
     } nodat = NO_ID3;
-
+    //01.
     if (!lpd.buf)
         lpd.buf = (unsigned char *) zerobuffer;
-
+    //02.
     if (lpd.buf_size > 10 && ff_id3v2_match(lpd.buf, ID3v2_DEFAULT_MAGIC)) {
         int id3len = ff_id3v2_tag_len(lpd.buf);
         if (lpd.buf_size > id3len + 16) {
@@ -156,16 +156,16 @@ ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int
         } else
             nodat = ID3_GREATER_PROBE;
     }
-
+    //03.demuxer逐一比较，要么比较文件扩展名，要么读文件头部，看是否有流信息
     while ((fmt1 = av_demuxer_iterate(&i))) {
         if (!is_opened == !(fmt1->flags & AVFMT_NOFILE) && strcmp(fmt1->name, "image2"))
-            continue;
+            continue;//01.
         score = 0;
-        if (fmt1->read_probe) {
-            score = fmt1->read_probe(&lpd);
+        if (fmt1->read_probe) {//02.如果有探测函数
+            score = fmt1->read_probe(&lpd);//核心就是打开文件，读文件开头的信息。但也不是每个格式都有的。
             if (score)
                 av_log(NULL, AV_LOG_TRACE, "Probing %s score:%d size:%d\n", fmt1->name, score, lpd.buf_size);
-            if (fmt1->extensions && av_match_ext(lpd.filename, fmt1->extensions)) {
+            if (fmt1->extensions && av_match_ext(lpd.filename, fmt1->extensions)) {//再测试一下扩展名
                 switch (nodat) {
                 case NO_ID3:
                     score = FFMAX(score, 1);
@@ -179,25 +179,25 @@ ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int
                     break;
                 }
             }
-        } else if (fmt1->extensions) {
+        } else if (fmt1->extensions) {//如果是判断扩展名
             if (av_match_ext(lpd.filename, fmt1->extensions))
                 score = AVPROBE_SCORE_EXTENSION;
         }
-        if (av_match_name(lpd.mime_type, fmt1->mime_type)) {
+        if (av_match_name(lpd.mime_type, fmt1->mime_type)) {//匹配mime类型
             if (AVPROBE_SCORE_MIME > score) {
                 av_log(NULL, AV_LOG_DEBUG, "Probing %s score:%d increased to %d due to MIME type\n", fmt1->name, score, AVPROBE_SCORE_MIME);
                 score = AVPROBE_SCORE_MIME;
             }
         }
-        if (score > score_max) {
+        if (score > score_max) {//归一处理
             score_max = score;
             fmt       = (AVInputFormat*)fmt1;
         } else if (score == score_max)
             fmt = NULL;
     }
-    if (nodat == ID3_GREATER_PROBE)
+    if (nodat == ID3_GREATER_PROBE)//04. 再次判断评分
         score_max = FFMIN(AVPROBE_SCORE_EXTENSION / 2 - 1, score_max);
-    *score_ret = score_max;
+    *score_ret = score_max;//返回最大的评分
 
     return fmt;
 }
@@ -259,7 +259,7 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,//TIG
         /* Read probe data. */
         if ((ret = av_reallocp(&buf, probe_size + AVPROBE_PADDING_SIZE)) < 0)//04.02.分配内存
             goto fail;
-        if ((ret = avio_read(pb, buf + buf_offset,//avio_read-->read_packet_wrapper
+        if ((ret = avio_read(pb, buf + buf_offset,//如果没有数据，直接调用如file_read读入数据 avio_read-->fill_buffer-->read_packet_wrappers-> s->read_packet(io_read_packet) -->ffurl_read-->retry_transfer_wrapper(h->prot->url_read==file_read, h->proto==ff_file_protocol) -->file_read
                              probe_size - buf_offset)) < 0) {//04.03. 读取指定长度
             /* Fail if error was not end of file, otherwise, lower score. */
             if (ret != AVERROR_EOF)
@@ -277,7 +277,7 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,//TIG
         memset(pd.buf + pd.buf_size, 0, AVPROBE_PADDING_SIZE);
 
         /* Guess file format. */
-        *fmt = av_probe_input_format2(&pd, 1, &score);
+        *fmt = av_probe_input_format2(&pd, 1, &score);//通过文件名或者文件头部信息来猜测
         if (*fmt) {
             /* This can only be true in the last iteration. */
             if (score <= AVPROBE_SCORE_RETRY) {
@@ -299,7 +299,7 @@ int av_probe_input_buffer2(AVIOContext *pb, ff_const59 AVInputFormat **fmt,//TIG
     if (!*fmt)
         ret = AVERROR_INVALIDDATA;
 
-fail://06.
+fail://06.跳回
     /* Rewind. Reuse probe buffer to avoid seeking. */
     ret2 = ffio_rewind_with_probe_data(pb, &buf, buf_offset);
     if (ret >= 0)

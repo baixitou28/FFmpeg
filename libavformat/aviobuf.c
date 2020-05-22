@@ -674,13 +674,13 @@ int avio_read(AVIOContext *s, unsigned char *buf, int size)//tiger avio_read Èç¹
                     s->buf_end = s->buffer/* + len*/;
                 }
             } else {
-                fill_buffer(s);///Èç¹ûÊÇÆÕÍ¨ÎÄ¼þ£¬×ßÕâ¸ö·ÖÖ§£¬Ìî³äÊý¾Ý
+                fill_buffer(s);///Èç¹ûÊÇÆÕÍ¨ÎÄ¼þ£¬×ßÕâ¸ö·ÖÖ§£¬Ìî³äÊý¾Ý fill_buffer-->read_packet_wrappers-> s->read_packet(io_read_packet) -->ffurl_read-->retry_transfer_wrapper(h->prot->url_read==file_read, h->proto==ff_file_protocol) -->file_read
                 len = s->buf_end - s->buf_ptr;
                 if (len == 0)
                     break;
             }
         } else {
-            memcpy(buf, s->buf_ptr, len);//Èç¹ûÊÇÆÕÍ¨ÎÄ¼þ£¬×ßÕâ¸ö·ÖÖ§£¬¸´ÖÆ
+            memcpy(buf, s->buf_ptr, len);//Èç¹ûÊÇÆÕÍ¨ÎÄ¼þ£¬Èç¹û»º´æÓÐÊý¾Ý£¬×ßÕâ¸ö·ÖÖ§£¬Ö±½Ó¸´ÖÆ
             buf += len;
             s->buf_ptr += len;
             size -= len;

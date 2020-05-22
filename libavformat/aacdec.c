@@ -31,7 +31,7 @@
 
 #define ADTS_HEADER_SIZE 7
 
-static int adts_aac_probe(const AVProbeData *p)
+static int adts_aac_probe(const AVProbeData *p)//TIGER read_probe 根据文件头部的adts格式信息来判断
 {
     int max_frames = 0, first_frames = 0;
     int fsize, frames;
@@ -67,7 +67,7 @@ static int adts_aac_probe(const AVProbeData *p)
         if (buf == buf0)
             first_frames = frames;
     }
-
+    //评价一下分数是多少，因为文件里面开始的信息也不能100%的准确
     if (first_frames >= 3)
         return AVPROBE_SCORE_EXTENSION + 1;
     else if (max_frames > 100)

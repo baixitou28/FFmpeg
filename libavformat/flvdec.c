@@ -88,7 +88,7 @@ static int probe(const AVProbeData *p, int live)
 {
     const uint8_t *d = p->buf;
     unsigned offset = AV_RB32(d + 5);
-
+    //只需判断首部几个字节就可以了
     if (d[0] == 'F' &&
         d[1] == 'L' &&
         d[2] == 'V' &&
@@ -97,7 +97,7 @@ static int probe(const AVProbeData *p, int live)
         offset > 8) {
         int is_live = !memcmp(d + offset + 40, "NGINX RTMP", 10);
 
-        if (live == is_live)
+        if (live == is_live)//只有是nginx rtmp流才能判断是flv live，wowoza则不行:(
             return AVPROBE_SCORE_MAX;
     }
     return 0;
@@ -1375,7 +1375,7 @@ AVInputFormat ff_flv_demuxer = {
     .name           = "flv",
     .long_name      = NULL_IF_CONFIG_SMALL("FLV (Flash Video)"),
     .priv_data_size = sizeof(FLVContext),
-    .read_probe     = flv_probe,
+    .read_probe     = flv_probe,//仅对比前面几个字节就可以了
     .read_header    = flv_read_header,
     .read_packet    = flv_read_packet,
     .read_seek      = flv_read_seek,
