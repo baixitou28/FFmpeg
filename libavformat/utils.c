@@ -413,34 +413,34 @@ int av_demuxer_open(AVFormatContext *ic) {
 }
 
 /* Open input file and probe the format if necessary. */
-static int init_input(AVFormatContext *s, const char *filename,
+static int init_input(AVFormatContext *s, const char *filename,//TIGER init_input av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
                       AVDictionary **options)
 {
     int ret;
-    AVProbeData pd = { filename, NULL, 0 };
+    AVProbeData pd = { filename, NULL, 0 };//
     int score = AVPROBE_SCORE_RETRY;
-
+    //01.
     if (s->pb) {
         s->flags |= AVFMT_FLAG_CUSTOM_IO;
         if (!s->iformat)
-            return av_probe_input_buffer2(s->pb, &s->iformat, filename,
+            return av_probe_input_buffer2(s->pb, &s->iformat, filename,//
                                          s, 0, s->format_probesize);
         else if (s->iformat->flags & AVFMT_NOFILE)
             av_log(s, AV_LOG_WARNING, "Custom AVIOContext makes no sense and "
                                       "will be ignored with AVFMT_NOFILE format.\n");
         return 0;
     }
-
+    //02.使用probe处输入格式
     if ((s->iformat && s->iformat->flags & AVFMT_NOFILE) ||
         (!s->iformat && (s->iformat = av_probe_input_format2(&pd, 0, &score))))
         return score;
-
-    if ((ret = s->io_open(s, &s->pb, filename, AVIO_FLAG_READ | s->avio_flags, options)) < 0)
+    //03. 调用io_open
+    if ((ret = s->io_open(s, &s->pb, filename, AVIO_FLAG_READ | s->avio_flags, options)) < 0)//io_open ==io_open_default
         return ret;
-
+    //04.
     if (s->iformat)
         return 0;
-    return av_probe_input_buffer2(s->pb, &s->iformat, filename,
+    return av_probe_input_buffer2(s->pb, &s->iformat, filename,//05.
                                  s, 0, s->format_probesize);
 }
 //单向列表而已
@@ -499,26 +499,26 @@ int avformat_queue_attached_pictures(AVFormatContext *s)
     return 0;
 }
 
-static int update_stream_avctx(AVFormatContext *s)
+static int update_stream_avctx(AVFormatContext *s)//tiger 
 {
     int i, ret;
-    for (i = 0; i < s->nb_streams; i++) {
+    for (i = 0; i < s->nb_streams; i++) {//逐一处理
         AVStream *st = s->streams[i];
-
+        //01.是否已经设置
         if (!st->internal->need_context_update)
             continue;
-
+        //02. 如果parser已经打开，先关闭
         /* close parser, because it depends on the codec */
         if (st->parser && st->internal->avctx->codec_id != st->codecpar->codec_id) {
             av_parser_close(st->parser);
             st->parser = NULL;
         }
-
+        //03.复制到internal里面，以便find_stream_info里面使用
         /* update internal codec context, for the parser */
         ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
         if (ret < 0)
             return ret;
-
+        //04.复制到st->codec
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         /* update deprecated public codec context */
@@ -527,40 +527,40 @@ FF_DISABLE_DEPRECATION_WARNINGS
             return ret;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-
+        //05.标识已经设置
         st->internal->need_context_update = 0;
     }
     return 0;
 }
 
 
-int avformat_open_input(AVFormatContext **ps, const char *filename,
+int avformat_open_input(AVFormatContext **ps, const char *filename,//TIGER avformat_open_input 最重要的函数init_input 
                         ff_const59 AVInputFormat *fmt, AVDictionary **options)
 {
     AVFormatContext *s = *ps;
     int i, ret = 0;
     AVDictionary *tmp = NULL;
     ID3v2ExtraMeta *id3v2_extra_meta = NULL;
-
-    if (!s && !(s = avformat_alloc_context()))
-        return AVERROR(ENOMEM);
+    //01.没有就自动创建一个解析上下文
+    if (!s && !(s = avformat_alloc_context()))//这里埋了一个功能avformat_get_context_defaults-->io_open_default
+        return AVERROR(ENOMEM);//后续的init_input：io_open_default--> ffio_open_whitelist -->(ffurl_open_whitelist + ffio_fdopen)
     if (!s->av_class) {
         av_log(NULL, AV_LOG_ERROR, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
         return AVERROR(EINVAL);
     }
     if (fmt)
-        s->iformat = fmt;
-
+        s->iformat = fmt;//02. 如果已经有输入的AVInputFormat 直接使用，没有的话，后面的函数会用init_input-->av_probe_input_format2函数探测，再调用io_open
+    //03. 可选项等处理
     if (options)
-        av_dict_copy(&tmp, *options, 0);
+        av_dict_copy(&tmp, *options, 0);//复制可选项
 
     if (s->pb) // must be before any goto fail
-        s->flags |= AVFMT_FLAG_CUSTOM_IO;
+        s->flags |= AVFMT_FLAG_CUSTOM_IO;//是否使用自定义IO
 
-    if ((ret = av_opt_set_dict(s, &tmp)) < 0)
+    if ((ret = av_opt_set_dict(s, &tmp)) < 0)//设置可选项
         goto fail;
 
-    if (!(s->url = av_strdup(filename ? filename : ""))) {
+    if (!(s->url = av_strdup(filename ? filename : ""))) {//复制文件名
         ret = AVERROR(ENOMEM);
         goto fail;
     }
@@ -570,10 +570,10 @@ FF_DISABLE_DEPRECATION_WARNINGS
     av_strlcpy(s->filename, filename ? filename : "", sizeof(s->filename));
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-    if ((ret = init_input(s, filename, &tmp)) < 0)
+    if ((ret = init_input(s, filename, &tmp)) < 0)//04.读文件 av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
         goto fail;
     s->probe_score = ret;
-
+    //05.处理白名单，黑名单等
     if (!s->protocol_whitelist && s->pb && s->pb->protocol_whitelist) {
         s->protocol_whitelist = av_strdup(s->pb->protocol_whitelist);
         if (!s->protocol_whitelist) {
@@ -595,9 +595,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
         ret = AVERROR(EINVAL);
         goto fail;
     }
-
-    avio_skip(s->pb, s->skip_initial_bytes);
-
+    //06. 跳过n个字节
+    avio_skip(s->pb, s->skip_initial_bytes);//tiger program 可以参考
+    //07. 特例：文件名
     /* Check filename in case an image number is expected. */
     if (s->iformat->flags & AVFMT_NEEDNUMBER) {
         if (!av_filename_number_test(filename)) {
@@ -605,9 +605,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
             goto fail;
         }
     }
-
+    //08.需要特别设置
     s->duration = s->start_time = AV_NOPTS_VALUE;
-
+    //09. 复制iformat的私有结构
     /* Allocate private data. */
     if (s->iformat->priv_data_size > 0) {
         if (!(s->priv_data = av_mallocz(s->iformat->priv_data_size))) {
@@ -621,16 +621,16 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 goto fail;
         }
     }
-
+    //10.
     /* e.g. AVFMT_NOFILE formats will not have a AVIOContext */
     if (s->pb)
         ff_id3v2_read_dict(s->pb, &s->internal->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
 
-
+    //11.读文件头
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)
         if ((ret = s->iformat->read_header(s)) < 0)//TIGER SDP 调用sdp_read_header-->ff_sdp_parse-->payload_type-->sdp_parse_line-->ff_parse_fmtp-->parse_fmtp-->parse_fmtp_config
             goto fail;
-
+    //12.
     if (!s->metadata) {
         s->metadata = s->internal->id3v2_meta;
         s->internal->id3v2_meta = NULL;
@@ -643,10 +643,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (s->error_recognition & AV_EF_EXPLODE)
             return AVERROR_INVALIDDATA;
     }
-
+    //13.
     if (id3v2_extra_meta) {
         if (!strcmp(s->iformat->name, "mp3") || !strcmp(s->iformat->name, "aac") ||
-            !strcmp(s->iformat->name, "tta") || !strcmp(s->iformat->name, "wav")) {
+            !strcmp(s->iformat->name, "tta") || !strcmp(s->iformat->name, "wav")) {//只有这些才有chapter等信息
             if ((ret = ff_id3v2_parse_apic(s, &id3v2_extra_meta)) < 0)
                 goto fail;
             if ((ret = ff_id3v2_parse_chapters(s, &id3v2_extra_meta)) < 0)
@@ -657,20 +657,20 @@ FF_ENABLE_DEPRECATION_WARNINGS
             av_log(s, AV_LOG_DEBUG, "demuxer does not support additional id3 data, skipping\n");
     }
     ff_id3v2_free_extra_meta(&id3v2_extra_meta);
-
-    if ((ret = avformat_queue_attached_pictures(s)) < 0)//TIGER 
+    //14.
+    if ((ret = avformat_queue_attached_pictures(s)) < 0)//TIGER 是mp3中的专辑图片吗？
         goto fail;
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->pb && !s->internal->data_offset)
         s->internal->data_offset = avio_tell(s->pb);
-
+    //15.
     s->internal->raw_packet_buffer_remaining_size = RAW_PACKET_BUFFER_SIZE;
-
-    update_stream_avctx(s);
-
+    //16.更新context
+    update_stream_avctx(s);//用avcodec_parameters_to_context更新
+    //17.更新orig_codec_id  ==> 不是很理解?
     for (i = 0; i < s->nb_streams; i++)
-        s->streams[i]->internal->orig_codec_id = s->streams[i]->codecpar->codec_id;
-
+        s->streams[i]->internal->orig_codec_id = s->streams[i]->codecpar->codec_id;//更新orig_codec_id
+    //18.更新选项，如果原先有，则先释放
     if (options) {
         av_dict_free(options);
         *options = tmp;

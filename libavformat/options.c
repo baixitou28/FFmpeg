@@ -135,25 +135,25 @@ static void avformat_get_context_defaults(AVFormatContext *s)
 
     s->av_class = &av_format_context_class;
 
-    s->io_open  = io_open_default;
+    s->io_open  = io_open_default;//使用默认配置
     s->io_close = io_close_default;
 
     av_opt_set_defaults(s);
 }
 
-AVFormatContext *avformat_alloc_context(void)
+AVFormatContext *avformat_alloc_context(void)//TIGER avformat_alloc_context ,这里埋了一个功能avformat_get_context_defaults-->io_open_default
 {
     AVFormatContext *ic;
-    ic = av_malloc(sizeof(AVFormatContext));
+    ic = av_malloc(sizeof(AVFormatContext));//01.AVFormatContext内存
     if (!ic) return ic;
-    avformat_get_context_defaults(ic);
+    avformat_get_context_defaults(ic);//02.重要 绑定io_open_default信息
 
-    ic->internal = av_mallocz(sizeof(*ic->internal));
+    ic->internal = av_mallocz(sizeof(*ic->internal));//03.AVFormatInternal内存
     if (!ic->internal) {
         avformat_free_context(ic);
         return NULL;
     }
-    ic->internal->offset = AV_NOPTS_VALUE;
+    ic->internal->offset = AV_NOPTS_VALUE;//04.AVFormatInternal初始化
     ic->internal->raw_packet_buffer_remaining_size = RAW_PACKET_BUFFER_SIZE;
     ic->internal->shortest_end = AV_NOPTS_VALUE;
 

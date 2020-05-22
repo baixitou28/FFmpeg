@@ -450,7 +450,7 @@ static void dump_sidedata(void *ctx, AVStream *st, const char *indent)
 }
 
 /* "user interface" functions */
-static void dump_stream_format(AVFormatContext *ic, int i,//TIGER dump_stream_format
+static void dump_stream_format(AVFormatContext *ic, int i,//TIGER dump_stream_format 打印流
                                int index, int is_output)
 {
     char buf[256];
@@ -481,7 +481,7 @@ static void dump_stream_format(AVFormatContext *ic, int i,//TIGER dump_stream_fo
 
     if (separator)
         av_opt_set(avctx, "dump_separator", separator, 0);
-    avcodec_string(buf, sizeof(buf), avctx, is_output);//打印 AVCodecContext的信息到buf里面如：Audio: aac(LC) 
+    avcodec_string(buf, sizeof(buf), avctx, is_output);//打印 AVCodecContext avctx的信息到buf里面如：Audio: aac(LC) 
     avcodec_free_context(&avctx);
     //TIGER AAC 准备打印类似：Stream #0:0: Audio: aac(LC)
     av_log(NULL, AV_LOG_INFO, "    Stream #%d:%d", index, i);//打印流的序号:Stream #0:0
@@ -568,7 +568,7 @@ static void dump_stream_format(AVFormatContext *ic, int i,//TIGER dump_stream_fo
     dump_sidedata(NULL, st, "    ");
 }
 
-void av_dump_format(AVFormatContext *ic, int index,//TIGER av_dump_format
+void av_dump_format(AVFormatContext *ic, int index,//TIGER av_dump_format 打印解析上下文信息
                     const char *url, int is_output)
 {
     int i;
@@ -649,7 +649,7 @@ void av_dump_format(AVFormatContext *ic, int index,//TIGER av_dump_format
 
     for (i = 0; i < ic->nb_streams; i++)
         if (!printed[i])
-            dump_stream_format(ic, i, index, is_output);//导出stream的状态
+            dump_stream_format(ic, i, index, is_output);//打印每个流stream的状态
 
     av_free(printed);
 }
