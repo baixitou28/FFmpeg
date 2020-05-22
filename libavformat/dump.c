@@ -450,7 +450,7 @@ static void dump_sidedata(void *ctx, AVStream *st, const char *indent)
 }
 
 /* "user interface" functions */
-static void dump_stream_format(AVFormatContext *ic, int i,
+static void dump_stream_format(AVFormatContext *ic, int i,//TIGER dump_stream_format
                                int index, int is_output)
 {
     char buf[256];
@@ -460,17 +460,17 @@ static void dump_stream_format(AVFormatContext *ic, int i,
     char *separator = ic->dump_separator;
     AVCodecContext *avctx;
     int ret;
-
+    //01.分配context内存
     avctx = avcodec_alloc_context3(NULL);
     if (!avctx)
         return;
-
+    //从stream的codecpar里面复制信息
     ret = avcodec_parameters_to_context(avctx, st->codecpar);
     if (ret < 0) {
         avcodec_free_context(&avctx);
         return;
     }
-
+    //其他还需要额外从stream里面copy的信息
     // Fields which are missing from AVCodecParameters need to be taken from the AVCodecContext
     avctx->properties = st->codec->properties;
     avctx->codec      = st->codec->codec;
@@ -481,23 +481,23 @@ static void dump_stream_format(AVFormatContext *ic, int i,
 
     if (separator)
         av_opt_set(avctx, "dump_separator", separator, 0);
-    avcodec_string(buf, sizeof(buf), avctx, is_output);
+    avcodec_string(buf, sizeof(buf), avctx, is_output);//打印 AVCodecContext的信息到buf里面如：Audio: aac(LC) 
     avcodec_free_context(&avctx);
-
-    av_log(NULL, AV_LOG_INFO, "    Stream #%d:%d", index, i);
+    //TIGER AAC 准备打印类似：Stream #0:0: Audio: aac(LC)
+    av_log(NULL, AV_LOG_INFO, "    Stream #%d:%d", index, i);//打印流的序号:Stream #0:0
 
     /* the pid is an important information, so we display it */
     /* XXX: add a generic system */
     if (flags & AVFMT_SHOW_IDS)
         av_log(NULL, AV_LOG_INFO, "[0x%x]", st->id);
     if (lang)
-        av_log(NULL, AV_LOG_INFO, "(%s)", lang->value);
+        av_log(NULL, AV_LOG_INFO, "(%s)", lang->value);//打印语言
     av_log(NULL, AV_LOG_DEBUG, ", %d, %d/%d", st->codec_info_nb_frames,
            st->time_base.num, st->time_base.den);
-    av_log(NULL, AV_LOG_INFO, ": %s", buf);//TIGER AAC Stream #0:0: Audio: aac(LC)在这里打印
+    av_log(NULL, AV_LOG_INFO, ": %s", buf);// 打印Audio: aac(LC) 
 
     if (st->sample_aspect_ratio.num &&
-        av_cmp_q(st->sample_aspect_ratio, st->codecpar->sample_aspect_ratio)) {
+        av_cmp_q(st->sample_aspect_ratio, st->codecpar->sample_aspect_ratio)) {//如果两个sample_aspect_ratio不一样 ==>什么时候?
         AVRational display_aspect_ratio;
         av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
                   st->codecpar->width  * (int64_t)st->sample_aspect_ratio.num,
@@ -518,7 +518,7 @@ static void dump_stream_format(AVFormatContext *ic, int i,
             av_log(NULL, AV_LOG_INFO, "%s", separator);
 
         if (fps)
-            print_fps(av_q2d(st->avg_frame_rate), tbr || tbn || tbc ? "fps, " : "fps");
+            print_fps(av_q2d(st->avg_frame_rate), tbr || tbn || tbc ? "fps, " : "fps");//打印类似：15fps, 15tbr, 1ktn, 30 tbc ==>我不是特别理解
         if (tbr)
             print_fps(av_q2d(st->r_frame_rate), tbn || tbc ? "tbr, " : "tbr");
         if (tbn)
@@ -563,32 +563,32 @@ static void dump_stream_format(AVFormatContext *ic, int i,
         av_log(NULL, AV_LOG_INFO, " (still image)");
     av_log(NULL, AV_LOG_INFO, "\n");
 
-    dump_metadata(NULL, st->metadata, "    ");
+    dump_metadata(NULL, st->metadata, "    ");//打印meta信息
 
     dump_sidedata(NULL, st, "    ");
 }
 
-void av_dump_format(AVFormatContext *ic, int index,
+void av_dump_format(AVFormatContext *ic, int index,//TIGER av_dump_format
                     const char *url, int is_output)
 {
     int i;
-    uint8_t *printed = ic->nb_streams ? av_mallocz(ic->nb_streams) : NULL;
+    uint8_t *printed = ic->nb_streams ? av_mallocz(ic->nb_streams) : NULL;//根据stream 流的个数来分配内存
     if (ic->nb_streams && !printed)
-        return;
+        return;//没有流或分配不到内存就不需要打印
 
     av_log(NULL, AV_LOG_INFO, "%s #%d, %s, %s '%s':\n",
-           is_output ? "Output" : "Input",
-           index,
-           is_output ? ic->oformat->name : ic->iformat->name,
-           is_output ? "to" : "from", url);
-    dump_metadata(NULL, ic->metadata, "  ");//TIGER 
+           is_output ? "Output" : "Input",//输入或输出
+           index,//第几个流
+           is_output ? ic->oformat->name : ic->iformat->name,//format的名称:如aac，flv等
+           is_output ? "to" : "from", url);//URL:文件名，rtmp地址等
+    dump_metadata(NULL, ic->metadata, "  ");//导出meta信息，比如mp3等文件，可以有更多的信息
 
     if (!is_output) {
         av_log(NULL, AV_LOG_INFO, "  Duration: ");
-        if (ic->duration != AV_NOPTS_VALUE) {
+        if (ic->duration != AV_NOPTS_VALUE) {//如果不是实时流，一般有长度
             int hours, mins, secs, us;
-            int64_t duration = ic->duration + (ic->duration <= INT64_MAX - 5000 ? 5000 : 0);
-            secs  = duration / AV_TIME_BASE;
+            int64_t duration = ic->duration + (ic->duration <= INT64_MAX - 5000 ? 5000 : 0);//外加5毫秒，是什么意思？
+            secs  = duration / AV_TIME_BASE;//算出时分秒
             us    = duration % AV_TIME_BASE;
             mins  = secs / 60;
             secs %= 60;
@@ -597,9 +597,9 @@ void av_dump_format(AVFormatContext *ic, int index,
             av_log(NULL, AV_LOG_INFO, "%02d:%02d:%02d.%02d", hours, mins, secs,
                    (100 * us) / AV_TIME_BASE);
         } else {
-            av_log(NULL, AV_LOG_INFO, "N/A");
+            av_log(NULL, AV_LOG_INFO, "N/A");//实时流提示一下
         }
-        if (ic->start_time != AV_NOPTS_VALUE) {
+        if (ic->start_time != AV_NOPTS_VALUE) {//如果起始时间不是从0开始
             int secs, us;
             av_log(NULL, AV_LOG_INFO, ", start: ");
             secs = llabs(ic->start_time / AV_TIME_BASE);
@@ -607,17 +607,17 @@ void av_dump_format(AVFormatContext *ic, int index,
             av_log(NULL, AV_LOG_INFO, "%s%d.%06d",
                    ic->start_time >= 0 ? "" : "-",
                    secs,
-                   (int) av_rescale(us, 1000000, AV_TIME_BASE));
+                   (int) av_rescale(us, 1000000, AV_TIME_BASE));//折算出实际的自然时间
         }
         av_log(NULL, AV_LOG_INFO, ", bitrate: ");
         if (ic->bit_rate)
-            av_log(NULL, AV_LOG_INFO, "%"PRId64" kb/s", ic->bit_rate / 1000);
+            av_log(NULL, AV_LOG_INFO, "%"PRId64" kb/s", ic->bit_rate / 1000);//打印比特率比如8bit，8k采样率就是64k
         else
             av_log(NULL, AV_LOG_INFO, "N/A");
         av_log(NULL, AV_LOG_INFO, "\n");
     }
 
-    for (i = 0; i < ic->nb_chapters; i++) {
+    for (i = 0; i < ic->nb_chapters; i++) {//如果是有很多段
         AVChapter *ch = ic->chapters[i];
         av_log(NULL, AV_LOG_INFO, "    Chapter #%d:%d: ", index, i);
         av_log(NULL, AV_LOG_INFO,
@@ -628,7 +628,7 @@ void av_dump_format(AVFormatContext *ic, int index,
         dump_metadata(NULL, ch->metadata, "    ");
     }
 
-    if (ic->nb_programs) {
+    if (ic->nb_programs) {//如果是dvb
         int j, k, total = 0;
         for (j = 0; j < ic->nb_programs; j++) {
             AVDictionaryEntry *name = av_dict_get(ic->programs[j]->metadata,
@@ -649,7 +649,7 @@ void av_dump_format(AVFormatContext *ic, int index,
 
     for (i = 0; i < ic->nb_streams; i++)
         if (!printed[i])
-            dump_stream_format(ic, i, index, is_output);
+            dump_stream_format(ic, i, index, is_output);//导出stream的状态
 
     av_free(printed);
 }

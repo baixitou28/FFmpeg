@@ -1203,7 +1203,7 @@ size_t av_get_codec_tag_string(char *buf, size_t buf_size, unsigned int codec_ta
     return ret;
 }
 //打印编码器的基本信息
-void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
+void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)//TIGER avcodec_string
 {
     const char *codec_type;
     const char *codec_name;
@@ -1224,10 +1224,10 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
     buf[0] ^= 'a' ^ 'A'; /* first letter in uppercase *///真是native 语言的做法，还考虑大小写
 
     if (enc->codec && strcmp(enc->codec->name, codec_name))
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", enc->codec->name);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", enc->codec->name);//如果enc->codec->name和enc->codec_id 不同，打印name
 
     if (profile)
-        snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", profile);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), " (%s)", profile);//如果aac 可能打印 (LC)
     if (   enc->codec_type == AVMEDIA_TYPE_VIDEO
         && av_log_get_level() >= AV_LOG_VERBOSE
         && enc->refs)
@@ -1299,14 +1299,14 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
         if (enc->width) {
             av_strlcat(buf, new_line ? separator : ", ", buf_size);
 
-            snprintf(buf + strlen(buf), buf_size - strlen(buf),
+            snprintf(buf + strlen(buf), buf_size - strlen(buf),//打印视频的宽高
                      "%dx%d",
                      enc->width, enc->height);
 
             if (av_log_get_level() >= AV_LOG_VERBOSE &&
                 (enc->width != enc->coded_width ||
                  enc->height != enc->coded_height))
-                snprintf(buf + strlen(buf), buf_size - strlen(buf),
+                snprintf(buf + strlen(buf), buf_size - strlen(buf),//如果coded_width/coded_height不一样，再打印coded_width/coded_height
                          " (%dx%d)", enc->coded_width, enc->coded_height);
 
             if (enc->sample_aspect_ratio.num) {
@@ -1315,15 +1315,15 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
                           enc->height * (int64_t)enc->sample_aspect_ratio.den,
                           1024 * 1024);
                 snprintf(buf + strlen(buf), buf_size - strlen(buf),
-                         " [SAR %d:%d DAR %d:%d]",
-                         enc->sample_aspect_ratio.num, enc->sample_aspect_ratio.den,
-                         display_aspect_ratio.num, display_aspect_ratio.den);
+                         " [SAR %d:%d DAR %d:%d]",//sar是sample aspect ration的缩写
+                         enc->sample_aspect_ratio.num, enc->sample_aspect_ratio.den,//打印缩放比例
+                         display_aspect_ratio.num, display_aspect_ratio.den);//打印屏幕宽比
             }
             if (av_log_get_level() >= AV_LOG_DEBUG) {
-                int g = av_gcd(enc->time_base.num, enc->time_base.den);
+                int g = av_gcd(enc->time_base.num, enc->time_base.den);//获取最大公约数
                 snprintf(buf + strlen(buf), buf_size - strlen(buf),
                          ", %d/%d",
-                         enc->time_base.num / g, enc->time_base.den / g);
+                         enc->time_base.num / g, enc->time_base.den / g);//打印时间单位
             }
         }
         if (encode) {
@@ -1342,10 +1342,10 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
         av_strlcat(buf, separator, buf_size);
 
         if (enc->sample_rate) {
-            snprintf(buf + strlen(buf), buf_size - strlen(buf),
+            snprintf(buf + strlen(buf), buf_size - strlen(buf),//如果有采样率，打印如：8000 Hz
                      "%d Hz, ", enc->sample_rate);
         }
-        av_get_channel_layout_string(buf + strlen(buf), buf_size - strlen(buf), enc->channels, enc->channel_layout);
+        av_get_channel_layout_string(buf + strlen(buf), buf_size - strlen(buf), enc->channels, enc->channel_layout);//打印 音频的LAYOUT alaw如:mono, s16或者aac如：mono, fltp
         if (enc->sample_fmt != AV_SAMPLE_FMT_NONE) {
             snprintf(buf + strlen(buf), buf_size - strlen(buf),
                      ", %s", av_get_sample_fmt_name(enc->sample_fmt));
@@ -1390,7 +1390,7 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
     }
     bitrate = get_bit_rate(enc);
     if (bitrate != 0) {
-        snprintf(buf + strlen(buf), buf_size - strlen(buf),
+        snprintf(buf + strlen(buf), buf_size - strlen(buf),//打印比特率如: 64 kb/s
                  ", %"PRId64" kb/s", bitrate / 1000);
     } else if (enc->rc_max_rate > 0) {
         snprintf(buf + strlen(buf), buf_size - strlen(buf),
