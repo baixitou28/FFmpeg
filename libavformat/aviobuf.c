@@ -651,7 +651,7 @@ int avio_read(AVIOContext *s, unsigned char *buf, int size)
     size1 = size;
     while (size > 0) {
         len = FFMIN(s->buf_end - s->buf_ptr, size);//验证长度
-        if (len == 0 || s->write_flag) {//如果长度为0
+        if (len == 0 || s->write_flag) {//如果长度为0  ==>
             if((s->direct || size > s->buffer_size) && !s->update_checksum) {
                 // bypass the buffer and read data directly into buf
                 len = read_packet_wrapper(s, buf, size);//让AVIOContext读

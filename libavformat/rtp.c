@@ -39,7 +39,7 @@ static const struct {
     int clock_rate;
     int audio_channels;
 } rtp_payload_types[] = {//这里的音频基本都是单声道的，仅有L16是双声道的，换言之，RFC规定的pt都是双声道，音质一般，也可能是freeswitch采用L16，(含双声道，44k)来混合声音了，便于统一。
-  {0, "PCMU",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_MULAW, 8000, 1},
+  {0, "PCMU",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_PCM_MULAW, 8000, 1},//可参考https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
   {3, "GSM",         AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},
   {4, "G723",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_G723_1, 8000, 1},
   {5, "DVI4",        AVMEDIA_TYPE_AUDIO,   AV_CODEC_ID_NONE, 8000, 1},//相同编码的音频不同的sample rate，不同的payload

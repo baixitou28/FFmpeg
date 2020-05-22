@@ -31,30 +31,30 @@
  * @defgroup libavf libavformat
  * I/O and Muxing/Demuxing Library
  *
- * Libavformat (lavf) is a library for dealing with various media container
- * formats. Its main two purposes are demuxing - i.e. splitting a media file
- * into component streams, and the reverse process of muxing - writing supplied
+ * Libavformat (lavf) is a library for dealing with various media container//lavf是缩写，处理不同容器的格式
+ * formats. Its main two purposes are demuxing - i.e. splitting a media file//主要作用 demuxing，将媒体文件解析为不同的流
+ * into component streams, and the reverse process of muxing - writing supplied//并在此muxing
  * data in a specified container format. It also has an @ref lavf_io
  * "I/O module" which supports a number of protocols for accessing the data (e.g.
  * file, tcp, http and others).
  * Unless you are absolutely sure you won't use libavformat's network
  * capabilities, you should also call avformat_network_init().
  *
- * A supported input format is described by an AVInputFormat struct, conversely
+ * A supported input format is described by an AVInputFormat struct, conversely//AVInputFormat 最主要的结构
  * an output format is described by AVOutputFormat. You can iterate over all
- * input/output formats using the  av_demuxer_iterate / av_muxer_iterate() functions.
+ * input/output formats using the  av_demuxer_iterate / av_muxer_iterate() functions.//用av_demuxer_iterate轮询所有格式format
  * The protocols layer is not part of the public API, so you can only get the names
- * of supported protocols with the avio_enum_protocols() function.
+ * of supported protocols with the avio_enum_protocols() function.//用avio_enum_protocols 查询所有协议protocol
  *
- * Main lavf structure used for both muxing and demuxing is AVFormatContext,
+ * Main lavf structure used for both muxing and demuxing is AVFormatContext,//AVFormatContext 输出被读写文件的所有信息
  * which exports all information about the file being read or written. As with
  * most Libavformat structures, its size is not part of public ABI, so it cannot be
  * allocated on stack or directly with av_malloc(). To create an
- * AVFormatContext, use avformat_alloc_context() (some functions, like
+ * AVFormatContext, use avformat_alloc_context() (some functions, like//一般只有avformat_alloc_context 来直接分配
  * avformat_open_input() might do that for you).
  *
  * Most importantly an AVFormatContext contains:
- * @li the @ref AVFormatContext.iformat "input" or @ref AVFormatContext.oformat
+ * @li the @ref AVFormatContext.iformat "input" or @ref AVFormatContext.oformat//最主要的结构：iformat，streams，pb
  * "output" format. It is either autodetected or set by user for input;
  * always set by user for output.
  * @li an @ref AVFormatContext.streams "array" of AVStreams, which describe all
@@ -65,21 +65,21 @@
  * with an AVFMT_NOFILE format).
  *
  * @section lavf_options Passing options to (de)muxers
- * It is possible to configure lavf muxers and demuxers using the @ref avoptions
+ * It is possible to configure lavf muxers and demuxers using the @ref avoptions//lavf muxers and demuxers 的可选项avoptions， 使用av_opt_next和av_opt_find操作
  * mechanism. Generic (format-independent) libavformat options are provided by
  * AVFormatContext, they can be examined from a user program by calling
  * av_opt_next() / av_opt_find() on an allocated AVFormatContext (or its AVClass
  * from avformat_get_class()). Private (format-specific) options are provided by
  * AVFormatContext.priv_data if and only if AVInputFormat.priv_class /
- * AVOutputFormat.priv_class of the corresponding format struct is non-NULL.
- * Further options may be provided by the @ref AVFormatContext.pb "I/O context",
+ * AVOutputFormat.priv_class of the corresponding format struct is non-NULL.//私有的可选项AVFormatContext.priv_data 仅当AVInputFormat.priv_class或AVOutputFormat.priv_class存在时才有。
+ * Further options may be provided by the @ref AVFormatContext.pb "I/O context",//AVFormatContext.pb 也有可选项
  * if its AVClass is non-NULL, and the protocols layer. See the discussion on
  * nesting in @ref avoptions documentation to learn how to access those.
  *
  * @section urls
  * URL strings in libavformat are made of a scheme/protocol, a ':', and a
  * scheme specific string. URLs without a scheme and ':' used for local files
- * are supported but deprecated. "file:" should be used for local files.
+ * are supported but deprecated. "file:" should be used for local files.//url:一般均为:的格式，即使是文件最好也是file:xxxx
  *
  * It is important that the scheme string is not taken from untrusted
  * sources without checks.
@@ -92,31 +92,31 @@
  *
  * @defgroup lavf_decoding Demuxing
  * @{
- * Demuxers read a media file and split it into chunks of data (@em packets). A
+ * Demuxers read a media file and split it into chunks of data (@em packets). A//一个AVPacket 可能包含多个帧Avframe
  * @ref AVPacket "packet" contains one or more encoded frames which belongs to a
  * single elementary stream. In the lavf API this process is represented by the
- * avformat_open_input() function for opening a file, av_read_frame() for
- * reading a single packet and finally avformat_close_input(), which does the
+ * avformat_open_input() function for opening a file, av_read_frame() for//avformat_open_input/avformat_close_input 来打开关闭
+ * reading a single packet and finally avformat_close_input(), which does the//av_read_frame 来读
  * cleanup.
  *
  * @section lavf_decoding_open Opening a media file
  * The minimum information required to open a file is its URL, which
  * is passed to avformat_open_input(), as in the following code:
  * @code
- * const char    *url = "file:in.mp3";
+ * const char    *url = "file:in.mp3";//tiger 注意文件名
  * AVFormatContext *s = NULL;
  * int ret = avformat_open_input(&s, url, NULL, NULL);
  * if (ret < 0)
  *     abort();
  * @endcode
  * The above code attempts to allocate an AVFormatContext, open the
- * specified file (autodetecting the format) and read the header, exporting the
- * information stored there into s. Some formats do not have a header or do not
+ * specified file (autodetecting the format) and read the header, exporting the//TIGER 重要，读文件，自动探测文件格式，输出相关的信息，存放在AVFormatContext s中
+ * information stored there into s. Some formats do not have a header or do not//也许有些格式没有文件头，或者存储信息不够，建议调用avformat_find_stream_info，来寻找更多的信息
  * store enough information there, so it is recommended that you call the
  * avformat_find_stream_info() function which tries to read and decode a few
  * frames to find missing information.
  *
- * In some cases you might want to preallocate an AVFormatContext yourself with
+ * In some cases you might want to preallocate an AVFormatContext yourself with//有时候，你想自己分配AVFormatContext，做些工作，再把这个结构传给avformat_open_input，这时候一般需要自定义的函数，需要使用AVIOContext
  * avformat_alloc_context() and do some tweaking on it before passing it to
  * avformat_open_input(). One such case is when you want to use custom functions
  * for reading input data instead of lavf internal I/O layer.
@@ -133,7 +133,7 @@
  * av_dict_set(&options, "video_size", "640x480", 0);
  * av_dict_set(&options, "pixel_format", "rgb24", 0);
  *
- * if (avformat_open_input(&s, url, NULL, &options) < 0)
+ * if (avformat_open_input(&s, url, NULL, &options) < 0)//tiger program 一般来说直到调用avformat_open_input，才知道文件的格式，因此无法设置demuxer的预先分配context私有的可选项 ，可采用这个方法
  *     abort();
  * av_dict_free(&options);
  * @endcode
@@ -148,7 +148,7 @@
  * @code
  * AVDictionaryEntry *e;
  * if (e = av_dict_get(options, "", NULL, AV_DICT_IGNORE_SUFFIX)) {
- *     fprintf(stderr, "Option %s not recognized by the demuxer.\n", e->key);
+ *     fprintf(stderr, "Option %s not recognized by the demuxer.\n", e->key);//tiger program 如果最后没有调用可选项，可用这个函数去查询
  *     abort();
  * }
  * @endcode
@@ -161,23 +161,23 @@
  * av_read_frame() on it. Each call, if successful, will return an AVPacket
  * containing encoded data for one AVStream, identified by
  * AVPacket.stream_index. This packet may be passed straight into the libavcodec
- * decoding functions avcodec_send_packet() or avcodec_decode_subtitle2() if the
+ * decoding functions avcodec_send_packet() or avcodec_decode_subtitle2() if the//av_read_frame的数据，包含AVPacket.stream_index，或许可以直接使用avcodec_send_packet进行解析
  * caller wishes to decode the data.
  *
- * AVPacket.pts, AVPacket.dts and AVPacket.duration timing information will be
+ * AVPacket.pts, AVPacket.dts and AVPacket.duration timing information will be//如果流中提供AVPacket.pts, AVPacket.dts and AVPacket.duration，这些值就会被设置
  * set if known. They may also be unset (i.e. AV_NOPTS_VALUE for
  * pts/dts, 0 for duration) if the stream does not provide them. The timing
- * information will be in AVStream.time_base units, i.e. it has to be
+ * information will be in AVStream.time_base units, i.e. it has to be//一般使用AVStream.time_base ，一般需要转化，才能变成秒
  * multiplied by the timebase to convert them to seconds.
  *
- * If AVPacket.buf is set on the returned packet, then the packet is
+ * If AVPacket.buf is set on the returned packet, then the packet is//如果返回值AVPacket.buf已设置，则是动态分配的，用户可以一直保留
  * allocated dynamically and the user may keep it indefinitely.
  * Otherwise, if AVPacket.buf is NULL, the packet data is backed by a
- * static storage somewhere inside the demuxer and the packet is only valid
+ * static storage somewhere inside the demuxer and the packet is only valid//如果AVPacket.buf 为空，则这个packet仅在下一个av_read_frame之前有效
  * until the next av_read_frame() call or closing the file. If the caller
- * requires a longer lifetime, av_packet_make_refcounted() will ensure that
+ * requires a longer lifetime, av_packet_make_refcounted() will ensure that//如果要保留，需要调用av_packet_make_refcounted，或者复制这个packet。
  * the data is reference counted, copying the data if necessary.
- * In both cases, the packet must be freed with av_packet_unref() when it is no
+ * In both cases, the packet must be freed with av_packet_unref() when it is no//最后需要av_packet_unref来释放
  * longer needed.
  *
  * @section lavf_decoding_seek Seeking
@@ -188,44 +188,44 @@
  * Muxers take encoded data in the form of @ref AVPacket "AVPackets" and write
  * it into files or other output bytestreams in the specified container format.
  *
- * The main API functions for muxing are avformat_write_header() for writing the
+ * The main API functions for muxing are avformat_write_header() for writing the//TIGER avformat_write_header/av_write_frame/av_write_trailer缺一不可
  * file header, av_write_frame() / av_interleaved_write_frame() for writing the
  * packets and av_write_trailer() for finalizing the file.
  *
  * At the beginning of the muxing process, the caller must first call
- * avformat_alloc_context() to create a muxing context. The caller then sets up
+ * avformat_alloc_context() to create a muxing context. The caller then sets up//首先调用avformat_alloc_context，再设置以下内容
  * the muxer by filling the various fields in this context:
  *
  * - The @ref AVFormatContext.oformat "oformat" field must be set to select the
  *   muxer that will be used.
- * - Unless the format is of the AVFMT_NOFILE type, the @ref AVFormatContext.pb
+ * - Unless the format is of the AVFMT_NOFILE type, the @ref AVFormatContext.pb//用avio_open2 打开，并设置AVFormatContext.pb
  *   "pb" field must be set to an opened IO context, either returned from
  *   avio_open2() or a custom one.
- * - Unless the format is of the AVFMT_NOSTREAMS type, at least one stream must
+ * - Unless the format is of the AVFMT_NOSTREAMS type, at least one stream must//创建avformat_new_stream，填写AVStream.codecpar 中codec_type，codec_id
  *   be created with the avformat_new_stream() function. The caller should fill
  *   the @ref AVStream.codecpar "stream codec parameters" information, such as the
  *   codec @ref AVCodecParameters.codec_type "type", @ref AVCodecParameters.codec_id
- *   "id" and other parameters (e.g. width / height, the pixel or sample format,
+ *   "id" and other parameters (e.g. width / height, the pixel or sample format,//，其他可能还有width，height，pixel，sample format等
  *   etc.) as known. The @ref AVStream.time_base "stream timebase" should
- *   be set to the timebase that the caller desires to use for this stream (note
+ *   be set to the timebase that the caller desires to use for this stream (note//time_base也需要额外设置
  *   that the timebase actually used by the muxer can be different, as will be
  *   described later).
  * - It is advised to manually initialize only the relevant fields in
- *   AVCodecParameters, rather than using @ref avcodec_parameters_copy() during
- *   remuxing: there is no guarantee that the codec context values remain valid
+ *   AVCodecParameters, rather than using @ref avcodec_parameters_copy() during//建议一般只填需要的字段，而不是avcodec_parameters_copy，
+ *   remuxing: there is no guarantee that the codec context values remain valid//不保证codec的context里面的值对输入或输出的格式一直有效
  *   for both input and output format contexts.
  * - The caller may fill in additional information, such as @ref
- *   AVFormatContext.metadata "global" or @ref AVStream.metadata "per-stream"
- *   metadata, @ref AVFormatContext.chapters "chapters", @ref
+ *   AVFormatContext.metadata "global" or @ref AVStream.metadata "per-stream"//更多的选项:AVFormatContext.metadata "global"  AVStream.metadata "per-stream"
+ *   metadata, @ref AVFormatContext.chapters "chapters", @ref//更多的选项:AVFormatContext.chaptersAVFormatContext.programs
  *   AVFormatContext.programs "programs", etc. as described in the
- *   AVFormatContext documentation. Whether such information will actually be
+ *   AVFormatContext documentation. Whether such information will actually be//
  *   stored in the output depends on what the container format and the muxer
  *   support.
  *
  * When the muxing context is fully set up, the caller must call
- * avformat_write_header() to initialize the muxer internals and write the file
+ * avformat_write_header() to initialize the muxer internals and write the file//muxing context设置好之后，一定要调用avformat_write_header
  * header. Whether anything actually is written to the IO context at this step
- * depends on the muxer, but this function must always be called. Any muxer
+ * depends on the muxer, but this function must always be called. Any muxer//是否有数据写入，取决于muxer，muxer的私有可选项也是在这里使用
  * private options must be passed in the options parameter to this function.
  *
  * The data is then sent to the muxer by repeatedly calling av_write_frame() or
@@ -234,10 +234,10 @@
  * a single muxing context, they should not be mixed). Do note that the timing
  * information on the packets sent to the muxer must be in the corresponding
  * AVStream's timebase. That timebase is set by the muxer (in the
- * avformat_write_header() step) and may be different from the timebase
+ * avformat_write_header() step) and may be different from the timebase//时间单位在avformat_write_header中设置。
  * requested by the caller.
  *
- * Once all the data has been written, the caller must call av_write_trailer()
+ * Once all the data has been written, the caller must call av_write_trailer()//TIGER 调用av_write_trailer将所有数据flush到磁盘，并关闭文件。然后关闭context，并avformat_free_context释放context
  * to flush any buffered packets and finalize the output file, then close the IO
  * context (if any) and finally free the muxing context with
  * avformat_free_context().
@@ -246,11 +246,11 @@
  * @defgroup lavf_io I/O Read/Write
  * @{
  * @section lavf_io_dirlist Directory listing
- * The directory listing API makes it possible to list files on remote servers.
+ * The directory listing API makes it possible to list files on remote servers.//lavf_io_dirlist显示远程服务器上的文件
  *
  * Some of possible use cases:
- * - an "open file" dialog to choose files from a remote location,
- * - a recursive media finder providing a player with an ability to play all
+ * - an "open file" dialog to choose files from a remote location,//让用户来选择文件
+ * - a recursive media finder providing a player with an ability to play all//反复调用播放所有文件
  * files from a given directory.
  *
  * @subsection lavf_io_dirlist_open Opening a directory
@@ -261,7 +261,7 @@
  *
  * @code
  * AVIODirContext *ctx = NULL;
- * if (avio_open_dir(&ctx, "smb://example.com/some_dir", NULL) < 0) {
+ * if (avio_open_dir(&ctx, "smb://example.com/some_dir", NULL) < 0) {//用命令打开
  *     fprintf(stderr, "Cannot open directory.\n");
  *     abort();
  * }
@@ -282,7 +282,7 @@
  * @code
  * AVIODirEntry *entry = NULL;
  * for (;;) {
- *     if (avio_read_dir(ctx, &entry) < 0) {
+ *     if (avio_read_dir(ctx, &entry) < 0) {//读一条记录
  *         fprintf(stderr, "Cannot list directory.\n");
  *         abort();
  *     }
@@ -422,7 +422,7 @@ int av_get_packet(AVIOContext *s, AVPacket *pkt, int size);
 /**
  * Read data and append it to the current content of the AVPacket.
  * If pkt->size is 0 this is identical to av_get_packet.
- * Note that this uses av_grow_packet and thus involves a realloc
+ * Note that this uses av_grow_packet and thus involves a realloc//内存不够，会重新分配
  * which is inefficient. Thus this function should only be used
  * when there is no reasonable way to know (an upper bound of)
  * the final size.
@@ -492,7 +492,7 @@ typedef struct AVProbeData {
  * @addtogroup lavf_encoding
  * @{
  */
-typedef struct AVOutputFormat {
+typedef struct AVOutputFormat {//TIGER AVOutputFormat
     const char *name;
     /**
      * Descriptive name for the format, meant to be more human-readable
@@ -637,7 +637,7 @@ typedef struct AVOutputFormat {
  * @addtogroup lavf_decoding
  * @{
  */
-typedef struct AVInputFormat {
+typedef struct AVInputFormat {//TIGER AVInputFormat
     /**
      * A comma separated list of short names for the format. New names
      * may be appended with a minor bump.
@@ -869,7 +869,7 @@ typedef struct AVStreamInternal AVStreamInternal;
  * version bump.
  * sizeof(AVStream) must not be used outside libav*.
  */
-typedef struct AVStream {
+typedef struct AVStream {//TIGER AVStream
     int index;    /**< stream index in AVFormatContext */
     /**
      * Format-specific stream ID.
@@ -1028,7 +1028,7 @@ typedef struct AVStream {
      *****************************************************************
      */
 
-#define MAX_STD_TIMEBASES (30*12+30+3+6)
+#define MAX_STD_TIMEBASES (30*12+30+3+6)//tiger 
     /**
      * Stream information used internally by avformat_find_stream_info()
      */
@@ -1263,7 +1263,7 @@ int64_t    av_stream_get_end_pts(const AVStream *st);
  * version bump.
  * sizeof(AVProgram) must not be used outside libav*.
  */
-typedef struct AVProgram {
+typedef struct AVProgram {//TIGER AVProgram 可能和DVB有关
     int            id;
     int            flags;
     enum AVDiscard discard;        ///< selects which program to discard and which to feed to the caller
@@ -1298,7 +1298,7 @@ typedef struct AVProgram {
                                          network protocols (e.g. HLS), this can
                                          change dynamically at runtime. */
 
-typedef struct AVChapter {
+typedef struct AVChapter {//TIGER AVChapter 一段音视频
     int id;                 ///< unique ID to identify the chapter
     AVRational time_base;   ///< time base in which the start/end timestamps are specified
     int64_t start, end;     ///< chapter start/end time in time_base units
@@ -1341,7 +1341,7 @@ typedef struct AVFormatInternal AVFormatInternal;
  * The AVOption/command line parameter names differ in some cases from the C
  * structure field names for historic reasons or brevity.
  */
-typedef struct AVFormatContext {
+typedef struct AVFormatContext {//tiger AVFormatContext
     /**
      * A class for logging and @ref avoptions. Set by avformat_alloc_context().
      * Exports (de)muxer private options if they exist.

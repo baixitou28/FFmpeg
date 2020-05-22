@@ -581,7 +581,7 @@ void av_dump_format(AVFormatContext *ic, int index,
            index,
            is_output ? ic->oformat->name : ic->iformat->name,
            is_output ? "to" : "from", url);
-    dump_metadata(NULL, ic->metadata, "  ");
+    dump_metadata(NULL, ic->metadata, "  ");//TIGER 
 
     if (!is_output) {
         av_log(NULL, AV_LOG_INFO, "  Duration: ");
