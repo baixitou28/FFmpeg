@@ -546,7 +546,7 @@ int attribute_align_arg ff_codec_open2_recursive(AVCodecContext *avctx, const AV
 }
 //打开编解码,编解码进行初始化pcm_decode_init，另外里面包含了find_stream_info需要的很多变量，使得代码很长
 int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options)//tiger avcodec_open2
-{
+{// avctx->codec->init(avctx): pcm_decode_init时候：AVCodecContext -->AVCodec；从哪里来：av_opt_set_dict(avctx->priv_data, &tmp))：avcodec_open2的options-->AVCodecContext
     int ret = 0;
     int codec_init_ok = 0;
     AVDictionary *tmp = NULL;
@@ -624,8 +624,8 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     }
     //08.
     avctx->internal->skip_samples_multiplier = 1;//?
-    //09.
-    if (codec->priv_data_size > 0) {
+    //09.priv_data_size
+    if (codec->priv_data_size > 0) {//ALAW 举例:priv_data_size = sizeof(PCMDecode), 
         if (!avctx->priv_data) {
             avctx->priv_data = av_mallocz(codec->priv_data_size);
             if (!avctx->priv_data) {
@@ -637,7 +637,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
                 av_opt_set_defaults(avctx->priv_data);
             }
         }
-        if (codec->priv_class && (ret = av_opt_set_dict(avctx->priv_data, &tmp)) < 0)
+        if (codec->priv_class && (ret = av_opt_set_dict(avctx->priv_data, &tmp)) < 0)//将可选项复制到avctx->priv_data
             goto free_and_end;
     } else {
         avctx->priv_data = NULL;
@@ -949,7 +949,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     if (   avctx->codec->init && (!(avctx->active_thread_type&FF_THREAD_FRAME)
         || avctx->internal->frame_thread_encoder)) {
         ret = avctx->codec->init(avctx);//ALAW:avctx->codec->init=pcm_decode_init： pcm解码的初始化，如果速查表的初始化， avctx->sample_fmt 设置为AV_SAMPLE_FMT_S16
-        if (ret < 0) {//初始化时，avctx带入参数
+        if (ret < 0) {//初始化时，avctx带入参数，配置从AVCodecContext -->AVCodec
             goto free_and_end;
         }
         codec_init_ok = 1;
