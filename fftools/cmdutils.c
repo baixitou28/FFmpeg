@@ -2076,7 +2076,7 @@ int check_stream_specifier(AVFormatContext *s, AVStream *st, const char *spec)
     return ret;
 }
 
-AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
+AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,//a:   v:
                                 AVFormatContext *s, AVStream *st, AVCodec *codec)
 {
     AVDictionary    *ret = NULL;
@@ -2092,11 +2092,11 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
 
     switch (st->codecpar->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
-        prefix  = 'v';
+        prefix  = 'v';//视频
         flags  |= AV_OPT_FLAG_VIDEO_PARAM;
         break;
     case AVMEDIA_TYPE_AUDIO:
-        prefix  = 'a';
+        prefix  = 'a';//音频
         flags  |= AV_OPT_FLAG_AUDIO_PARAM;
         break;
     case AVMEDIA_TYPE_SUBTITLE:
@@ -2106,7 +2106,7 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
     }
 
     while (t = av_dict_get(opts, "", t, AV_DICT_IGNORE_SUFFIX)) {
-        char *p = strchr(t->key, ':');
+        char *p = strchr(t->key, ':');//v:  a:
 
         /* check stream specification in opt name */
         if (p)
@@ -2133,7 +2133,7 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
     return ret;
 }
 
-AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
+AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,//将options归到不同的流里面，即音频参数归音频，视频参数归视频
                                            AVDictionary *codec_opts)
 {
     int i;
@@ -2141,7 +2141,7 @@ AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
 
     if (!s->nb_streams)
         return NULL;
-    opts = av_mallocz_array(s->nb_streams, sizeof(*opts));
+    opts = av_mallocz_array(s->nb_streams, sizeof(*opts));//分配内存opts
     if (!opts) {
         av_log(NULL, AV_LOG_ERROR,
                "Could not alloc memory for stream options.\n");
@@ -2149,7 +2149,7 @@ AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
     }
     for (i = 0; i < s->nb_streams; i++)
         opts[i] = filter_codec_opts(codec_opts, s->streams[i]->codecpar->codec_id,
-                                    s, s->streams[i], NULL);
+                                    s, s->streams[i], NULL);//将option 过滤到不同的流里面，即音频参数归音频，视频参数归视频
     return opts;
 }
 

@@ -663,7 +663,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->pb && !s->internal->data_offset)
         s->internal->data_offset = avio_tell(s->pb);
-    //15.
+    //15.不理解：
     s->internal->raw_packet_buffer_remaining_size = RAW_PACKET_BUFFER_SIZE;
     //16.更新context
     update_stream_avctx(s);//用avcodec_parameters_to_context更新
@@ -4513,7 +4513,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
         /* default pts setting is MPEG-like */
-        avpriv_set_pts_info(st, 33, 1, 90000);
+        avpriv_set_pts_info(st, 33, 1, 90000);//TIGER TODO
         /* we set the current DTS to 0 so that formats without any timestamps
          * but durations get some timestamps, formats with some unknown
          * timestamps have their first few packets buffered and the
@@ -4533,7 +4533,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     //12.
     st->last_IP_pts = AV_NOPTS_VALUE;
     st->last_dts_for_order_check = AV_NOPTS_VALUE;
-    for (i = 0; i < MAX_REORDER_DELAY + 1; i++)
+    for (i = 0; i < MAX_REORDER_DELAY + 1; i++)//
         st->pts_buffer[i] = AV_NOPTS_VALUE;
     //13.
     st->sample_aspect_ratio = (AVRational) { 0, 1 };
@@ -4548,7 +4548,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     st->internal->need_context_update = 1;
     //14.
-    s->streams[s->nb_streams++] = st;
+    s->streams[s->nb_streams++] = st;//添加成功后，计数加1
     return st;
 fail:
     free_stream(&st);

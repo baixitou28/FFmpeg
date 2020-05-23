@@ -2777,7 +2777,7 @@ static int read_thread(void *arg)
         av_dict_set(&format_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
         scan_all_pmts_set = 1;
     }
-    err = avformat_open_input(&ic, is->filename, is->iformat, &format_opts);//04. 用指定格式，和options打开文件
+    err = avformat_open_input(&ic, is->filename, is->iformat, &format_opts);//04.如果is->iformat未指定格式，用文件名或者尝试打开文件内容开始的文件内容probe，推测format，将options设置进去，最后打开文件
     if (err < 0) {
         print_error(is->filename, err);
         ret = -1;
@@ -2785,40 +2785,40 @@ static int read_thread(void *arg)
     }
     if (scan_all_pmts_set)//不理解
         av_dict_set(&format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE);
-    //tiger 不理解：
+    //05.tiger 不理解：
     if ((t = av_dict_get(format_opts, "", NULL, AV_DICT_IGNORE_SUFFIX))) {
         av_log(NULL, AV_LOG_ERROR, "Option %s not found.\n", t->key);
         ret = AVERROR_OPTION_NOT_FOUND;
         goto fail;
     }
-    is->ic = ic;
-    //
+    is->ic = ic;//06.
+    //07.
     if (genpts)
         ic->flags |= AVFMT_FLAG_GENPTS;
-    //tiger 不理解
+    //08.tiger 不理解
     av_format_inject_global_side_data(ic);
 
-    if (find_stream_info) {//是否要开启find_stream_info ,不用find_stream_info 也是可以的==>能试试rtp的流吗？
-        AVDictionary **opts = setup_find_stream_info_opts(ic, codec_opts);
+    if (find_stream_info) {//08.是否要开启find_stream_info ,不用find_stream_info 也是可以的==>能试试rtp的流吗？
+        AVDictionary **opts = setup_find_stream_info_opts(ic, codec_opts);//音视频的参数，分别放到各自流里面
         int orig_nb_streams = ic->nb_streams;
 
         err = avformat_find_stream_info(ic, opts);//尝试解析流数据
 
         for (i = 0; i < orig_nb_streams; i++)
             av_dict_free(&opts[i]);
-        av_freep(&opts);
+        av_freep(&opts);//释放
 
         if (err < 0) {
             av_log(NULL, AV_LOG_WARNING,
-                   "%s: could not find codec parameters\n", is->filename);
+                   "%s: could not find codec parameters\n", is->filename);//找不到
             ret = -1;
             goto fail;
         }
     }
-
+    //09.
     if (ic->pb)//如果是通过callback来读的，重新标记eof_reached，我偶然也试出了这个方法
         ic->pb->eof_reached = 0; // FIXME hack, ffplay maybe should not use avio_feof() to test for the end
-
+    //10.
     if (seek_by_bytes < 0)//?
         seek_by_bytes = !!(ic->iformat->flags & AVFMT_TS_DISCONT) && strcmp("ogg", ic->iformat->name);//TIGER PROGRAM AVFMT_TS_DISCONT是否很需要，允许不连续？
 
@@ -2826,7 +2826,7 @@ static int read_thread(void *arg)
 
     if (!window_title && (t = av_dict_get(ic->metadata, "title", NULL, 0)))
         window_title = av_asprintf("%s - %s", t->value, input_filename);
-
+    //11.调到某个时间
     /* if seeking requested, we execute it */
     if (start_time != AV_NOPTS_VALUE) {//是否要跳转到某个位置
         int64_t timestamp;
@@ -2841,12 +2841,12 @@ static int read_thread(void *arg)
                     is->filename, (double)timestamp / AV_TIME_BASE);
         }
     }
-
+    //12.
     is->realtime = is_realtime(ic);//是否是实时流协议
 
     if (show_status)
         av_dump_format(ic, 0, is->filename, 0);
-
+    //13.
     for (i = 0; i < ic->nb_streams; i++) {
         AVStream *st = ic->streams[i];
         enum AVMediaType type = st->codecpar->codec_type;
@@ -2855,13 +2855,13 @@ static int read_thread(void *arg)
             if (avformat_match_stream_specifier(ic, st, wanted_stream_spec[type]) > 0)//tiger 是否匹配？匹配什么
                 st_index[type] = i;
     }
-    for (i = 0; i < AVMEDIA_TYPE_NB; i++) {
+    for (i = 0; i < AVMEDIA_TYPE_NB; i++) {//14.
         if (wanted_stream_spec[i] && st_index[i] == -1) {
             av_log(NULL, AV_LOG_ERROR, "Stream specifier %s does not match any %s stream\n", wanted_stream_spec[i], av_get_media_type_string(i));
             st_index[i] = INT_MAX;
         }
     }
-
+    //15.
     if (!video_disable)//如果需要视频，找一个最大可能的视频
         st_index[AVMEDIA_TYPE_VIDEO] =
             av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO,
@@ -2880,7 +2880,7 @@ static int read_thread(void *arg)
                                  st_index[AVMEDIA_TYPE_AUDIO] :
                                  st_index[AVMEDIA_TYPE_VIDEO]),
                                 NULL, 0);
-
+    //16.
     is->show_mode = show_mode;
     if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {//如果是视频，取比例?设置窗体大小
         AVStream *st = ic->streams[st_index[AVMEDIA_TYPE_VIDEO]];
@@ -2889,14 +2889,14 @@ static int read_thread(void *arg)
         if (codecpar->width)
             set_default_window_size(codecpar->width, codecpar->height, sar);
     }
-    //打开音频流
+    //17.
     /* open the streams */
-    if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
+    if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {//打开音频流
         stream_component_open(is, st_index[AVMEDIA_TYPE_AUDIO]);//打开音频处理线程
     }
-    //打开视频流
+    
     ret = -1;
-    if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {
+    if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {//打开视频流
         ret = stream_component_open(is, st_index[AVMEDIA_TYPE_VIDEO]);//打开视频处理线程
     }
     if (is->show_mode == SHOW_MODE_NONE)
@@ -2912,14 +2912,14 @@ static int read_thread(void *arg)
         ret = -1;
         goto fail;
     }
-
+    //18.
     if (infinite_buffer < 0 && is->realtime)
         infinite_buffer = 1;
     //前面stream_component_open准备好了音视频的处理帧的线程，后面循环只要不停把数据放进去就可以了。
-    for (;;) {
-        if (is->abort_request)//要退出？
+    for (;;) {//19.
+        if (is->abort_request)//19.01要退出？
             break;
-        if (is->paused != is->last_paused) {
+        if (is->paused != is->last_paused) {//19.02
             is->last_paused = is->paused;
             if (is->paused)//需要暂停？
                 is->read_pause_return = av_read_pause(ic);
@@ -2927,7 +2927,7 @@ static int read_thread(void *arg)
                 av_read_play(ic);//继续
         }
 #if CONFIG_RTSP_DEMUXER || CONFIG_MMSH_PROTOCOL
-        if (is->paused &&
+        if (is->paused &&//19.03
                 (!strcmp(ic->iformat->name, "rtsp") ||
                  (ic->pb && !strncmp(input_filename, "mmsh:", 5)))) {
             /* wait 10 ms to avoid trying to get another packet */
@@ -2936,7 +2936,7 @@ static int read_thread(void *arg)
             continue;
         }
 #endif
-        if (is->seek_req) {//需要跳转吗？
+        if (is->seek_req) {////19.04.需要跳转吗？
             int64_t seek_target = is->seek_pos;
             int64_t seek_min    = is->seek_rel > 0 ? seek_target - is->seek_rel + 2: INT64_MIN;
             int64_t seek_max    = is->seek_rel < 0 ? seek_target - is->seek_rel - 2: INT64_MAX;
@@ -2972,7 +2972,7 @@ static int read_thread(void *arg)
             if (is->paused)
                 step_to_next_frame(is);
         }
-        if (is->queue_attachments_req) {//？这个没用过
+        if (is->queue_attachments_req) {//19.05？这个没用过
             if (is->video_st && is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC) {
                 AVPacket copy = { 0 };
                 if ((ret = av_packet_ref(&copy, &is->video_st->attached_pic)) < 0)
@@ -2984,7 +2984,7 @@ static int read_thread(void *arg)
         }
 
         /* if the queue are full, no need to read more */
-        if (infinite_buffer<1 &&//如果队列都满了
+        if (infinite_buffer<1 &&//19.06.如果队列都满了
               (is->audioq.size + is->videoq.size + is->subtitleq.size > MAX_QUEUE_SIZE
             || (stream_has_enough_packets(is->audio_st, is->audio_stream, &is->audioq) &&
                 stream_has_enough_packets(is->video_st, is->video_stream, &is->videoq) &&
@@ -2995,7 +2995,7 @@ static int read_thread(void *arg)
             SDL_UnlockMutex(wait_mutex);
             continue;
         }
-        if (!is->paused &&//什么意思？
+        if (!is->paused &&//19.07什么意思？
             (!is->audio_st || (is->auddec.finished == is->audioq.serial && frame_queue_nb_remaining(&is->sampq) == 0)) &&
             (!is->video_st || (is->viddec.finished == is->videoq.serial && frame_queue_nb_remaining(&is->pictq) == 0))) {
             if (loop != 1 && (!loop || --loop)) {
@@ -3005,8 +3005,8 @@ static int read_thread(void *arg)
                 goto fail;
             }
         }
-        ret = av_read_frame(ic, pkt);//读取
-        if (ret < 0) {
+        ret = av_read_frame(ic, pkt);//19.08读取
+        if (ret < 0) {//19.09.01
             if ((ret == AVERROR_EOF || avio_feof(ic->pb)) && !is->eof) {//如果是EOF，队列里面放一个包，数据均为空
                 if (is->video_stream >= 0)
                     packet_queue_put_nullpacket(&is->videoq, is->video_stream);
@@ -3022,18 +3022,18 @@ static int read_thread(void *arg)
             SDL_CondWaitTimeout(is->continue_read_thread, wait_mutex, 10);
             SDL_UnlockMutex(wait_mutex);
             continue;
-        } else { 
+        } else {////19.09.02 
             is->eof = 0;//清空标记
         }
         /* check if packet is in play range specified by user, then queue, otherwise discard */
-        stream_start_time = ic->streams[pkt->stream_index]->start_time;
+        stream_start_time = ic->streams[pkt->stream_index]->start_time;////19.10
         pkt_ts = pkt->pts == AV_NOPTS_VALUE ? pkt->dts : pkt->pts;//计算pts
         pkt_in_play_range = duration == AV_NOPTS_VALUE ||
                 (pkt_ts - (stream_start_time != AV_NOPTS_VALUE ? stream_start_time : 0)) *
                 av_q2d(ic->streams[pkt->stream_index]->time_base) -
                 (double)(start_time != AV_NOPTS_VALUE ? start_time : 0) / 1000000
                 <= ((double)duration / 1000000);
-        if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {//根据不同的音视频流，放入不同的队列
+        if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {//19.11 根据不同的音视频流，放入不同的队列
             packet_queue_put(&is->audioq, pkt);
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
                    && !(is->video_st->disposition & AV_DISPOSITION_ATTACHED_PIC)) {
@@ -3046,10 +3046,10 @@ static int read_thread(void *arg)
     }
 
     ret = 0;
- fail:
+ fail://20.
     if (ic && !is->ic)
         avformat_close_input(&ic);
-
+    //21.
     if (ret != 0) {
         SDL_Event event;
 

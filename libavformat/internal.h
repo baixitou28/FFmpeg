@@ -98,7 +98,7 @@ struct AVFormatInternal {
      * Remaining size available for raw_packet_buffer, in bytes.
      */
 #define RAW_PACKET_BUFFER_SIZE 2500000
-    int raw_packet_buffer_remaining_size;
+    int raw_packet_buffer_remaining_size;//≤ª¿ÌΩ‚
 
     /**
      * Offset to remap timestamps to be non-negative.

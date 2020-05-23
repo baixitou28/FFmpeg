@@ -76,7 +76,7 @@ static AVClassCategory get_category(void *ptr)
     else                                     return AV_CLASS_CATEGORY_ENCODER;
 }
 
-static const AVClass av_codec_context_class = {
+static const AVClass av_codec_context_class = {//TIGER av_codec_context_class
     .class_name              = "AVCodecContext",
     .item_name               = context_to_name,
     .option                  = avcodec_options,
@@ -318,7 +318,7 @@ static const AVClass av_frame_class = {
     .version                 = LIBAVUTIL_VERSION_INT,
 };
 
-const AVClass *avcodec_get_frame_class(void)
+const AVClass *avcodec_get_frame_class(void)//TIGER avcodec_get_frame_class
 {
     return &av_frame_class;
 }

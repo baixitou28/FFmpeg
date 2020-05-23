@@ -1061,7 +1061,7 @@ typedef struct AVStream {//TIGER AVStream
 
     } *info;//为avformat_find_stream_info定制的
 
-    int pts_wrap_bits; /**< number of bits in pts (used for wrapping control) */
+    int pts_wrap_bits; /**< number of bits in pts (used for wrapping control) *///avpriv_set_pts_info(st, 33, 1, 90000);
 
     // Timestamp generation support:
     /**
@@ -1095,7 +1095,7 @@ typedef struct AVStream {//TIGER AVStream
      */
     struct AVPacketList *last_in_packet_buffer;
     AVProbeData probe_data;
-#define MAX_REORDER_DELAY 16
+#define MAX_REORDER_DELAY 16//重组
     int64_t pts_buffer[MAX_REORDER_DELAY+1];
 
     AVIndexEntry *index_entries; /**< Only used if the format does not
