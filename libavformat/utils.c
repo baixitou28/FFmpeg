@@ -2985,7 +2985,7 @@ static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)
             FAIL("unspecified frame size");//某些音频必须制定frame size
         if (st->info->found_decoder >= 0 &&
             avctx->sample_fmt == AV_SAMPLE_FMT_NONE)//01.采样编码类型
-            FAIL("unspecified sample format");
+            FAIL("unspecified sample format");//ALAW 文件从这里返回
         if (!avctx->sample_rate)//02.采样率
             FAIL("unspecified sample rate");
         if (!avctx->channels)//03.声道数
@@ -3651,7 +3651,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (st->request_probe <= 0)
             st->internal->avctx_inited = 1;//这个何解==>
 
-        codec = find_probe_decoder(ic, st, st->codecpar->codec_id);
+        codec = find_probe_decoder(ic, st, st->codecpar->codec_id);//ff_pcm_alaw_decoder
 
         /* Force thread count to 1 since the H.264 decoder will not extract
          * SPS and PPS to extradata during multi-threaded decoding. */

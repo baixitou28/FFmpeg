@@ -497,7 +497,7 @@ int avpriv_codec_get_cap_skip_frame_fill_param(const AVCodec *codec){
     return !!(codec->caps_internal & FF_CODEC_CAP_SKIP_FRAME_FILL_PARAM);
 }
 
-static int64_t get_bit_rate(AVCodecContext *ctx)
+static int64_t get_bit_rate(AVCodecContext *ctx)//音频可以通过编解码ID来获取，视频则不同
 {
     int64_t bit_rate;
     int bits_per_sample;
@@ -551,80 +551,80 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     int codec_init_ok = 0;
     AVDictionary *tmp = NULL;
     const AVPixFmtDescriptor *pixdesc;
-
+    //01.
     if (avcodec_is_open(avctx))
         return 0;
-
+    //02.
     if ((!codec && !avctx->codec)) {
         av_log(avctx, AV_LOG_ERROR, "No codec provided to avcodec_open2()\n");
         return AVERROR(EINVAL);
     }
-    if ((codec && avctx->codec && codec != avctx->codec)) {
+    if ((codec && avctx->codec && codec != avctx->codec)) {//03.
         av_log(avctx, AV_LOG_ERROR, "This AVCodecContext was allocated for %s, "
                                     "but %s passed to avcodec_open2()\n", avctx->codec->name, codec->name);
         return AVERROR(EINVAL);
     }
-    if (!codec)
+    if (!codec)//04.
         codec = avctx->codec;
-
+    //05.
     if (avctx->extradata_size < 0 || avctx->extradata_size >= FF_MAX_EXTRADATA_SIZE)
         return AVERROR(EINVAL);
-
+    //06.
     if (options)
         av_dict_copy(&tmp, *options, 0);
-
+    //06.为什么要上锁？是
     ff_lock_avcodec(avctx, codec);
-
-    avctx->internal = av_mallocz(sizeof(*avctx->internal));
+    //07.分配内存
+    avctx->internal = av_mallocz(sizeof(*avctx->internal));//AVCodecInternal
     if (!avctx->internal) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-
-    avctx->internal->pool = av_mallocz(sizeof(*avctx->internal->pool));
+    //
+    avctx->internal->pool = av_mallocz(sizeof(*avctx->internal->pool));//FramePool
     if (!avctx->internal->pool) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
-
-    avctx->internal->to_free = av_frame_alloc();
+    //
+    avctx->internal->to_free = av_frame_alloc();//AVFrame
     if (!avctx->internal->to_free) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
 
-    avctx->internal->compat_decode_frame = av_frame_alloc();
+    avctx->internal->compat_decode_frame = av_frame_alloc();//注释：部分AVFrame
     if (!avctx->internal->compat_decode_frame) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
 
-    avctx->internal->buffer_frame = av_frame_alloc();
+    avctx->internal->buffer_frame = av_frame_alloc();//缓存的AVFrame
     if (!avctx->internal->buffer_frame) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
 
-    avctx->internal->buffer_pkt = av_packet_alloc();
+    avctx->internal->buffer_pkt = av_packet_alloc();//缓存的AVPacket
     if (!avctx->internal->buffer_pkt) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
 
-    avctx->internal->ds.in_pkt = av_packet_alloc();
+    avctx->internal->ds.in_pkt = av_packet_alloc();//AVPacket
     if (!avctx->internal->ds.in_pkt) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
 
-    avctx->internal->last_pkt_props = av_packet_alloc();
+    avctx->internal->last_pkt_props = av_packet_alloc();//AVPacket
     if (!avctx->internal->last_pkt_props) {
         ret = AVERROR(ENOMEM);
         goto free_and_end;
     }
-
-    avctx->internal->skip_samples_multiplier = 1;
-
+    //08.
+    avctx->internal->skip_samples_multiplier = 1;//?
+    //09.
     if (codec->priv_data_size > 0) {
         if (!avctx->priv_data) {
             avctx->priv_data = av_mallocz(codec->priv_data_size);
@@ -633,7 +633,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
                 goto end;
             }
             if (codec->priv_class) {
-                *(const AVClass **)avctx->priv_data = codec->priv_class;
+                *(const AVClass **)avctx->priv_data = codec->priv_class;//复制
                 av_opt_set_defaults(avctx->priv_data);
             }
         }
@@ -644,13 +644,13 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     }
     if ((ret = av_opt_set_dict(avctx, &tmp)) < 0)
         goto free_and_end;
-
-    if (avctx->codec_whitelist && av_match_list(codec->name, avctx->codec_whitelist, ',') <= 0) {
+    //10.
+    if (avctx->codec_whitelist && av_match_list(codec->name, avctx->codec_whitelist, ',') <= 0) {//
         av_log(avctx, AV_LOG_ERROR, "Codec (%s) not on whitelist \'%s\'\n", codec->name, avctx->codec_whitelist);
         ret = AVERROR(EINVAL);
         goto free_and_end;
     }
-
+    //11.
     // only call ff_set_dimensions() for non H.264/VP6F/DXV codecs so as not to overwrite previously setup dimensions
     if (!(avctx->coded_width && avctx->coded_height && avctx->width && avctx->height &&
           (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_VP6F || avctx->codec_id == AV_CODEC_ID_DXV))) {
@@ -661,14 +661,14 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     if (ret < 0)
         goto free_and_end;
     }
-
+    //12.
     if ((avctx->coded_width || avctx->coded_height || avctx->width || avctx->height)
         && (  av_image_check_size2(avctx->coded_width, avctx->coded_height, avctx->max_pixels, AV_PIX_FMT_NONE, 0, avctx) < 0
            || av_image_check_size2(avctx->width,       avctx->height,       avctx->max_pixels, AV_PIX_FMT_NONE, 0, avctx) < 0)) {
         av_log(avctx, AV_LOG_WARNING, "Ignoring invalid width/height values\n");
         ff_set_dimensions(avctx, 0, 0);
     }
-
+    //13.
     if (avctx->width > 0 && avctx->height > 0) {
         if (av_image_check_sar(avctx->width, avctx->height,
                                avctx->sample_aspect_ratio) < 0) {
@@ -678,12 +678,12 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
             avctx->sample_aspect_ratio = (AVRational){ 0, 1 };
         }
     }
-
+    //14.
     /* if the decoder init function was already called previously,
      * free the already allocated subtitle_header before overwriting it */
     if (av_codec_is_decoder(codec))
         av_freep(&avctx->subtitle_header);
-
+    //15. 校验数据成员是否正确
     if (avctx->channels > FF_SANE_NB_CHANNELS || avctx->channels < 0) {
         av_log(avctx, AV_LOG_ERROR, "Too many or invalid channels: %d\n", avctx->channels);
         ret = AVERROR(EINVAL);
@@ -699,7 +699,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         ret = AVERROR(EINVAL);
         goto free_and_end;
     }
-
+    //16. 设置avctx
     avctx->codec = codec;
     if ((avctx->codec_type == AVMEDIA_TYPE_UNKNOWN || avctx->codec_type == codec->type) &&
         avctx->codec_id == AV_CODEC_ID_NONE) {
@@ -747,13 +747,13 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         if (ret < 0)
             goto free_and_end;
     }
-
+    //17.
     if (av_codec_is_decoder(avctx->codec)) {
         ret = ff_decode_bsfs_init(avctx);
         if (ret < 0)
             goto free_and_end;
     }
-
+    //18.如果不是find_stream_info，可以启用多个线程
     if (HAVE_THREADS
         && !(avctx->internal->frame_thread_encoder && (avctx->active_thread_type&FF_THREAD_FRAME))) {
         ret = ff_thread_init(avctx);
@@ -763,13 +763,13 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     }
     if (!HAVE_THREADS && !(codec->capabilities & AV_CODEC_CAP_AUTO_THREADS))
         avctx->thread_count = 1;
-
+    //19.
     if (avctx->codec->max_lowres < avctx->lowres || avctx->lowres < 0) {
         av_log(avctx, AV_LOG_WARNING, "The maximum value for lowres supported by the decoder is %d\n",
                avctx->codec->max_lowres);
         avctx->lowres = avctx->codec->max_lowres;
     }
-
+    //20.如果是编码
     if (av_codec_is_encoder(avctx->codec)) {
         int i;
 #if FF_API_CODED_FRAME
@@ -935,7 +935,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             avctx->sw_pix_fmt = frames_ctx->sw_format;
         }
     }
-
+    //21.
     avctx->pts_correction_num_faulty_pts =
     avctx->pts_correction_num_faulty_dts = 0;
     avctx->pts_correction_last_pts =
@@ -956,16 +956,16 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
 
     ret=0;
-
-    if (av_codec_is_decoder(avctx->codec)) {
+    //22.如果是解码
+    if (av_codec_is_decoder(avctx->codec)) {//这里混合里音频，视频，字幕处理，感觉代码就多了
         if (!avctx->bit_rate)
-            avctx->bit_rate = get_bit_rate(avctx);
+            avctx->bit_rate = get_bit_rate(avctx);//22.01 音频可以通过编解码iD获取
         /* validate channel layout from the decoder */
-        if (avctx->channel_layout) {
+        if (avctx->channel_layout) {//22.02 计算通道数 如果有layout 比如aac，
             int channels = av_get_channel_layout_nb_channels(avctx->channel_layout);
             if (!avctx->channels)
                 avctx->channels = channels;
-            else if (channels != avctx->channels) {
+            else if (channels != avctx->channels) {//为什么会不一样？
                 char buf[512];
                 av_get_channel_layout_string(buf, sizeof(buf), -1, avctx->channel_layout);
                 av_log(avctx, AV_LOG_WARNING,
@@ -976,15 +976,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
         if (avctx->channels && avctx->channels < 0 ||
-            avctx->channels > FF_SANE_NB_CHANNELS) {
+            avctx->channels > FF_SANE_NB_CHANNELS) {//校验channels
             ret = AVERROR(EINVAL);
             goto free_and_end;
         }
-        if (avctx->bits_per_coded_sample < 0) {
+        if (avctx->bits_per_coded_sample < 0) {//校验每词采样的比特数
             ret = AVERROR(EINVAL);
             goto free_and_end;
         }
-        if (avctx->sub_charenc) {
+        if (avctx->sub_charenc) {//字幕，先不看
             if (avctx->codec_type != AVMEDIA_TYPE_SUBTITLE) {
                 av_log(avctx, AV_LOG_ERROR, "Character encoding is only "
                        "supported with subtitles codecs\n");
@@ -1023,15 +1023,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
 
 #if FF_API_AVCTX_TIMEBASE
-        if (avctx->framerate.num > 0 && avctx->framerate.den > 0)
+        if (avctx->framerate.num > 0 && avctx->framerate.den > 0)//
             avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
 #endif
     }
     if (codec->priv_data_size > 0 && avctx->priv_data && codec->priv_class) {
-        av_assert0(*(const AVClass **)avctx->priv_data == codec->priv_class);
+        av_assert0(*(const AVClass **)avctx->priv_data == codec->priv_class);//校验一下
     }
 
-end:
+end://23.释放锁，和可选项
     ff_unlock_avcodec(codec);
     if (options) {
         av_dict_free(options);
@@ -1039,7 +1039,7 @@ end:
     }
 
     return ret;
-free_and_end:
+free_and_end://中途异常释放创建的资源，返回错误码
     if (avctx->codec && avctx->codec->close &&
         (codec_init_ok ||
          (avctx->codec->caps_internal & FF_CODEC_CAP_INIT_CLEANUP)))
