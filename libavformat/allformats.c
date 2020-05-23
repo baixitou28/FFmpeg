@@ -509,10 +509,10 @@ const AVOutputFormat *av_muxer_iterate(void **opaque)
     const AVOutputFormat *f = NULL;
 
     if (i < size) {
-        f = muxer_list[i];
-    } else if (indev_list) {
-        f = outdev_list[i - size];
-    }
+        f = muxer_list[i];//configure中定义
+    } else if (indev_list) {//这里没写错?
+        f = outdev_list[i - size];//configure中定义
+    }//ff_alsa_demuxer ff_fbdev_demuxer ff_lavfi_demuxer ff_xcbgrab_demuxer
 
     if (f)
         *opaque = (void*)(i + 1);
@@ -521,18 +521,18 @@ const AVOutputFormat *av_muxer_iterate(void **opaque)
 
 const AVInputFormat *av_demuxer_iterate(void **opaque)
 {
-    static const uintptr_t size = sizeof(demuxer_list)/sizeof(demuxer_list[0]) - 1;
+    static const uintptr_t size = sizeof(demuxer_list)/sizeof(demuxer_list[0]) - 1;//ff_sdp_demuxer, ff_rtp_demuxer ff_aac_demuxer ff_h264_demuxer
     uintptr_t i = (uintptr_t)*opaque;
     const AVInputFormat *f = NULL;
 
     if (i < size) {
-        f = demuxer_list[i];
-    } else if (outdev_list) {
-        f = indev_list[i - size];
-    }
+        f = demuxer_list[i];//configure中 print_enabled_components libavformat/demuxer_list.c AVInputFormat demuxer_list $DEMUXER_LIST
+    } else if (outdev_list) {//这里没写错?
+        f = indev_list[i - size];//configure中print_enabled_components libavdevice/indev_list.c AVInputFormat indev_list $INDEV_LIST
+    }//ff_alsa_demuxer ff_fbdev_demuxer ff_lavfi_demuxer ff_xcbgrab_demuxer
 
     if (f)
-        *opaque = (void*)(i + 1);
+        *opaque = (void*)(i + 1);//因为是下一个，所以加1
     return f;
 }
 

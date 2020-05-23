@@ -1307,10 +1307,10 @@ void av_opt_set_defaults(void *s)
     av_opt_set_defaults2(s, 0, 0);
 }
 
-void av_opt_set_defaults2(void *s, int mask, int flags)
+void av_opt_set_defaults2(void *s, int mask, int flags)//设置参数
 {
     const AVOption *opt = NULL;
-    while ((opt = av_opt_next(s, opt))) {
+    while ((opt = av_opt_next(s, opt))) {//去s->option项，来操作
         void *dst = ((uint8_t*)s) + opt->offset;
 
         if ((opt->flags & mask) != flags)
@@ -1319,7 +1319,7 @@ void av_opt_set_defaults2(void *s, int mask, int flags)
         if (opt->flags & AV_OPT_FLAG_READONLY)
             continue;
 
-        switch (opt->type) {
+        switch (opt->type) {//不同类型不同操作
             case AV_OPT_TYPE_CONST:
                 /* Nothing to be done here */
                 break;

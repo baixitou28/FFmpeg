@@ -212,14 +212,14 @@ retry:
     return ret;
 }
 
-AVInputFormat ff_aac_demuxer = {
+AVInputFormat ff_aac_demuxer = {//TIGER ff_aac_demuxer
     .name         = "aac",
     .long_name    = NULL_IF_CONFIG_SMALL("raw ADTS AAC (Advanced Audio Coding)"),
     .read_probe   = adts_aac_probe,
     .read_header  = adts_aac_read_header,
     .read_packet  = adts_aac_read_packet,
     .flags        = AVFMT_GENERIC_INDEX,
-    .extensions   = "aac",
+    .extensions   = "aac",//ÎÄ¼þÃû
     .mime_type    = "audio/aac,audio/aacp,audio/x-aac",
     .raw_codec_id = AV_CODEC_ID_AAC,
 };

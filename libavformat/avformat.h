@@ -1059,7 +1059,7 @@ typedef struct AVStream {//TIGER AVStream
         int64_t fps_last_dts;
         int     fps_last_dts_idx;
 
-    } *info;
+    } *info;//为avformat_find_stream_info定制的
 
     int pts_wrap_bits; /**< number of bits in pts (used for wrapping control) */
 

@@ -64,7 +64,7 @@ struct AVOptionRanges;
  * arbitrary struct of which the first field is a pointer to an
  * AVClass struct (e.g. AVCodecContext, AVFormatContext etc.).
  */
-typedef struct AVClass {
+typedef struct AVClass {//TIGER AVClass 比如pcm需要声道数，采样率，在哪里保存呢？就放在AVClass priv_class
     /**
      * The name of the class; usually it is the same name as the
      * context structure type to which the AVClass is associated.

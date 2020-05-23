@@ -413,7 +413,7 @@ int av_demuxer_open(AVFormatContext *ic) {
 }
 
 /* Open input file and probe the format if necessary. */
-static int init_input(AVFormatContext *s, const char *filename,//TIGER init_input av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
+static int init_input(AVFormatContext *s, const char *filename,//TIGER init_input 如果没有iformat,启用av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
                       AVDictionary **options)
 {
     int ret;
@@ -423,7 +423,7 @@ static int init_input(AVFormatContext *s, const char *filename,//TIGER init_inpu
     if (s->pb) {
         s->flags |= AVFMT_FLAG_CUSTOM_IO;
         if (!s->iformat)
-            return av_probe_input_buffer2(s->pb, &s->iformat, filename,//
+            return av_probe_input_buffer2(s->pb, &s->iformat, filename,//直接用读文件头部或者文件名后缀来判断。
                                          s, 0, s->format_probesize);
         else if (s->iformat->flags & AVFMT_NOFILE)
             av_log(s, AV_LOG_WARNING, "Custom AVIOContext makes no sense and "
@@ -533,7 +533,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     return 0;
 }
 
-
+//如果没有AVFormatContext内存，先分配内存，如果没有s->iformat,就用av_probe_input_format2，通过文件后缀名或者文件内容头部的格式信息来判断。
 int avformat_open_input(AVFormatContext **ps, const char *filename,//TIGER avformat_open_input 最重要的函数init_input 
                         ff_const59 AVInputFormat *fmt, AVDictionary **options)
 {
@@ -570,7 +570,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
     av_strlcpy(s->filename, filename ? filename : "", sizeof(s->filename));
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-    if ((ret = init_input(s, filename, &tmp)) < 0)//04.读文件 av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
+    if ((ret = init_input(s, filename, &tmp)) < 0)//04.若有s->iformat 则直接io_open打开文件；如果没有s->iformat用 av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
         goto fail;
     s->probe_score = ret;
     //05.处理白名单，黑名单等
@@ -595,9 +595,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
         ret = AVERROR(EINVAL);
         goto fail;
     }
-    //06. 跳过n个字节
+    //06. 某些时候可以设置，然后会跳过开始的n个字节
     avio_skip(s->pb, s->skip_initial_bytes);//tiger program 可以参考
-    //07. 特例：文件名
+    //07. 特例：文件名还带数字的
     /* Check filename in case an image number is expected. */
     if (s->iformat->flags & AVFMT_NEEDNUMBER) {
         if (!av_filename_number_test(filename)) {
@@ -607,17 +607,17 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
     //08.需要特别设置
     s->duration = s->start_time = AV_NOPTS_VALUE;
-    //09. 复制iformat的私有结构
+    //09. 复制iformat的私有结构，比如pcm需要声道数，采样率，在哪里保存呢？就放在priv_class
     /* Allocate private data. */
-    if (s->iformat->priv_data_size > 0) {
+    if (s->iformat->priv_data_size > 0) {//ff_pcm_alaw_demuxer: priv_data_size = sizeof(PCMAudioDemuxerContext) PCMAudioDemuxerContext:声道数，采样率
         if (!(s->priv_data = av_mallocz(s->iformat->priv_data_size))) {
             ret = AVERROR(ENOMEM);
             goto fail;
         }
-        if (s->iformat->priv_class) {
-            *(const AVClass **) s->priv_data = s->iformat->priv_class;
-            av_opt_set_defaults(s->priv_data);
-            if ((ret = av_opt_set_dict(s->priv_data, &tmp)) < 0)
+        if (s->iformat->priv_class) {//ff_pcm_alaw_demuxer: .priv_class     = &name_ ## _demuxer_class,即alaw_demuxer_class
+            *(const AVClass **) s->priv_data = s->iformat->priv_class; //ff_pcm_alaw_demuxer: AVClass name_ ## _demuxer_class = {.class_name = #name_ " demuxer",.item_name  = av_default_item_name,.option     = pcm_options,.version    = LIBAVUTIL_VERSION_INT,}
+            av_opt_set_defaults(s->priv_data);//设置缺省值，因为都是AVClass结构，只要调用类的option进行相关操作即可
+            if ((ret = av_opt_set_dict(s->priv_data, &tmp)) < 0)//设置用户输入的可选项。这里主要比可选项的名称来操作
                 goto fail;
         }
     }
@@ -627,9 +627,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
         ff_id3v2_read_dict(s->pb, &s->internal->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
 
     //11.读文件头
-    if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)
+    if (!(s->flags&AVFMT_FLAG_PRIV_OPT) && s->iformat->read_header)//iformat:ff_pcm_alaw_demuxer:  read_header:pcm_read_header
         if ((ret = s->iformat->read_header(s)) < 0)//TIGER SDP 调用sdp_read_header-->ff_sdp_parse-->payload_type-->sdp_parse_line-->ff_parse_fmtp-->parse_fmtp-->parse_fmtp_config
-            goto fail;
+            goto fail; 
     //12.
     if (!s->metadata) {
         s->metadata = s->internal->id3v2_meta;
@@ -4455,35 +4455,35 @@ void avformat_close_input(AVFormatContext **ps)
 
     avio_close(pb);
 }
-
-AVStream *avformat_new_stream(AVFormatContext *s, const AVCodec *c)
+// 创建avformat_find_stream_info需要的额外信息
+AVStream *avformat_new_stream(AVFormatContext *s, const AVCodec *c)//TIGER avformat_new_stream
 {
     AVStream *st;
     int i;
     AVStream **streams;
-
+    //01.流个数限制
     if (s->nb_streams >= FFMIN(s->max_streams, INT_MAX/sizeof(*streams))) {
         if (s->max_streams < INT_MAX/sizeof(*streams))
             av_log(s, AV_LOG_ERROR, "Number of streams exceeds max_streams parameter (%d), see the documentation if you wish to increase it\n", s->max_streams);
         return NULL;
     }
-    streams = av_realloc_array(s->streams, s->nb_streams + 1, sizeof(*streams));
+    streams = av_realloc_array(s->streams, s->nb_streams + 1, sizeof(*streams));//02.创建一个队列
     if (!streams)
         return NULL;
     s->streams = streams;
-
+    //03.创建一个AVStream
     st = av_mallocz(sizeof(AVStream));
     if (!st)
         return NULL;
-    if (!(st->info = av_mallocz(sizeof(*st->info)))) {
+    if (!(st->info = av_mallocz(sizeof(*st->info)))) {//04.创建一个内部avformat_find_stream_info用的信息
         av_free(st);
         return NULL;
     }
-    st->info->last_dts = AV_NOPTS_VALUE;
+    st->info->last_dts = AV_NOPTS_VALUE;//05.设置
 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-    st->codec = avcodec_alloc_context3(c);
+    st->codec = avcodec_alloc_context3(c);//06.弃用
     if (!st->codec) {
         av_free(st->info);
         av_free(st);
@@ -4492,19 +4492,19 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-    st->internal = av_mallocz(sizeof(*st->internal));
+    st->internal = av_mallocz(sizeof(*st->internal));//07.avformat_find_stream_info
     if (!st->internal)
         goto fail;
 
-    st->codecpar = avcodec_parameters_alloc();
+    st->codecpar = avcodec_parameters_alloc();//08.
     if (!st->codecpar)
         goto fail;
 
-    st->internal->avctx = avcodec_alloc_context3(NULL);
+    st->internal->avctx = avcodec_alloc_context3(NULL);//09.avformat_find_stream_info的AVCodecContext
     if (!st->internal->avctx)
         goto fail;
 
-    if (s->iformat) {
+    if (s->iformat) {//10.
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         /* no default bitrate if decoding */
@@ -4522,7 +4522,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     } else {
         st->cur_dts = AV_NOPTS_VALUE;
     }
-
+    //11.
     st->index      = s->nb_streams;
     st->start_time = AV_NOPTS_VALUE;
     st->duration   = AV_NOPTS_VALUE;
@@ -4530,12 +4530,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
     st->probe_packets = MAX_PROBE_PACKETS;
     st->pts_wrap_reference = AV_NOPTS_VALUE;
     st->pts_wrap_behavior = AV_PTS_WRAP_IGNORE;
-
+    //12.
     st->last_IP_pts = AV_NOPTS_VALUE;
     st->last_dts_for_order_check = AV_NOPTS_VALUE;
     for (i = 0; i < MAX_REORDER_DELAY + 1; i++)
         st->pts_buffer[i] = AV_NOPTS_VALUE;
-
+    //13.
     st->sample_aspect_ratio = (AVRational) { 0, 1 };
 
 #if FF_API_R_FRAME_RATE
@@ -4547,7 +4547,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     st->inject_global_side_data = s->internal->inject_global_side_data;
 
     st->internal->need_context_update = 1;
-
+    //14.
     s->streams[s->nb_streams++] = st;
     return st;
 fail:

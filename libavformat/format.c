@@ -157,15 +157,15 @@ ff_const59 AVInputFormat *av_probe_input_format3(ff_const59 AVProbeData *pd, int
             nodat = ID3_GREATER_PROBE;
     }
     //03.demuxer逐一比较，要么比较文件扩展名，要么读文件头部，看是否有流信息
-    while ((fmt1 = av_demuxer_iterate(&i))) {
+    while ((fmt1 = av_demuxer_iterate(&i))) {//一般再demuxer_list.c里面查找，
         if (!is_opened == !(fmt1->flags & AVFMT_NOFILE) && strcmp(fmt1->name, "image2"))
             continue;//01.
         score = 0;
         if (fmt1->read_probe) {//02.如果有探测函数
-            score = fmt1->read_probe(&lpd);//核心就是打开文件，读文件开头的信息。但也不是每个格式都有的。
+            score = fmt1->read_probe(&lpd);//核心就是打开文件，读文件开头的信息。但也不是每个格式都把格式写在文件头部。
             if (score)
                 av_log(NULL, AV_LOG_TRACE, "Probing %s score:%d size:%d\n", fmt1->name, score, lpd.buf_size);
-            if (fmt1->extensions && av_match_ext(lpd.filename, fmt1->extensions)) {//再测试一下扩展名
+            if (fmt1->extensions && av_match_ext(lpd.filename, fmt1->extensions)) {//再测试一下扩展名ff_aac_demuxer 对应的文件名aac;ff_pcm_alaw_demuxer:al;ff_mp3_demuxer：mp2,mp3,m2a,mpa ff_rtp_demuxer/ff_sdp_demuxer:未定义，
                 switch (nodat) {
                 case NO_ID3:
                     score = FFMAX(score, 1);
