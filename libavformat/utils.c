@@ -1567,7 +1567,7 @@ static int64_t ts_to_samples(AVStream *st, int64_t ts)
     return av_rescale(ts, st->time_base.num * st->codecpar->sample_rate, st->time_base.den);
 }
 
-static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
+static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_frame_internal
 {
     int ret = 0, i, got_packet = 0;
     AVDictionary *metadata = NULL;
@@ -1665,7 +1665,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             *pkt = cur_pkt;
             compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
             if ((s->iformat->flags & AVFMT_GENERIC_INDEX) &&
-                (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {
+                (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {//TIGER ALAW 文件再次停留：
                 ff_reduce_index(s, st->index);
                 av_add_index_entry(st, pkt->pos, pkt->dts,
                                    0, 0, AVINDEX_KEYFRAME);
