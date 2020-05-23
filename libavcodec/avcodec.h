@@ -460,14 +460,14 @@ enum AVCodecID {
 
     /* various PCM "codecs" */
     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
-    AV_CODEC_ID_PCM_S16LE = 0x10000,
+    AV_CODEC_ID_PCM_S16LE = 0x10000,//tiger 自定义的话，可以定义相同的值，这个不知道
     AV_CODEC_ID_PCM_S16BE,
     AV_CODEC_ID_PCM_U16LE,
     AV_CODEC_ID_PCM_U16BE,
     AV_CODEC_ID_PCM_S8,
     AV_CODEC_ID_PCM_U8,
     AV_CODEC_ID_PCM_MULAW,
-    AV_CODEC_ID_PCM_ALAW,
+    AV_CODEC_ID_PCM_ALAW,//TIGER ALAW 0X10007
     AV_CODEC_ID_PCM_S32LE,
     AV_CODEC_ID_PCM_S32BE,
     AV_CODEC_ID_PCM_U32LE,//tiger U unsigned, LE:little endian
@@ -5285,7 +5285,7 @@ typedef struct AVCodecParser {
     void (*parser_close)(AVCodecParserContext *s);
     int (*split)(AVCodecContext *avctx, const uint8_t *buf, int buf_size);
     struct AVCodecParser *next;
-} AVCodecParser;
+} AVCodecParser;//configure定义parser_list  ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
 
 /**
  * Iterate over all registered codec parsers.

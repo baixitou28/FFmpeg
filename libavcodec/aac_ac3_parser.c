@@ -25,7 +25,7 @@
 #include "parser.h"
 #include "aac_ac3_parser.h"
 
-int ff_aac_ac3_parse(AVCodecParserContext *s1,
+int ff_aac_ac3_parse(AVCodecParserContext *s1,//TIGER ff_aac_ac3_parse
                      AVCodecContext *avctx,
                      const uint8_t **poutbuf, int *poutbuf_size,
                      const uint8_t *buf, int buf_size)
@@ -87,7 +87,7 @@ get_next:
            reliable. Bit rate is still accurate because the total frame
            duration in seconds is still correct (as is the number of bits in
            the frame). */
-        if (avctx->codec_id != AV_CODEC_ID_AAC) {
+        if (avctx->codec_id != AV_CODEC_ID_AAC) {//TIGER AAC 实际的adts数据
             avctx->sample_rate = s->sample_rate;
             if (avctx->codec_id != AV_CODEC_ID_EAC3) {
                 avctx->channels = s->channels;

@@ -57,15 +57,15 @@ static av_cold int aac_parse_init(AVCodecParserContext *s1)
 {
     AACAC3ParseContext *s = s1->priv_data;
     s->header_size = AV_AAC_ADTS_HEADER_SIZE;
-    s->sync = aac_sync;
+    s->sync = aac_sync;//
     return 0;
 }
 
 
-AVCodecParser ff_aac_parser = {
+AVCodecParser ff_aac_parser = {//TIGER ff_aac_parser
     .codec_ids      = { AV_CODEC_ID_AAC },
     .priv_data_size = sizeof(AACAC3ParseContext),
     .parser_init    = aac_parse_init,
-    .parser_parse   = ff_aac_ac3_parse,
+    .parser_parse   = ff_aac_ac3_parse,//Ω‚ŒˆAACAC3ParseContext
     .parser_close   = ff_parse_close,
 };

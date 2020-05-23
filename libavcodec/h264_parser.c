@@ -569,7 +569,7 @@ fail:
     return -1;
 }
 
-static int h264_parse(AVCodecParserContext *s,
+static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
                       AVCodecContext *avctx,
                       const uint8_t **poutbuf, int *poutbuf_size,
                       const uint8_t *buf, int buf_size)

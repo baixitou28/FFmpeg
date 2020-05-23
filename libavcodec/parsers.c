@@ -96,9 +96,9 @@ AVCodecParser *av_parser_next(const AVCodecParser *p)
 const AVCodecParser *av_parser_iterate(void **opaque)
 {
     uintptr_t i = (uintptr_t)*opaque;
-    const AVCodecParser *p = parser_list[i];
+    const AVCodecParser *p = parser_list[i];//configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
 
-    if (p)
+    if (p) 
         *opaque = (void*)(i + 1);
 
     return p;
