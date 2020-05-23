@@ -238,8 +238,8 @@ typedef struct PCMDecode {
     AVFloatDSPContext *fdsp;//浮点运算，不同硬件平台，不同处理函数
     float   scale;
 } PCMDecode;
-
-static av_cold int pcm_decode_init(AVCodecContext *avctx)
+//pcm解码的初始化，如果速查表的初始化， avctx->sample_fmt 设置为AV_SAMPLE_FMT_S16
+static av_cold int pcm_decode_init(AVCodecContext *avctx)//tiger 
 {
     PCMDecode *s = avctx->priv_data;
     int i;
@@ -276,9 +276,9 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)
         break;
     }
 
-    avctx->sample_fmt = avctx->codec->sample_fmts[0];
+    avctx->sample_fmt = avctx->codec->sample_fmts[0];//ALAW:AV_SAMPLE_FMT_S16 , 这里sample_fmts可能是支持多个吗？==>
 
-    if (avctx->sample_fmt == AV_SAMPLE_FMT_S32)//这个不解？
+    if (avctx->sample_fmt == AV_SAMPLE_FMT_S32)//特例：
         avctx->bits_per_raw_sample = av_get_bits_per_sample(avctx->codec_id);
 
     return 0;

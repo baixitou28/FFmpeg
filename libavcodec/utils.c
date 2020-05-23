@@ -511,7 +511,7 @@ static int64_t get_bit_rate(AVCodecContext *ctx)//音频可以通过编解码ID来获取，视
         break;
     case AVMEDIA_TYPE_AUDIO:
         bits_per_sample = av_get_bits_per_sample(ctx->codec_id);
-        bit_rate = bits_per_sample ? ctx->sample_rate * (int64_t)ctx->channels * bits_per_sample : ctx->bit_rate;
+        bit_rate = bits_per_sample ? ctx->sample_rate * (int64_t)ctx->channels * bits_per_sample : ctx->bit_rate;//ALAW:算出64k
         break;
     default:
         bit_rate = 0;
@@ -544,8 +544,8 @@ int attribute_align_arg ff_codec_open2_recursive(AVCodecContext *avctx, const AV
     ff_lock_avcodec(avctx, codec);
     return ret;
 }
-
-int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options)
+//打开编解码,编解码进行初始化pcm_decode_init，另外里面包含了find_stream_info需要的很多变量，使得代码很长
+int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options)//tiger avcodec_open2
 {
     int ret = 0;
     int codec_init_ok = 0;
@@ -574,7 +574,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         av_dict_copy(&tmp, *options, 0);
     //06.为什么要上锁？是
     ff_lock_avcodec(avctx, codec);
-    //07.分配内存
+    //07.分配内存 包含find_stream_info的很多变量
     avctx->internal = av_mallocz(sizeof(*avctx->internal));//AVCodecInternal
     if (!avctx->internal) {
         ret = AVERROR(ENOMEM);
@@ -734,7 +734,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     if (avctx->codec_type == AVMEDIA_TYPE_AUDIO &&
         (!avctx->time_base.num || !avctx->time_base.den)) {
         avctx->time_base.num = 1;
-        avctx->time_base.den = avctx->sample_rate;
+        avctx->time_base.den = avctx->sample_rate;//ALAW: {1, 8000}
     }
 
     if (!HAVE_THREADS)
@@ -747,9 +747,9 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         if (ret < 0)
             goto free_and_end;
     }
-    //17.
+    //17.初始化filter
     if (av_codec_is_decoder(avctx->codec)) {
-        ret = ff_decode_bsfs_init(avctx);
+        ret = ff_decode_bsfs_init(avctx);//对于alaw 主要是调用av_bsf_alloc+avcodec_parameters_from_context
         if (ret < 0)
             goto free_and_end;
     }
@@ -948,8 +948,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if (   avctx->codec->init && (!(avctx->active_thread_type&FF_THREAD_FRAME)
         || avctx->internal->frame_thread_encoder)) {
-        ret = avctx->codec->init(avctx);
-        if (ret < 0) {
+        ret = avctx->codec->init(avctx);//ALAW:avctx->codec->init=pcm_decode_init： pcm解码的初始化，如果速查表的初始化， avctx->sample_fmt 设置为AV_SAMPLE_FMT_S16
+        if (ret < 0) {//初始化时，avctx带入参数
             goto free_and_end;
         }
         codec_init_ok = 1;
@@ -959,7 +959,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     //22.如果是解码
     if (av_codec_is_decoder(avctx->codec)) {//这里混合里音频，视频，字幕处理，感觉代码就多了
         if (!avctx->bit_rate)
-            avctx->bit_rate = get_bit_rate(avctx);//22.01 音频可以通过编解码iD获取
+            avctx->bit_rate = get_bit_rate(avctx);//22.01 音频可以通过编解码iD获取， alaw 64k
         /* validate channel layout from the decoder */
         if (avctx->channel_layout) {//22.02 计算通道数 如果有layout 比如aac，
             int channels = av_get_channel_layout_nb_channels(avctx->channel_layout);
@@ -1023,7 +1023,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
 
 #if FF_API_AVCTX_TIMEBASE
-        if (avctx->framerate.num > 0 && avctx->framerate.den > 0)//
+        if (avctx->framerate.num > 0 && avctx->framerate.den > 0)//举例：alaw ：avctx->framerate.num =0， avctx->framerate.den = 1
             avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
 #endif
     }

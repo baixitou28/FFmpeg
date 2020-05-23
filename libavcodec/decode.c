@@ -182,7 +182,7 @@ static int unrefcount_frame(AVCodecInternal *avci, AVFrame *frame)
     return 0;
 }
 
-int ff_decode_bsfs_init(AVCodecContext *avctx)
+int ff_decode_bsfs_init(AVCodecContext *avctx)//bsf： BitSteamFilter， bsfs应该代表多个
 {
     AVCodecInternal *avci = avctx->internal;
     DecodeFilterContext *s = &avci->filter;
@@ -229,7 +229,7 @@ int ff_decode_bsfs_init(AVCodecContext *avctx)
         s->bsfs = tmp;
         s->nb_bsfs++;
 
-        ret = av_bsf_alloc(filter, &s->bsfs[s->nb_bsfs - 1]);
+        ret = av_bsf_alloc(filter, &s->bsfs[s->nb_bsfs - 1]);//ALAW 仅仅分配这个而已
         if (ret < 0) {
             av_freep(&bsf);
             goto fail;
@@ -239,7 +239,7 @@ int ff_decode_bsfs_init(AVCodecContext *avctx)
             /* We do not currently have an API for passing the input timebase into decoders,
              * but no filters used here should actually need it.
              * So we make up some plausible-looking number (the MPEG 90kHz timebase) */
-            s->bsfs[s->nb_bsfs - 1]->time_base_in = (AVRational){ 1, 90000 };
+            s->bsfs[s->nb_bsfs - 1]->time_base_in = (AVRational){ 1, 90000 };//alaw 暂时用这个时间基准
             ret = avcodec_parameters_from_context(s->bsfs[s->nb_bsfs - 1]->par_in,
                                                   avctx);
         } else {

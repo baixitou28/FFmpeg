@@ -1589,7 +1589,7 @@ typedef struct AVCodecContext {
      */
     unsigned int codec_tag;
 
-    void *priv_data;
+    void *priv_data;//举例alaw：PCMDecode
 
     /**
      * Private context used for internal data.
@@ -3561,7 +3561,7 @@ typedef struct AVCodec {
      */
     void (*init_static_data)(struct AVCodec *codec);
 
-    int (*init)(AVCodecContext *);
+    int (*init)(AVCodecContext *);//给解码器初始化的机会：如分配内存，数据默认值，参数设置，如：pcm_decode_init
     int (*encode_sub)(AVCodecContext *, uint8_t *buf, int buf_size,
                       const struct AVSubtitle *sub);
     /**
