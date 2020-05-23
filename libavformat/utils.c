@@ -3628,7 +3628,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
         // only for the split stuff
         if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {
-            st->parser = av_parser_init(st->codecpar->codec_id);//如果没有解析器就初始化一个，若自己手工编写参考
+            st->parser = av_parser_init(st->codecpar->codec_id);//parser_list中configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
             if (st->parser) {
                 if (st->need_parsing == AVSTREAM_PARSE_HEADERS) {
                     st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;//？
