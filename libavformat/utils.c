@@ -3014,7 +3014,7 @@ static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)
 }
 
 /* returns 1 or 0 if or if not decoded data was returned, or a negative error */
-static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,
+static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//tiger try_decode_frame 未打开解码器，则打开，对于alaw,AAC和H264仅此而已
                             AVDictionary **options)
 {
     AVCodecContext *avctx = st->internal->avctx;
@@ -3025,15 +3025,15 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,
     AVPacket pkt = *avpkt;
     int do_skip_frame = 0;
     enum AVDiscard skip_frame;
-
+    //01.
     if (!frame)
         return AVERROR(ENOMEM);
-
-    if (!avcodec_is_open(avctx) &&
+    //02. 打开decoder，初始化decoder
+    if (!avcodec_is_open(avctx) &&//未打开
         st->info->found_decoder <= 0 &&
         (st->codecpar->codec_id != -st->info->found_decoder || !st->codecpar->codec_id)) {
         AVDictionary *thread_opt = NULL;
-
+        //打开decoder
         codec = find_probe_decoder(s, st, st->codecpar->codec_id);
 
         if (!codec) {
@@ -3047,28 +3047,28 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,
         av_dict_set(options ? options : &thread_opt, "threads", "1", 0);
         if (s->codec_whitelist)
             av_dict_set(options ? options : &thread_opt, "codec_whitelist", s->codec_whitelist, 0);
-        ret = avcodec_open2(avctx, codec, options ? options : &thread_opt);
+        ret = avcodec_open2(avctx, codec, options ? options : &thread_opt);//打开并初始化解码器
         if (!options)
             av_dict_free(&thread_opt);
         if (ret < 0) {
-            st->info->found_decoder = -avctx->codec_id;
+            st->info->found_decoder = -avctx->codec_id;//设置为负数？
             goto fail;
         }
         st->info->found_decoder = 1;
     } else if (!st->info->found_decoder)
         st->info->found_decoder = 1;
-
+    //03.
     if (st->info->found_decoder < 0) {
         ret = -1;
         goto fail;
     }
-
-    if (avpriv_codec_get_cap_skip_frame_fill_param(avctx->codec)) {
+    //04. 这个函数对于alaw,AAC和H264,都在这里直接返回
+    if (avpriv_codec_get_cap_skip_frame_fill_param(avctx->codec)) {//TIGER ALAW 从这里返回 因为ALAW和h264都没有FF_CODEC_CAP_SKIP_FRAME_FILL_PARAM 只有h263dec,flvdec,
         do_skip_frame = 1;
         skip_frame = avctx->skip_frame;
         avctx->skip_frame = AVDISCARD_ALL;
     }
-
+    //05.
     while ((pkt.size > 0 || (!pkt.data && got_picture)) &&
            ret >= 0 &&
            (!has_codec_parameters(st, NULL) || !has_decode_delay_been_guessed(st) ||
@@ -3077,17 +3077,17 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,
         got_picture = 0;
         if (avctx->codec_type == AVMEDIA_TYPE_VIDEO ||
             avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
-            ret = avcodec_send_packet(avctx, &pkt);
+            ret = avcodec_send_packet(avctx, &pkt);//05.01.
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
                 break;
             if (ret >= 0)
                 pkt.size = 0;
-            ret = avcodec_receive_frame(avctx, frame);
+            ret = avcodec_receive_frame(avctx, frame);//05.02.解出一帧
             if (ret >= 0)
                 got_picture = 1;
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
                 ret = 0;
-        } else if (avctx->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+        } else if (avctx->codec_type == AVMEDIA_TYPE_SUBTITLE) {//字幕
             ret = avcodec_decode_subtitle2(avctx, &subtitle,
                                            &got_picture, &pkt);
             if (ret >= 0)
@@ -3099,7 +3099,7 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,
             ret       = got_picture;
         }
     }
-
+    //06.
     if (!pkt.data && !got_picture)
         ret = -1;
 
@@ -3507,46 +3507,46 @@ fail:
     return ret;
 }
 
-static int extract_extradata(AVStream *st, AVPacket *pkt)
+static int extract_extradata(AVStream *st, AVPacket *pkt)//TIGER extract_extradata
 {
     AVStreamInternal *sti = st->internal;
     AVPacket *pkt_ref;
     int ret;
-
+    //01.
     if (!sti->extract_extradata.inited) {
         ret = extract_extradata_init(st);
         if (ret < 0)
             return ret;
     }
-
+    //02.
     if (sti->extract_extradata.inited && !sti->extract_extradata.bsf)
         return 0;
-
+    //03.
     pkt_ref = sti->extract_extradata.pkt;
     ret = av_packet_ref(pkt_ref, pkt);
     if (ret < 0)
         return ret;
-
+    //04.
     ret = av_bsf_send_packet(sti->extract_extradata.bsf, pkt_ref);
     if (ret < 0) {
         av_packet_unref(pkt_ref);
         return ret;
     }
-
-    while (ret >= 0 && !sti->avctx->extradata) {
+    //05.
+    while (ret >= 0 && !sti->avctx->extradata) {//
         int extradata_size;
         uint8_t *extradata;
-
+        //05.01
         ret = av_bsf_receive_packet(sti->extract_extradata.bsf, pkt_ref);
         if (ret < 0) {
             if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
                 return ret;
             continue;
         }
-
+        //05.02
         extradata = av_packet_get_side_data(pkt_ref, AV_PKT_DATA_NEW_EXTRADATA,
                                             &extradata_size);
-
+        //05.03
         if (extradata) {
             av_assert0(!sti->avctx->extradata);
             if ((unsigned)extradata_size < FF_MAX_EXTRADATA_SIZE)
@@ -3690,14 +3690,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
     read_size = 0;
     for (;;) {
         int analyzed_all_streams;
-        if (ff_check_interrupt(&ic->interrupt_callback)) {//tiger 是否可以从这里强行退出
+        if (ff_check_interrupt(&ic->interrupt_callback)) {//04.01 tiger 是否可以从这里强行退出
             ret = AVERROR_EXIT;
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
             break;
         }
 
         /* check if one codec still needs to be handled */
-        for (i = 0; i < ic->nb_streams; i++) {//几个stream 轮流执行
+        for (i = 0; i < ic->nb_streams; i++) {//04.02几个stream 轮流执行
             int fps_analyze_framecount = 20;
             int count;
 
@@ -3742,7 +3742,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
         analyzed_all_streams = 0;
         if (!missing_streams || !*missing_streams)
-        if (i == ic->nb_streams) {//?
+        if (i == ic->nb_streams) {//04.03?
             analyzed_all_streams = 1;
             /* NOTE: If the format has no header, then we need to read some
              * packets to get most of the streams, so we cannot stop here. */
@@ -3755,7 +3755,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
         /* We did not get all the codec info, but we read too much data. */
-        if (read_size >= probesize) {//字节数超了
+        if (read_size >= probesize) {//04.04 字节数超了
             ret = count;
             av_log(ic, AV_LOG_DEBUG,
                    "Probe buffer size limit of %"PRId64" bytes reached\n", probesize);
@@ -3772,18 +3772,18 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         /* NOTE: A new stream can be added there if no header in file
          * (AVFMTCTX_NOHEADER). */
-        ret = read_frame_internal(ic, &pkt1);//读
+        ret = read_frame_internal(ic, &pkt1);//04.05读
         if (ret == AVERROR(EAGAIN))
             continue;
 
-        if (ret < 0) {//末尾了
+        if (ret < 0) {//04.06末尾了
             /* EOF or error*/
             eof_reached = 1;
             break;
         }
-
+        
         pkt = &pkt1;
-
+        //04.07
         if (!(ic->flags & AVFMT_FLAG_NOBUFFER)) {
             ret = ff_packet_list_put(&ic->internal->packet_buffer,
                                      &ic->internal->packet_buffer_end,
@@ -3791,11 +3791,11 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (ret < 0)
                 goto find_stream_info_err;
         }
-
+        //04.08
         st = ic->streams[pkt->stream_index];
         if (!(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
             read_size += pkt->size;
-
+        //04.09
         avctx = st->internal->avctx;
         if (!st->internal->avctx_inited) {
             ret = avcodec_parameters_to_context(avctx, st->codecpar);
@@ -3803,7 +3803,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 goto find_stream_info_err;
             st->internal->avctx_inited = 1;
         }
-
+        //04.10
         if (pkt->dts != AV_NOPTS_VALUE && st->codec_info_nb_frames > 1) {
             /* check for non-increasing dts */
             if (st->info->fps_last_dts != AV_NOPTS_VALUE &&
@@ -3843,7 +3843,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st->info->fps_last_dts     = pkt->dts;
             st->info->fps_last_dts_idx = st->codec_info_nb_frames;
         }
-        if (st->codec_info_nb_frames>1) {
+        if (st->codec_info_nb_frames>1) {//04.11
             int64_t t = 0;
             int64_t limit;
 
@@ -3878,14 +3878,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 st->info->codec_info_duration_fields += st->parser && st->need_parsing && avctx->ticks_per_frame ==2 ? st->parser->repeat_pict + 1 : 2;
             }
         }
-        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {//04.12
 #if FF_API_R_FRAME_RATE
             ff_rfps_add_frame(ic, st, pkt->dts);
 #endif
             if (pkt->dts != pkt->pts && pkt->dts != AV_NOPTS_VALUE && pkt->pts != AV_NOPTS_VALUE)
                 st->info->frame_delay_evidence = 1;
         }
-        if (!st->internal->avctx->extradata) {
+        if (!st->internal->avctx->extradata) {//04.13
             ret = extract_extradata(st, pkt);
             if (ret < 0)
                 goto find_stream_info_err;
@@ -3900,13 +3900,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
          * least one frame of codec data, this makes sure the codec initializes
          * the channel configuration and does not only trust the values from
          * the container. */
-        try_decode_frame(ic, st, pkt,//如何理解
+        try_decode_frame(ic, st, pkt,//04.14如何理解
                          (options && i < orig_nb_streams) ? &options[i] : NULL);
 
-        if (ic->flags & AVFMT_FLAG_NOBUFFER)//也可以将分析过的数据释放掉的
+        if (ic->flags & AVFMT_FLAG_NOBUFFER)//04.15也可以将分析过的数据释放掉的
             av_packet_unref(pkt);
 
-        st->codec_info_nb_frames++;//计数
+        st->codec_info_nb_frames++;//04.16计数
         count++;
     }
     //05. 若到达文件末尾，检查每个流是否OK
@@ -4149,7 +4149,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         st->internal->avctx_inited = 0;//标志已处理
     }
-    //11. 异常或正常退出都从这里关闭
+    //13. 异常或正常退出都从这里关闭
 find_stream_info_err:
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];
@@ -4160,7 +4160,7 @@ find_stream_info_err:
         av_bsf_free(&ic->streams[i]->internal->extract_extradata.bsf);//find 用到的bitstream filter state //疑问find 的时候还回用到filter吗？
         av_packet_free(&ic->streams[i]->internal->extract_extradata.pkt);
     }
-    if (ic->pb)//再次显示读了多少字节
+    if (ic->pb)//14.再次显示读了多少字节
         av_log(ic, AV_LOG_DEBUG, "After avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d frames:%d\n",
                avio_tell(ic->pb), ic->pb->bytes_read, ic->pb->seek_count, count);
     return ret;

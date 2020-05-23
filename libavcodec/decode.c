@@ -737,7 +737,7 @@ static int apply_cropping(AVCodecContext *avctx, AVFrame *frame)
                                           AV_FRAME_CROP_UNALIGNED : 0);
 }
 
-int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)//tiger avcodec_receive_frame
 {
     AVCodecInternal *avci = avctx->internal;
     int ret, changed;

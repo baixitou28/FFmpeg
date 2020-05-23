@@ -551,7 +551,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     int codec_init_ok = 0;
     AVDictionary *tmp = NULL;
     const AVPixFmtDescriptor *pixdesc;
-    //01.
+    //01.find_steam_info时候已经打开过了？，这个是用s->internal来判断是否的
     if (avcodec_is_open(avctx))
         return 0;
     //02.
