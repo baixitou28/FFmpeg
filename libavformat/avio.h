@@ -63,7 +63,7 @@ typedef struct AVIOInterruptCB {
 /**
  * Directory entry types.
  */
-enum AVIODirEntryType {
+enum AVIODirEntryType {//TIGER AVIODirEntryType 类型
     AVIO_ENTRY_UNKNOWN,
     AVIO_ENTRY_BLOCK_DEVICE,
     AVIO_ENTRY_CHARACTER_DEVICE,
@@ -98,34 +98,34 @@ typedef struct AVIODirEntry {
     int64_t user_id;                      /**< User ID of owner, -1 if unknown. */
     int64_t group_id;                     /**< Group ID of owner, -1 if unknown. */
     int64_t filemode;                     /**< Unix file mode, -1 if unknown. */
-} AVIODirEntry;
+} AVIODirEntry;//TIGER AVIODirEntry
 
 typedef struct AVIODirContext {
     struct URLContext *url_context;
-} AVIODirContext;
+} AVIODirContext;//TIGER AVIODirContext
 
 /**
  * Different data types that can be returned via the AVIO
  * write_data_type callback.
  */
-enum AVIODataMarkerType {
+enum AVIODataMarkerType {//便于标记什么时候写
     /**
      * Header data; this needs to be present for the stream to be decodeable.
      */
-    AVIO_DATA_MARKER_HEADER,
+    AVIO_DATA_MARKER_HEADER,//头
     /**
      * A point in the output bytestream where a decoder can start decoding
      * (i.e. a keyframe). A demuxer/decoder given the data flagged with
      * AVIO_DATA_MARKER_HEADER, followed by any AVIO_DATA_MARKER_SYNC_POINT,
      * should give decodeable results.
      */
-    AVIO_DATA_MARKER_SYNC_POINT,
+    AVIO_DATA_MARKER_SYNC_POINT,//关键帧
     /**
      * A point in the output bytestream where a demuxer can start parsing
      * (for non self synchronizing bytestream formats). That is, any
      * non-keyframe packet start point.
      */
-    AVIO_DATA_MARKER_BOUNDARY_POINT,
+    AVIO_DATA_MARKER_BOUNDARY_POINT,//P帧
     /**
      * This is any, unlabelled data. It can either be a muxer not marking
      * any positions at all, it can be an actual boundary/sync point
@@ -158,7 +158,7 @@ enum AVIODataMarkerType {
  *       when implementing custom I/O. Normally these are set to the
  *       function pointers specified in avio_alloc_context()
  */
-typedef struct AVIOContext {
+typedef struct AVIOContext {//TIGER AVIOContext
     /**
      * A class for private options.
      *
@@ -223,7 +223,7 @@ typedef struct AVIOContext {
      *               +-------------+----------------------------------------------+
      *
      */
-    unsigned char *buffer;  /**< Start of the buffer. */
+    unsigned char *buffer;  /**< Start of the buffer. *///参见注释的图
     int buffer_size;        /**< Maximum buffer size */
     unsigned char *buf_ptr; /**< Current position in the buffer */
     unsigned char *buf_end; /**< End of the data, may be less than
@@ -232,7 +232,7 @@ typedef struct AVIOContext {
                                  no more data has been received yet. */
     void *opaque;           /**< A private pointer, passed to the read/write/seek/...
                                  functions. */
-    int (*read_packet)(void *opaque, uint8_t *buf, int buf_size);
+    int (*read_packet)(void *opaque, uint8_t *buf, int buf_size);//TIGER 例如:
     int (*write_packet)(void *opaque, uint8_t *buf, int buf_size);
     int64_t (*seek)(void *opaque, int64_t offset, int whence);
     int64_t pos;            /**< position in the file of the current buffer */
@@ -476,7 +476,7 @@ AVIOContext *avio_alloc_context(
  */
 void avio_context_free(AVIOContext **s);
 
-void avio_w8(AVIOContext *s, int b);
+void avio_w8(AVIOContext *s, int b);//tiger program 写8位
 void avio_write(AVIOContext *s, const unsigned char *buf, int size);
 void avio_wl64(AVIOContext *s, uint64_t val);
 void avio_wb64(AVIOContext *s, uint64_t val);
@@ -491,7 +491,7 @@ void avio_wb16(AVIOContext *s, unsigned int val);
  * Write a NULL-terminated string.
  * @return number of bytes written.
  */
-int avio_put_str(AVIOContext *s, const char *str);
+int avio_put_str(AVIOContext *s, const char *str);//TIGER 写字符
 
 /**
  * Convert an UTF-8 string to UTF-16LE and write it.
@@ -500,7 +500,7 @@ int avio_put_str(AVIOContext *s, const char *str);
  *
  * @return number of bytes written.
  */
-int avio_put_str16le(AVIOContext *s, const char *str);
+int avio_put_str16le(AVIOContext *s, const char *str);//TIGER UTF8转UTF-16LE
 
 /**
  * Convert an UTF-8 string to UTF-16BE and write it.
@@ -569,7 +569,7 @@ int64_t avio_size(AVIOContext *s);
  * Similar to feof() but also returns nonzero on read errors.
  * @return non zero if and only if at end of file or a read error happened when reading.
  */
-int avio_feof(AVIOContext *s);
+int avio_feof(AVIOContext *s);//TIGER PROGRAM
 
 /** @warning Writes up to 4 KiB per call */
 int avio_printf(AVIOContext *s, const char *fmt, ...) av_printf_format(2, 3);
@@ -785,7 +785,7 @@ int avio_close_dyn_buf(AVIOContext *s, uint8_t **pbuffer);
  *
  * @return A static string containing the name of current protocol or NULL
  */
-const char *avio_enum_protocols(void **opaque, int output);
+const char *avio_enum_protocols(void **opaque, int output);//TIGER PROGRAM 枚举所有输入/出协议
 
 /**
  * Pause and resume playing - only meaningful if using a network streaming

@@ -1297,7 +1297,7 @@ typedef struct DynBuffer {
     uint8_t io_buffer[1];
 } DynBuffer;
 
-static int dyn_buf_write(void *opaque, uint8_t *buf, int buf_size)
+static int dyn_buf_write(void *opaque, uint8_t *buf, int buf_size)//内容写在DynBuffer中，如果空间不够，自动分配
 {
     DynBuffer *d = opaque;
     unsigned new_size, new_allocated_size;
@@ -1305,13 +1305,13 @@ static int dyn_buf_write(void *opaque, uint8_t *buf, int buf_size)
     /* reallocate buffer if needed */
     new_size = d->pos + buf_size;
     new_allocated_size = d->allocated_size;
-    if (new_size < d->pos || new_size > INT_MAX/2)
+    if (new_size < d->pos || new_size > INT_MAX/2)//new_size 为负，或者new_size 很大了
         return -1;
-    while (new_size > new_allocated_size) {
+    while (new_size > new_allocated_size) {//原来内存已经容不下new_size 
         if (!new_allocated_size)
-            new_allocated_size = new_size;
-        else
-            new_allocated_size += new_allocated_size / 2 + 1;
+            new_allocated_size = new_size;//未定义，直接用new_size
+        else//tiger program 从这里看先定义一个d->allocated_size常用的大小比如音频是512，视频比如4k，可以减少分配次数和内存碎片化
+            new_allocated_size += new_allocated_size / 2 + 1;//采用增加一半的方法
     }
 
     if (new_allocated_size > d->allocated_size) {
@@ -1330,19 +1330,19 @@ static int dyn_buf_write(void *opaque, uint8_t *buf, int buf_size)
     return buf_size;
 }
 
-static int dyn_packet_buf_write(void *opaque, uint8_t *buf, int buf_size)
+static int dyn_packet_buf_write(void *opaque, uint8_t *buf, int buf_size)//先写长度，再写内容
 {
     unsigned char buf1[4];
     int ret;
 
     /* packetized write: output the header */
     AV_WB32(buf1, buf_size);
-    ret = dyn_buf_write(opaque, buf1, 4);
+    ret = dyn_buf_write(opaque, buf1, 4);//先写长度
     if (ret < 0)
         return ret;
 
     /* then the data */
-    return dyn_buf_write(opaque, buf, buf_size);
+    return dyn_buf_write(opaque, buf, buf_size);//再写内容
 }
 
 static int64_t dyn_buf_seek(void *opaque, int64_t offset, int whence)
@@ -1350,28 +1350,28 @@ static int64_t dyn_buf_seek(void *opaque, int64_t offset, int whence)
     DynBuffer *d = opaque;
 
     if (whence == SEEK_CUR)
-        offset += d->pos;
+        offset += d->pos;//当前位置加offset
     else if (whence == SEEK_END)
-        offset += d->size;
+        offset += d->size;//从末尾加offset
     if (offset < 0 || offset > 0x7fffffffLL)
         return -1;
-    d->pos = offset;
+    d->pos = offset;//精确位置
     return 0;
 }
 
 static int url_open_dyn_buf_internal(AVIOContext **s, int max_packet_size)
 {
     DynBuffer *d;
-    unsigned io_buffer_size = max_packet_size ? max_packet_size : 1024;
+    unsigned io_buffer_size = max_packet_size ? max_packet_size : 1024;//如果未指定，采用1024
 
     if (sizeof(DynBuffer) + io_buffer_size < io_buffer_size)
-        return -1;
+        return -1;//如果sizeof(DynBuffer) + io_buffer_size 为负数
     d = av_mallocz(sizeof(DynBuffer) + io_buffer_size);
     if (!d)
         return AVERROR(ENOMEM);
     d->io_buffer_size = io_buffer_size;
-    *s = avio_alloc_context(d->io_buffer, d->io_buffer_size, 1, d, NULL,
-                            max_packet_size ? dyn_packet_buf_write : dyn_buf_write,
+    *s = avio_alloc_context(d->io_buffer, d->io_buffer_size, 1, d, NULL,//注意，这里只有写没有read函数
+                            max_packet_size ? dyn_packet_buf_write : dyn_buf_write,//如果指定最大长度，则开始字段先写长度，再写内容
                             max_packet_size ? NULL : dyn_buf_seek);
     if(!*s) {
         av_free(d);
@@ -1393,7 +1393,7 @@ int ffio_open_dyn_packet_buf(AVIOContext **s, int max_packet_size)
     return url_open_dyn_buf_internal(s, max_packet_size);
 }
 
-int avio_get_dyn_buf(AVIOContext *s, uint8_t **pbuffer)
+int avio_get_dyn_buf(AVIOContext *s, uint8_t **pbuffer)//刷新,并返回dyn的长度
 {
     DynBuffer *d;
 
@@ -1402,15 +1402,15 @@ int avio_get_dyn_buf(AVIOContext *s, uint8_t **pbuffer)
         return 0;
     }
 
-    avio_flush(s);
+    avio_flush(s);//刷新
 
     d = s->opaque;
     *pbuffer = d->buffer;
 
-    return d->size;
+    return d->size;//返回长度
 }
-
-int avio_close_dyn_buf(AVIOContext *s, uint8_t **pbuffer)
+//返回值dyn的长度(考虑对齐)
+int avio_close_dyn_buf(AVIOContext *s, uint8_t **pbuffer)//刷新s，
 {
     DynBuffer *d;
     int size;
@@ -1428,7 +1428,7 @@ int avio_close_dyn_buf(AVIOContext *s, uint8_t **pbuffer)
         padding = AV_INPUT_BUFFER_PADDING_SIZE;
     }
 
-    avio_flush(s);
+    avio_flush(s);//刷新
 
     d = s->opaque;
     *pbuffer = d->buffer;
@@ -1437,7 +1437,7 @@ int avio_close_dyn_buf(AVIOContext *s, uint8_t **pbuffer)
 
     avio_context_free(&s);
 
-    return size - padding;
+    return size - padding;//返回，扣除对齐部分的长度，不是特别理解
 }
 
 void ffio_free_dyn_buf(AVIOContext **s)
@@ -1446,11 +1446,11 @@ void ffio_free_dyn_buf(AVIOContext **s)
     if (!*s)
         return;
     avio_close_dyn_buf(*s, &tmp);
-    av_free(tmp);
+    av_free(tmp);//单独释放
     *s = NULL;
 }
 
-static int null_buf_write(void *opaque, uint8_t *buf, int buf_size)
+static int null_buf_write(void *opaque, uint8_t *buf, int buf_size)//TIGER 空写：只标记写入了，没有真正复制到DynBuffer中
 {
     DynBuffer *d = opaque;
 
