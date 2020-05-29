@@ -3606,13 +3606,13 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
         const AVCodec *codec;
         AVDictionary *thread_opt = NULL;
         st = ic->streams[i];
-        avctx = st->internal->avctx;//内部的结构体，避免线程冲突
+        avctx = st->internal->avctx;//02.01 取内部的结构体地址，每个流私有空间，避免线程冲突
 
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||
             st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
 /*            if (!st->time_base.num)
                 st->time_base = */
-            if (!avctx->time_base.num)//如果没有设置time_base，采用流的设定值-->
+            if (!avctx->time_base.num)//02.02 如果没有设置time_base，采用流的设定值--> 不理解是什么特例
                 avctx->time_base = st->time_base;
         }
 
@@ -3620,14 +3620,14 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         if (st->codec->codec_id != st->internal->orig_codec_id) {
-            st->codecpar->codec_id   = st->codec->codec_id;
+            st->codecpar->codec_id   = st->codec->codec_id;//02.03 兼容以前的版本？
             st->codecpar->codec_type = st->codec->codec_type;
             st->internal->orig_codec_id = st->codec->codec_id;
         }
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
         // only for the split stuff
-        if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {
+        if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {//02.04如果：没设置parse的flag，也没有parser，probe已结束或者不需要
             st->parser = av_parser_init(st->codecpar->codec_id);//parser_list中configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
             if (st->parser) {
                 if (st->need_parsing == AVSTREAM_PARSE_HEADERS) {
@@ -3643,43 +3643,43 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
 
         if (st->codecpar->codec_id != st->internal->orig_codec_id)
-            st->internal->orig_codec_id = st->codecpar->codec_id;//疑问什么时候不一样呢？
+            st->internal->orig_codec_id = st->codecpar->codec_id;//02.05 更新，前面3632行已经判断，这里相当于设置了标志位，已更改
 
-        ret = avcodec_parameters_to_context(avctx, st->codecpar);//将解码器的信息更新到context里
+        ret = avcodec_parameters_to_context(avctx, st->codecpar);//02.06 将解码器的信息更新到内部find_stream_info的context里
         if (ret < 0)
             goto find_stream_info_err;
-        if (st->request_probe <= 0)
-            st->internal->avctx_inited = 1;//这个何解==>
+        if (st->request_probe <= 0)//02.07 这个何解==>已经probe，或者probe不需要
+            st->internal->avctx_inited = 1;//已经初始化
 
-        codec = find_probe_decoder(ic, st, st->codecpar->codec_id);//ff_pcm_alaw_decoder
+        codec = find_probe_decoder(ic, st, st->codecpar->codec_id);//02.08 这个何解==>已经probe，或者probe不需要查找probe的解码器，如ff_pcm_alaw_decoder
 
         /* Force thread count to 1 since the H.264 decoder will not extract
          * SPS and PPS to extradata during multi-threaded decoding. */
         av_dict_set(options ? &options[i] : &thread_opt, "threads", "1", 0);//避免多线程时候，SPS，PPS落后解析，导致某些帧解析错误。
 
-        if (ic->codec_whitelist)//白名单
+        if (ic->codec_whitelist)//02.09 白名单
             av_dict_set(options ? &options[i] : &thread_opt, "codec_whitelist", ic->codec_whitelist, 0);
 
         /* Ensure that subtitle_header is properly set. */
         if (st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE
-            && codec && !avctx->codec) {//字幕为什么要这么做？
+            && codec && !avctx->codec) {//02.10字幕为什么要这么做？
             if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)
                 av_log(ic, AV_LOG_WARNING,
                        "Failed to open codec in %s\n",__FUNCTION__);
         }
 
         // Try to just open decoders, in case this is enough to get parameters.
-        if (!has_codec_parameters(st, NULL) && st->request_probe <= 0) {
+        if (!has_codec_parameters(st, NULL) && st->request_probe <= 0) {//02.11 是否包含足够的参数 如视频需要足够的长和宽，音频一般需要采样率，声道数等
             if (codec && !avctx->codec)
-                if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)
+                if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)//这里相当于find_stream_info的初始化
                     av_log(ic, AV_LOG_WARNING,
                            "Failed to open codec in %s\n",__FUNCTION__);
         }
-        if (!options)//如果没有options，也不需要thread_opt
+        if (!options)//02.12如果没有options，也不需要thread_opt
             av_dict_free(&thread_opt);
     }
     //03.
-    for (i = 0; i < ic->nb_streams; i++) {//初始化所有流
+    for (i = 0; i < ic->nb_streams; i++) {//初始化所有流的dts ==>
 #if FF_API_R_FRAME_RATE
         ic->streams[i]->info->last_dts = AV_NOPTS_VALUE;
 #endif
@@ -3702,12 +3702,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
             int count;
 
             st = ic->streams[i];
-            if (!has_codec_parameters(st, NULL))//编解码参数不对 但avctx->width不是find出来的，这么在这里判断？==>?
+            if (!has_codec_parameters(st, NULL))//01. 编解码参数不对 但avctx->width不是find出来的，怎么在这里判断？是找到了复制到这里吗？==>再次判断吧
                 break;
             /* If the timebase is coarse (like the usual millisecond precision
              * of mkv), we need to analyze more frames to reliably arrive at
              * the correct fps. */
-            if (av_q2d(st->time_base) > 0.0005)//毫秒级的时间，怕你不准
+            if (av_q2d(st->time_base) > 0.0005)//02.毫秒级的时间，怕你不准
                 fps_analyze_framecount *= 2;
             if (!tb_unreliable(st->internal->avctx))//考虑很多别的编码器不准
                 fps_analyze_framecount = 0;
@@ -4068,7 +4068,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         st = ic->streams[i];
 
         /* if no packet was ever seen, update context now for has_codec_parameters */
-        if (!st->internal->avctx_inited) {//曾赋值过吗
+        if (!st->internal->avctx_inited) {//曾赋值过吗，不需要probe
             if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
                 st->codecpar->format == AV_SAMPLE_FMT_NONE)//如果音频没有st->codecpar->format
                 st->codecpar->format = st->internal->avctx->sample_fmt;//尝试使用st->internal->avctx->sample_fmt
@@ -4093,7 +4093,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     /* update the stream parameters from the internal codec contexts */
     for (i = 0; i < ic->nb_streams; i++) {
         st = ic->streams[i];
-
+        //12.01 
         if (st->internal->avctx_inited) {
             int orig_w = st->codecpar->width;//只是低分辨率情况使用
             int orig_h = st->codecpar->height;
@@ -4108,13 +4108,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
 #endif
         }
-
+        //12.02 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         ret = avcodec_parameters_to_context(st->codec, st->codecpar);
         if (ret < 0)
             goto find_stream_info_err;
-
+        //12.03
 #if FF_API_LOWRES
         // The old API (AVStream.codec) "requires" the resolution to be adjusted
         // by the lowres factor.
@@ -4124,14 +4124,14 @@ FF_DISABLE_DEPRECATION_WARNINGS
             st->codec->height = st->internal->avctx->height;
         }
 #endif
-
+        //12.04
         if (st->codec->codec_tag != MKTAG('t','m','c','d')) {//如果是tmcd
             st->codec->time_base = st->internal->avctx->time_base;
             st->codec->ticks_per_frame = st->internal->avctx->ticks_per_frame;
         }
-        st->codec->framerate = st->avg_frame_rate;//
+        st->codec->framerate = st->avg_frame_rate;//12.05
 
-        if (st->internal->avctx->subtitle_header) {//
+        if (st->internal->avctx->subtitle_header) {//12.06
             st->codec->subtitle_header = av_malloc(st->internal->avctx->subtitle_header_size);
             if (!st->codec->subtitle_header)
                 goto find_stream_info_err;
@@ -4141,13 +4141,13 @@ FF_DISABLE_DEPRECATION_WARNINGS
         }
 
         // Fields unavailable in AVCodecParameters
-        st->codec->coded_width = st->internal->avctx->coded_width;//
+        st->codec->coded_width = st->internal->avctx->coded_width;//12.07
         st->codec->coded_height = st->internal->avctx->coded_height;
         st->codec->properties = st->internal->avctx->properties;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-        st->internal->avctx_inited = 0;//标志已处理
+        st->internal->avctx_inited = 0;//12.08标志已处理
     }
     //13. 异常或正常退出都从这里关闭
 find_stream_info_err:

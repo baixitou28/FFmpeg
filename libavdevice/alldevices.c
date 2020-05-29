@@ -64,5 +64,5 @@ extern AVInputFormat  ff_libdc1394_demuxer;
 
 void avdevice_register_all(void)
 {
-    avpriv_register_devices(outdev_list, indev_list);
+    avpriv_register_devices(outdev_list, indev_list);//tiger avdevice_register_all 注册所有设备函数 
 }

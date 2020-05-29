@@ -2747,7 +2747,7 @@ int av_get_output_timestamp(struct AVFormatContext *s, int stream,
  *
  * @see av_hex_dump_log, av_pkt_dump2, av_pkt_dump_log2
  */
-void av_hex_dump(FILE *f, const uint8_t *buf, int size);
+void av_hex_dump(FILE *f, const uint8_t *buf, int size);//TIGER PROGRAM 打印日志需要
 
 /**
  * Send a nice hexadecimal dump of a buffer to the log.
@@ -2761,7 +2761,7 @@ void av_hex_dump(FILE *f, const uint8_t *buf, int size);
  *
  * @see av_hex_dump, av_pkt_dump2, av_pkt_dump_log2
  */
-void av_hex_dump_log(void *avcl, int level, const uint8_t *buf, int size);
+void av_hex_dump_log(void *avcl, int level, const uint8_t *buf, int size);//TIGER PROGRAM 打印日志需要
 
 /**
  * Send a nice dump of a packet to the specified file stream.
@@ -2771,7 +2771,7 @@ void av_hex_dump_log(void *avcl, int level, const uint8_t *buf, int size);
  * @param dump_payload True if the payload must be displayed, too.
  * @param st AVStream that the packet belongs to
  */
-void av_pkt_dump2(FILE *f, const AVPacket *pkt, int dump_payload, const AVStream *st);
+void av_pkt_dump2(FILE *f, const AVPacket *pkt, int dump_payload, const AVStream *st);//TIGER PROGRAM 打印日志需要
 
 
 /**
@@ -2786,7 +2786,7 @@ void av_pkt_dump2(FILE *f, const AVPacket *pkt, int dump_payload, const AVStream
  * @param st AVStream that the packet belongs to
  */
 void av_pkt_dump_log2(void *avcl, int level, const AVPacket *pkt, int dump_payload,
-                      const AVStream *st);
+                      const AVStream *st);//TIGER PROGRAM 打印日志需要
 
 /**
  * Get the AVCodecID for the given codec tag tag.
@@ -2885,7 +2885,7 @@ void av_url_split(char *proto,         int proto_size,
 void av_dump_format(AVFormatContext *ic,
                     int index,
                     const char *url,
-                    int is_output);
+                    int is_output);//TIGER PROGRAM 常用打印
 
 
 #define AV_FRAME_FILENAME_FLAGS_MULTIPLE 1 ///< Allow multiple %d
@@ -2934,7 +2934,7 @@ int av_filename_number_test(const char *filename);
  * @param size the size of the buffer
  * @return 0 if OK, AVERROR_xxx on error
  */
-int av_sdp_create(AVFormatContext *ac[], int n_files, char *buf, int size);
+int av_sdp_create(AVFormatContext *ac[], int n_files, char *buf, int size);//tiger program 创建sdp
 
 /**
  * Return a positive value if the given filename has one of the given
