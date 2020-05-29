@@ -60,8 +60,8 @@ void  free(void *ptr);
 #endif /* MALLOC_PREFIX */
 
 #include "mem_internal.h"
-
-#define ALIGN (HAVE_AVX512 ? 64 : (HAVE_AVX ? 32 : 16))
+//AVX512在通信行业用处很大，intel出了一款基于X86的5G通信小基站，AVX512在里面负责矢量计算，一个时钟周期能处理32个乘加，在通信行业被很多厂家采用
+#define ALIGN (HAVE_AVX512 ? 64 : (HAVE_AVX ? 32 : 16))//tiger 16 32 64?//AVX-512是至强phi能在超算计算卡领域的看家法宝
 
 /* NOTE: if you want to override these functions with your own
  * implementations (not recommended) you have to link libav* as
@@ -70,24 +70,24 @@ void  free(void *ptr);
 
 static size_t max_alloc_size= INT_MAX;
 
-void av_max_alloc(size_t max){
+void av_max_alloc(size_t max){//tiger program 可以执行设置分配最大值，有什么用？==>除了限制程序的单次最大使用内存，更快返回错误值，还有其他作用吗？
     max_alloc_size = max;
 }
 
-void *av_malloc(size_t size)
+void *av_malloc(size_t size)//TIGER program disassemble av_malloc: mov $0x40 %esi, 所以ALIGN=64
 {
     void *ptr = NULL;
 
     /* let's disallow possibly ambiguous cases */
-    if (size > (max_alloc_size - 32))
+    if (size > (max_alloc_size - 32))//tiger 即使是小概率也要避免，考虑对齐是否应该减去ALIGN？
         return NULL;
 
 #if HAVE_POSIX_MEMALIGN
     if (size) //OS X on SDK 10.6 has a broken posix_memalign implementation
-    if (posix_memalign(&ptr, ALIGN, size))
+    if (posix_memalign(&ptr, ALIGN, size))//linux //TIGER This is useful for various low-level operations (such as using SSE instructions, or DMA), that require memory that obeys a particular alignment.
         ptr = NULL;
 #elif HAVE_ALIGNED_MALLOC
-    ptr = _aligned_malloc(size, ALIGN);
+    ptr = _aligned_malloc(size, ALIGN);//tiger windows 里面是有这个函数的
 #elif HAVE_MEMALIGN
 #ifndef __DJGPP__
     ptr = memalign(ALIGN, size);
@@ -119,11 +119,11 @@ void *av_malloc(size_t size)
      * BTW, malloc seems to do 8-byte alignment by default here.
      */
 #else
-    ptr = malloc(size);
+    ptr = malloc(size);//服务器里面定义了HAVE_AVX512，所以，不会直接用malloc
 #endif
     if(!ptr && !size) {
         size = 1;
-        ptr= av_malloc(1);
+        ptr= av_malloc(1);//如果返回失败，返回一个字节==>这是为什么？
     }
 #if CONFIG_MEMORY_POISONING
     if (ptr)
@@ -135,13 +135,13 @@ void *av_malloc(size_t size)
 void *av_realloc(void *ptr, size_t size)
 {
     /* let's disallow possibly ambiguous cases */
-    if (size > (max_alloc_size - 32))
+    if (size > (max_alloc_size - 32))//这个概率好小
         return NULL;
 
 #if HAVE_ALIGNED_MALLOC
     return _aligned_realloc(ptr, size + !size, ALIGN);
 #else
-    return realloc(ptr, size + !size);
+    return realloc(ptr, size + !size);//size + !size 这样减少一个判断，至少为1
 #endif
 }
 
@@ -169,15 +169,15 @@ int av_reallocp(void *ptr, size_t size)
         return 0;
     }
 
-    memcpy(&val, ptr, sizeof(val));
+    memcpy(&val, ptr, sizeof(val));//TIGER 为什么不是var = ptr;写复杂了吧?
     val = av_realloc(val, size);
 
     if (!val) {
-        av_freep(ptr);
+        av_freep(ptr);//
         return AVERROR(ENOMEM);
     }
 
-    memcpy(ptr, &val, sizeof(val));
+    memcpy(ptr, &val, sizeof(val));//ptr = val;
     return 0;
 }
 
@@ -228,7 +228,7 @@ void av_freep(void *arg)
 {
     void *val;
 
-    memcpy(&val, arg, sizeof(val));//tiger 这样操作特别安全吗？还是平台无关好？
+    memcpy(&val, arg, sizeof(val));//tiger 这样操作特别安全吗？还是平台无关好？为什么不是val=arg
     memcpy(arg, &(void *){ NULL }, sizeof(val));
     av_free(val);
 }
