@@ -69,7 +69,7 @@ void  free(void *ptr);
  * Note that this will cost performance. */
 
 static size_t max_alloc_size= INT_MAX;
-
+//TIGER DAY 01.
 void av_max_alloc(size_t max){//tiger program 可以执行设置分配最大值，有什么用？==>除了限制程序的单次最大使用内存，更快返回错误值，还有其他作用吗？
     max_alloc_size = max;
 }
@@ -305,7 +305,7 @@ int av_dynarray_add_nofree(void *tab_ptr, int *nb_ptr, void *elem)
     return 0;
 }
 
-void av_dynarray_add(void *tab_ptr, int *nb_ptr, void *elem)
+void av_dynarray_add(void *tab_ptr, int *nb_ptr, void *elem)//TIGER dynarray
 {
     void **tab;
     memcpy(&tab, tab_ptr, sizeof(tab));
