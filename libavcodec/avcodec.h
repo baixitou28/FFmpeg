@@ -697,7 +697,7 @@ enum AVCodecID {
     AV_CODEC_ID_TIMED_ID3,
     AV_CODEC_ID_BIN_DATA,
 
-
+//TIGER AVCodecID AV_CODEC_ID_PROBER 可能容易误解？
     AV_CODEC_ID_PROBE = 0x19000, ///< codec_id is not known (like AV_CODEC_ID_NONE) but lavf should attempt to identify it
 
     AV_CODEC_ID_MPEG2TS = 0x20000, /**< _FAKE_ codec to indicate a raw MPEG-2 TS
@@ -1750,14 +1750,14 @@ typedef struct AVCodecContext {
      *             e.g. from the container. During decoding, the decoder may
      *             overwrite those values as required while parsing the data.
      */
-    int coded_width, coded_height;
+    int coded_width, coded_height;//看注释，在裁剪的时候，coded_width和width尺寸不一样大
 
     /**
      * the number of pictures in a group of pictures, or 0 for intra_only
      * - encoding: Set by user.
      * - decoding: unused
      */
-    int gop_size;
+    int gop_size;//tiger program
 
     /**
      * Pixel format, see AV_PIX_FMT_xxx.
@@ -2377,7 +2377,7 @@ typedef struct AVCodecContext {
      * - encoding: unused
      * - decoding: Set by libavcodec, user can override.
      */
-    int (*get_buffer2)(struct AVCodecContext *s, AVFrame *frame, int flags);
+    int (*get_buffer2)(struct AVCodecContext *s, AVFrame *frame, int flags);//tiger program
 
     /**
      * If non-zero, the decoded audio and video frames returned from
@@ -3478,7 +3478,7 @@ struct AVSubtitle;
 /**
  * AVCodec.
  */
-typedef struct AVCodec {
+typedef struct AVCodec {//tiger AVCodec
     /**
      * Name of the codec implementation.
      * The name is globally unique among encoders and among decoders (but an
@@ -3646,7 +3646,7 @@ const AVCodecHWConfig *avcodec_get_hw_config(const AVCodec *codec, int index);
  *
  * @{
  */
-typedef struct AVHWAccel {
+typedef struct AVHWAccel {//tiger AVHWAccel
     /**
      * Name of the hardware accelerated codec.
      * The name is globally unique among encoders and among decoders (but an
@@ -3946,7 +3946,7 @@ typedef struct AVSubtitle {
  * be allocated with avcodec_parameters_alloc() and freed with
  * avcodec_parameters_free().
  */
-typedef struct AVCodecParameters {
+typedef struct AVCodecParameters {//tiger AVCodecParameters
     /**
      * General type of the encoded data.
      */
@@ -4106,7 +4106,7 @@ typedef struct AVCodecParameters {
  * @return the next registered codec or NULL when the iteration is
  *         finished
  */
-const AVCodec *av_codec_iterate(void **opaque);
+const AVCodec *av_codec_iterate(void **opaque);//tiger program
 
 #if FF_API_NEXT
 /**
@@ -4264,7 +4264,7 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
  * @return >= 0 on success, a negative AVERROR code on failure
  */
 int avcodec_parameters_from_context(AVCodecParameters *par,
-                                    const AVCodecContext *codec);
+                                    const AVCodecContext *codec);//tiger program 
 
 /**
  * Fill the codec context based on the values from the supplied codec
@@ -4275,7 +4275,7 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
  * @return >= 0 on success, a negative AVERROR code on failure.
  */
 int avcodec_parameters_to_context(AVCodecContext *codec,
-                                  const AVCodecParameters *par);
+                                  const AVCodecParameters *par);//tiger program 
 
 /**
  * Initialize the AVCodecContext to use the given AVCodec. Prior to using this
@@ -4315,7 +4315,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
  * @see avcodec_alloc_context3(), avcodec_find_decoder(), avcodec_find_encoder(),
  *      av_dict_set(), av_opt_find().
  */
-int avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options);
+int avcodec_open2(AVCodecContext *avctx, const AVCodec *codec, AVDictionary **options);//tiger program 
 
 /**
  * Close a given AVCodecContext and free all the data associated with it
@@ -4777,7 +4777,7 @@ enum AVChromaLocation avcodec_chroma_pos_to_enum(int xpos, int ypos);
  */
 attribute_deprecated
 int avcodec_decode_audio4(AVCodecContext *avctx, AVFrame *frame,
-                          int *got_frame_ptr, const AVPacket *avpkt);
+                          int *got_frame_ptr, const AVPacket *avpkt);//tiger program
 
 /**
  * Decode the video frame of size avpkt->size from avpkt->data into picture.
@@ -4888,10 +4888,10 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
  *                  not reference-counted).
  *                  Unlike with older APIs, the packet is always fully consumed,
  *                  and if it contains multiple frames (e.g. some audio codecs),
- *                  will require you to call avcodec_receive_frame() multiple
+ *                  will require you to call avcodec_receive_frame() multiple//可能需要多次读
  *                  times afterwards before you can send a new packet.
  *                  It can be NULL (or an AVPacket with data set to NULL and
- *                  size set to 0); in this case, it is considered a flush
+ *                  size set to 0); in this case, it is considered a flush//NULL代表结束
  *                  packet, which signals the end of the stream. Sending the
  *                  first flush packet will return success. Subsequent ones are
  *                  unnecessary and will return AVERROR_EOF. If the decoder
@@ -4899,7 +4899,7 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
  *                  a flush packet.
  *
  * @return 0 on success, otherwise negative error code:
- *      AVERROR(EAGAIN):   input is not accepted in the current state - user
+ *      AVERROR(EAGAIN):   input is not accepted in the current state - user//注意返回值
  *                         must read output with avcodec_receive_frame() (once
  *                         all output is read, the packet should be resent, and
  *                         the call will not fail with EAGAIN).
@@ -4910,13 +4910,13 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
  *      AVERROR(ENOMEM):   failed to add packet to internal queue, or similar
  *      other errors: legitimate decoding errors
  */
-int avcodec_send_packet(AVCodecContext *avctx, const AVPacket *avpkt);
+int avcodec_send_packet(AVCodecContext *avctx, const AVPacket *avpkt);//tiger 注意 It can be NULL，in this case, it is considered a flush  packet, which signals the end of the stream.
 
 /**
  * Return decoded output data from a decoder.
  *
  * @param avctx codec context
- * @param frame This will be set to a reference-counted video or audio
+ * @param frame This will be set to a reference-counted video or audio//注意返回值，是引用的帧
  *              frame (depending on the decoder type) allocated by the
  *              decoder. Note that the function will always call
  *              av_frame_unref(frame) before doing anything else.
@@ -4933,7 +4933,7 @@ int avcodec_send_packet(AVCodecContext *avctx, const AVPacket *avpkt);
  *                               when flag AV_CODEC_FLAG_DROPCHANGED is set.
  *      other negative values: legitimate decoding errors
  */
-int avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame);
+int avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame);//tiger 
 
 /**
  * Supply a raw video or audio frame to the encoder. Use avcodec_receive_packet()
@@ -4970,7 +4970,7 @@ int avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame);
  *      AVERROR(ENOMEM):   failed to add packet to internal queue, or similar
  *      other errors: legitimate decoding errors
  */
-int avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame);
+int avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame);//tiger avcodec_send_frame
 
 /**
  * Read encoded data from the encoder.
@@ -4987,7 +4987,7 @@ int avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame);
  *      AVERROR(EINVAL):   codec not opened, or it is an encoder
  *      other errors: legitimate decoding errors
  */
-int avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt);
+int avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt);//tiger avcodec_receive_packet
 
 /**
  * Create and return a AVHWFramesContext with values adequate for hardware
@@ -5089,7 +5089,7 @@ int avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt);
 int avcodec_get_hw_frames_parameters(AVCodecContext *avctx,
                                      AVBufferRef *device_ref,
                                      enum AVPixelFormat hw_pix_fmt,
-                                     AVBufferRef **out_frames_ref);
+                                     AVBufferRef **out_frames_ref);//tiger 
 
 
 
@@ -5105,7 +5105,7 @@ enum AVPictureStructure {
     AV_PICTURE_STRUCTURE_FRAME,        //< coded as frame
 };
 
-typedef struct AVCodecParserContext {
+typedef struct AVCodecParserContext {//tiger AVCodecParserContext
     void *priv_data;
     struct AVCodecParser *parser;
     int64_t frame_offset; /* offset of the current frame */
@@ -5341,7 +5341,7 @@ int av_parser_parse2(AVCodecParserContext *s,
                      uint8_t **poutbuf, int *poutbuf_size,
                      const uint8_t *buf, int buf_size,
                      int64_t pts, int64_t dts,
-                     int64_t pos);
+                     int64_t pos);//tiger av_parser_parse2
 
 /**
  * @return 0 if the output buffer is a subset of the input, 1 if it is allocated and must be freed
@@ -5650,7 +5650,7 @@ const char *av_get_profile_name(const AVCodec *codec, int profile);
  */
 const char *avcodec_profile_name(enum AVCodecID codec_id, int profile);
 
-int avcodec_default_execute(AVCodecContext *c, int (*func)(AVCodecContext *c2, void *arg2),void *arg, int *ret, int count, int size);
+int avcodec_default_execute(AVCodecContext *c, int (*func)(AVCodecContext *c2, void *arg2),void *arg, int *ret, int count, int size);//tiger avcodec_default_execute
 int avcodec_default_execute2(AVCodecContext *c, int (*func)(AVCodecContext *c2, void *arg2, int, int),void *arg, int *ret, int count);
 //FIXME func typedef
 
@@ -5760,7 +5760,7 @@ typedef struct AVBSFInternal AVBSFInternal;
  * filter) as described in their documentation, and are to be considered
  * immutable otherwise.
  */
-typedef struct AVBSFContext {
+typedef struct AVBSFContext {//tiger AVBSFContext
     /**
      * A class for logging and AVOptions
      */
