@@ -24,7 +24,7 @@
 #include "common.h"
 #include "fifo.h"
 
-static AVFifoBuffer *fifo_alloc_common(void *buffer, size_t size)
+static AVFifoBuffer *fifo_alloc_common(void *buffer, size_t size)//tiger 分配AVFifoBuffer的内存，并将buffer和size设置上去
 {
     AVFifoBuffer *f;
     if (!buffer)
@@ -42,8 +42,8 @@ static AVFifoBuffer *fifo_alloc_common(void *buffer, size_t size)
 
 AVFifoBuffer *av_fifo_alloc(unsigned int size)
 {
-    void *buffer = av_malloc(size);
-    return fifo_alloc_common(buffer, size);
+    void *buffer = av_malloc(size);//分配大的音视频数据内存
+    return fifo_alloc_common(buffer, size);//分配AVFifoBuffer的内存并初始化
 }
 
 AVFifoBuffer *av_fifo_alloc_array(size_t nmemb, size_t size)
@@ -55,7 +55,7 @@ AVFifoBuffer *av_fifo_alloc_array(size_t nmemb, size_t size)
 void av_fifo_free(AVFifoBuffer *f)
 {
     if (f) {
-        av_freep(&f->buffer);
+        av_freep(&f->buffer);//先free分配的音视频数据内存
         av_free(f);
     }
 }

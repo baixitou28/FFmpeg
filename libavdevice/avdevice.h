@@ -116,7 +116,7 @@ typedef struct AVDeviceRect {
 /**
  * Message types used by avdevice_app_to_dev_control_message().
  */
-enum AVAppToDevMessageType {
+enum AVAppToDevMessageType {//tiger AVAppToDevMessageType
     /**
      * Dummy message.
      */
@@ -397,7 +397,7 @@ int avdevice_dev_to_app_control_message(struct AVFormatContext *s,
  * It is used by devices in conjunction with av_device_capabilities AVOption table
  * to implement capabilities probing API based on AVOption API. Should not be used directly.
  */
-typedef struct AVDeviceCapabilitiesQuery {
+typedef struct AVDeviceCapabilitiesQuery {//tiger AVDeviceCapabilitiesQuery
     const AVClass *av_class;
     AVFormatContext *device_context;
     enum AVCodecID codec;
