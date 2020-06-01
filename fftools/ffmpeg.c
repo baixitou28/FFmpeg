@@ -1432,11 +1432,11 @@ static int reap_filters(int flush)
         AVFilterContext *filter;
         AVCodecContext *enc = ost->enc_ctx;
         int ret = 0;
-
+        //01.
         if (!ost->filter || !ost->filter->graph->graph)
             continue;
         filter = ost->filter->filter;
-
+        //02.如果未初始化，尝试初始化
         if (!ost->initialized) {
             char error[1024] = "";//初始化
             ret = init_output_stream(ost, error, sizeof(error));//TIGER aac 输出文件这里创建
@@ -1446,35 +1446,35 @@ static int reap_filters(int flush)
                 exit_program(1);
             }
         }
-
+        //02. filtered_frame分配一个frame
         if (!ost->filtered_frame && !(ost->filtered_frame = av_frame_alloc())) {
             return AVERROR(ENOMEM);
         }
         filtered_frame = ost->filtered_frame;
-
+        //03.
         while (1) {
-            double float_pts = AV_NOPTS_VALUE; // this is identical to filtered_frame.pts but with higher precision
-            ret = av_buffersink_get_frame_flags(filter, filtered_frame,
+            double float_pts = AV_NOPTS_VALUE; // this is identical to filtered_frame.pts but with higher precision//03.01
+            ret = av_buffersink_get_frame_flags(filter, filtered_frame,//03.02
                                                AV_BUFFERSINK_FLAG_NO_REQUEST);
-            if (ret < 0) {
-                if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+            if (ret < 0) {//03.03 返回值不为0，可能是有异常
+                if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {//异常
                     av_log(NULL, AV_LOG_WARNING,
                            "Error in av_buffersink_get_frame_flags(): %s\n", av_err2str(ret));
-                } else if (flush && ret == AVERROR_EOF) {
-                    if (av_buffersink_get_type(filter) == AVMEDIA_TYPE_VIDEO)
-                        do_video_out(of, ost, NULL, AV_NOPTS_VALUE);
+                } else if (flush && ret == AVERROR_EOF) {//需要flush，或者EOF
+                    if (av_buffersink_get_type(filter) == AVMEDIA_TYPE_VIDEO)//
+                        do_video_out(of, ost, NULL, AV_NOPTS_VALUE);//tiger 
                 }
                 break;
             }
-            if (ost->finished) {
+            if (ost->finished) {//03.04 已经结束了吗？
                 av_frame_unref(filtered_frame);
                 continue;
             }
-            if (filtered_frame->pts != AV_NOPTS_VALUE) {
+            if (filtered_frame->pts != AV_NOPTS_VALUE) {//03.05 如果帧的pts不为0
                 int64_t start_time = (of->start_time == AV_NOPTS_VALUE) ? 0 : of->start_time;
-                AVRational filter_tb = av_buffersink_get_time_base(filter);
-                AVRational tb = enc->time_base;
-                int extra_bits = av_clip(29 - av_log2(tb.den), 0, 16);
+                AVRational filter_tb = av_buffersink_get_time_base(filter);//filter的时间单位
+                AVRational tb = enc->time_base;//编码器的时间单位
+                int extra_bits = av_clip(29 - av_log2(tb.den), 0, 16);//TIGER extra_bits 不大于16位， 为什么是29？
 
                 tb.den <<= extra_bits;
                 float_pts =
@@ -1484,11 +1484,11 @@ static int reap_filters(int flush)
                 // avoid exact midoints to reduce the chance of rounding differences, this can be removed in case the fps code is changed to work with integers
                 float_pts += FFSIGN(float_pts) * 1.0 / (1<<17);
 
-                filtered_frame->pts =
+                filtered_frame->pts =//tiger 
                     av_rescale_q(filtered_frame->pts, filter_tb, enc->time_base) -
                     av_rescale_q(start_time, AV_TIME_BASE_Q, enc->time_base);
             }
-
+            //03.06
             switch (av_buffersink_get_type(filter)) {
             case AVMEDIA_TYPE_VIDEO:
                 if (!ost->frame_aspect_ratio.num)
@@ -3450,7 +3450,7 @@ static int init_output_stream_encode(OutputStream *ost)
     return 0;
 }
 
-static int init_output_stream(OutputStream *ost, char *error, int error_len)//TIGER 初始化输出流
+static int init_output_stream(OutputStream *ost, char *error, int error_len)//TIGER 初始化输出流, 如果是copy 直接使用init_output_stream_streamcopy函数
 {
     int ret = 0;
     //01.
@@ -3481,7 +3481,7 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)//TI
             !av_dict_get(ost->encoder_opts, "ab", NULL, 0))
             av_dict_set(&ost->encoder_opts, "b", "128000", 0);
         //01.01.06 是否有硬件编码的filter
-        if (ost->filter && av_buffersink_get_hw_frames_ctx(ost->filter->filter) &&//举例：ost->filter：
+        if (ost->filter && av_buffersink_get_hw_frames_ctx(ost->filter->filter) &&//举例：使用ffmpeg ost->filter不为空
             ((AVHWFramesContext*)av_buffersink_get_hw_frames_ctx(ost->filter->filter)->data)->format ==
             av_buffersink_get_format(ost->filter->filter)) {
             ost->enc_ctx->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(ost->filter->filter));
@@ -3584,8 +3584,8 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)//TI
         if (ost->st->time_base.num <= 0 || ost->st->time_base.den <= 0)
             ost->st->time_base = av_add_q(ost->enc_ctx->time_base, (AVRational){0, 1});
         //01.01.15
-        // copy estimated duration as a hint to the muxer
-        if (ost->st->duration <= 0 && ist && ist->st->duration > 0)
+        // copy estimated duration as a hint to the muxer//在什么函数中重新计算？
+        if (ost->st->duration <= 0 && ist && ist->st->duration > 0)// ffmpeg flv 中，音频先初始化为｛1， 44100｝，视频｛1，15｝看这里的注释，是给muxer 一个提示
             ost->st->duration = av_rescale_q(ist->st->duration, ist->st->time_base, ost->st->time_base);
 
         ost->st->codec->codec= ost->enc_ctx->codec;
