@@ -523,7 +523,7 @@ typedef struct OutputStream {
     const char *attachment_filename;
     int copy_initial_nonkeyframes;
     int copy_prior_start;
-    char *disposition;
+    char *disposition;//参见使用说明ffmpeg.texi
 
     int keep_pix_fmt;
 

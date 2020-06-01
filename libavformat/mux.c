@@ -307,7 +307,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
         }
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-        //04.01.PTS设置
+        //04.01.PTS设置 举例：ffmpeg alaw 转rtmp ：st->time_base 为{1,1000}，cuc-ieschool.flv 开始是{1,15} {1, 44100}最后初始化完成都是{1,1000}
         if (!st->time_base.num) {//如果没有设置：什么时候会这样
             /* fall back on the default timebase values */
             if (par->codec_type == AVMEDIA_TYPE_AUDIO && par->sample_rate)

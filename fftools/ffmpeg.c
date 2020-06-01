@@ -1438,7 +1438,7 @@ static int reap_filters(int flush)
         filter = ost->filter->filter;
 
         if (!ost->initialized) {
-            char error[1024] = "";
+            char error[1024] = "";//初始化
             ret = init_output_stream(ost, error, sizeof(error));//TIGER aac 输出文件这里创建
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Error initializing output stream %d:%d -- %s\n",
@@ -2968,7 +2968,7 @@ static int compare_int64(const void *a, const void *b)
 }
 
 /* open the muxer when all the streams are initialized */
-static int check_init_output_file(OutputFile *of, int file_index)
+static int check_init_output_file(OutputFile *of, int file_index)//检查输出流是否已经初始化，如果初始化了，执行avformat_write_header，并发送
 {
     int ret, i;
     //01. 检查是否已经初始化完成
@@ -2979,7 +2979,7 @@ static int check_init_output_file(OutputFile *of, int file_index)
     }
     //02.随时准备中断
     of->ctx->interrupt_callback = int_cb;//decode_interrupt_cb 是调用
-    //03.
+    //03.是否要写头文件，需要则写入，但只是写在缓存ost->muxing_queue里，需要本函数再末尾的地方调用av_fifo_generic_read ，write_packet 才能最后发送出去。
     ret = avformat_write_header(of->ctx, &of->opts);
     if (ret < 0) {
         av_log(NULL, AV_LOG_ERROR,
@@ -3004,7 +3004,7 @@ static int check_init_output_file(OutputFile *of, int file_index)
         if (!av_fifo_size(ost->muxing_queue))//06.01
             ost->mux_timebase = ost->st->time_base;
 
-        while (av_fifo_size(ost->muxing_queue)) {//06.02 如果队列里面已经有数据了: ==>avformat_write_header的数据需要提前写 
+        while (av_fifo_size(ost->muxing_queue)) {//06.02 如果队列里面已经有数据了: ==>前面的avformat_write_header的数据需要提前写 
             AVPacket pkt;
             av_fifo_generic_read(ost->muxing_queue, &pkt, sizeof(pkt), NULL);//06.03 取
             write_packet(of, &pkt, ost, 1);//06.04 写
@@ -3050,7 +3050,7 @@ static int init_output_bsfs(OutputStream *ost)
     return 0;
 }
 
-static int init_output_stream_streamcopy(OutputStream *ost)
+static int init_output_stream_streamcopy(OutputStream *ost)//TIGER init_output_stream_streamcopy 复制内容比想象多
 {
     OutputFile *of = output_files[ost->file_index];
     InputStream *ist = get_input_stream(ost);
@@ -3061,23 +3061,23 @@ static int init_output_stream_streamcopy(OutputStream *ost)
     uint32_t codec_tag = par_dst->codec_tag;
 
     av_assert0(ist && !ost->filter);
-
+    //01. 用输入AVCodecParameters设置输出的AVCodecContext
     ret = avcodec_parameters_to_context(ost->enc_ctx, ist->st->codecpar);
     if (ret >= 0)
-        ret = av_opt_set_dict(ost->enc_ctx, &ost->encoder_opts);
+        ret = av_opt_set_dict(ost->enc_ctx, &ost->encoder_opts);//可选项
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL,
                "Error setting up codec context options.\n");
         return ret;
     }
-
-    ret = avcodec_parameters_from_context(par_src, ost->enc_ctx);
+    //02.输出的AVCodecContext设置输出的AVCodecParameters
+    ret = avcodec_parameters_from_context(par_src, ost->enc_ctx);//TIGER TODO: par_src 又冒出一个变量
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL,
                "Error getting reference codec parameters.\n");
         return ret;
     }
-
+    //03.
     if (!codec_tag) {
         unsigned int codec_tag_tmp;
         if (!of->ctx->oformat->codec_tag ||
@@ -3085,21 +3085,21 @@ static int init_output_stream_streamcopy(OutputStream *ost)
             !av_codec_get_tag2(of->ctx->oformat->codec_tag, par_src->codec_id, &codec_tag_tmp))
             codec_tag = par_src->codec_tag;
     }
-
+    //04.复制
     ret = avcodec_parameters_copy(par_dst, par_src);
     if (ret < 0)
         return ret;
-
+    //05.
     par_dst->codec_tag = codec_tag;
 
     if (!ost->frame_rate.num)
         ost->frame_rate = ist->framerate;
     ost->st->avg_frame_rate = ost->frame_rate;
-
+    //06.
     ret = avformat_transfer_internal_stream_timing_info(of->ctx->oformat, ost->st, ist->st, copy_tb);
     if (ret < 0)
         return ret;
-
+    //07.
     // copy timebase while removing common factors
     if (ost->st->time_base.num <= 0 || ost->st->time_base.den <= 0)
         ost->st->time_base = av_add_q(av_stream_get_codec_timebase(ost->st), (AVRational){0, 1});
@@ -3110,7 +3110,7 @@ static int init_output_stream_streamcopy(OutputStream *ost)
 
     // copy disposition
     ost->st->disposition = ist->st->disposition;
-
+    //08.
     if (ist->st->nb_side_data) {
         for (i = 0; i < ist->st->nb_side_data; i++) {
             const AVPacketSideData *sd_src = &ist->st->side_data[i];
@@ -3122,14 +3122,14 @@ static int init_output_stream_streamcopy(OutputStream *ost)
             memcpy(dst_data, sd_src->data, sd_src->size);
         }
     }
-
+    //09.
     if (ost->rotate_overridden) {
         uint8_t *sd = av_stream_new_side_data(ost->st, AV_PKT_DATA_DISPLAYMATRIX,
                                               sizeof(int32_t) * 9);
         if (sd)
             av_display_rotation_set((int32_t *)sd, -ost->rotate_override_value);
     }
-
+    //10.
     switch (par_dst->codec_type) {
     case AVMEDIA_TYPE_AUDIO:
         if (audio_volume != 256) {
@@ -3158,7 +3158,7 @@ static int init_output_stream_streamcopy(OutputStream *ost)
         ost->st->r_frame_rate = ist->st->r_frame_rate;
         break;
     }
-
+    //11.
     ost->mux_timebase = ist->st->time_base;
 
     return 0;
@@ -3299,14 +3299,14 @@ static int init_output_stream_encode(OutputStream *ost)
     AVCodecContext *dec_ctx = NULL;
     AVFormatContext *oc = output_files[ost->file_index]->ctx;
     int j, ret;
-
+    //01.
     set_encoder_id(output_files[ost->file_index], ost);
-
+    //02.
     // Muxers use AV_PKT_DATA_DISPLAYMATRIX to signal rotation. On the other
     // hand, the legacy API makes demuxers set "rotate" metadata entries,
     // which have to be filtered out to prevent leaking them to output files.
     av_dict_set(&ost->st->metadata, "rotate", NULL, 0);
-
+    //03.
     if (ist) {
         ost->st->disposition          = ist->st->disposition;
 
@@ -3324,7 +3324,7 @@ static int init_output_stream_encode(OutputStream *ost)
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                 ost->st->disposition = AV_DISPOSITION_DEFAULT;
     }
-
+    //04.
     if (enc_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
         if (!ost->frame_rate.num)
             ost->frame_rate = av_buffersink_get_frame_rate(ost->filter->filter);
@@ -3352,7 +3352,7 @@ static int init_output_stream_encode(OutputStream *ost)
                       ost->frame_rate.num, ost->frame_rate.den, 65535);
         }
     }
-
+    //05.
     switch (enc_ctx->codec_type) {
     case AVMEDIA_TYPE_AUDIO:
         enc_ctx->sample_fmt     = av_buffersink_get_format(ost->filter->filter);
@@ -3444,28 +3444,28 @@ static int init_output_stream_encode(OutputStream *ost)
         abort();
         break;
     }
-
+    //06.
     ost->mux_timebase = enc_ctx->time_base;
 
     return 0;
 }
 
-static int init_output_stream(OutputStream *ost, char *error, int error_len)
+static int init_output_stream(OutputStream *ost, char *error, int error_len)//TIGER 初始化输出流
 {
     int ret = 0;
-
-    if (ost->encoding_needed) {
+    //01.
+    if (ost->encoding_needed) {//是否要编码
         AVCodec      *codec = ost->enc;
         AVCodecContext *dec = NULL;
         InputStream *ist;
-
+        //01.01.01 举例ff_aac_encoder
         ret = init_output_stream_encode(ost);
         if (ret < 0)
             return ret;
-
+        //01.01.02 
         if ((ist = get_input_stream(ost)))
-            dec = ist->dec_ctx;
-        if (dec && dec->subtitle_header) {
+            dec = ist->dec_ctx;//获取输入AVCodecContext
+        if (dec && dec->subtitle_header) {//01.01.03 字幕
             /* ASS code assumes this buffer is null terminated so add extra byte. */
             ost->enc_ctx->subtitle_header = av_mallocz(dec->subtitle_header_size + 1);
             if (!ost->enc_ctx->subtitle_header)
@@ -3473,15 +3473,15 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
             memcpy(ost->enc_ctx->subtitle_header, dec->subtitle_header, dec->subtitle_header_size);
             ost->enc_ctx->subtitle_header_size = dec->subtitle_header_size;
         }
-        if (!av_dict_get(ost->encoder_opts, "threads", NULL, 0))
+        if (!av_dict_get(ost->encoder_opts, "threads", NULL, 0))//01.01.04 编码线程数
             av_dict_set(&ost->encoder_opts, "threads", "auto", 0);
-        if (ost->enc->type == AVMEDIA_TYPE_AUDIO &&
+        if (ost->enc->type == AVMEDIA_TYPE_AUDIO &&//01.01.05 比特率
             !codec->defaults &&
             !av_dict_get(ost->encoder_opts, "b", NULL, 0) &&
             !av_dict_get(ost->encoder_opts, "ab", NULL, 0))
             av_dict_set(&ost->encoder_opts, "b", "128000", 0);
-
-        if (ost->filter && av_buffersink_get_hw_frames_ctx(ost->filter->filter) &&
+        //01.01.06 是否有硬件编码的filter
+        if (ost->filter && av_buffersink_get_hw_frames_ctx(ost->filter->filter) &&//举例：ost->filter：
             ((AVHWFramesContext*)av_buffersink_get_hw_frames_ctx(ost->filter->filter)->data)->format ==
             av_buffersink_get_format(ost->filter->filter)) {
             ost->enc_ctx->hw_frames_ctx = av_buffer_ref(av_buffersink_get_hw_frames_ctx(ost->filter->filter));
@@ -3495,7 +3495,7 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
                      ost->file_index, ost->index, av_err2str(ret));
                 return ret;
             }
-        }
+        }//01.01.07 字幕
         if (ist && ist->dec->type == AVMEDIA_TYPE_SUBTITLE && ost->enc->type == AVMEDIA_TYPE_SUBTITLE) {
             int input_props = 0, output_props = 0;
             AVCodecDescriptor const *input_descriptor =
@@ -3513,7 +3513,7 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
                 return AVERROR_INVALIDDATA;
             }
         }
-
+        //01.01.08 打开
         if ((ret = avcodec_open2(ost->enc_ctx, codec, &ost->encoder_opts)) < 0) {
             if (ret == AVERROR_EXPERIMENTAL)
                 abort_codec_experimental(codec, 1);
@@ -3522,17 +3522,17 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
                      "maybe incorrect parameters such as bit_rate, rate, width or height",
                     ost->file_index, ost->index);
             return ret;
-        }
+        }//01.01.09 如果音频不是可变的frame长度，设置固定的长度
         if (ost->enc->type == AVMEDIA_TYPE_AUDIO &&
             !(ost->enc->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE))
             av_buffersink_set_frame_size(ost->filter->filter,
                                             ost->enc_ctx->frame_size);
         assert_avoptions(ost->encoder_opts);
-        if (ost->enc_ctx->bit_rate && ost->enc_ctx->bit_rate < 1000 &&
+        if (ost->enc_ctx->bit_rate && ost->enc_ctx->bit_rate < 1000 &&//小于1000提示一下
             ost->enc_ctx->codec_id != AV_CODEC_ID_CODEC2 /* don't complain about 700 bit/s modes */)
             av_log(NULL, AV_LOG_WARNING, "The bitrate parameter is set too low."
                                          " It takes bits/s as argument, not kbits/s\n");
-
+        //01.01.10 复制到AVCodecParameters
         ret = avcodec_parameters_from_context(ost->st->codecpar, ost->enc_ctx);
         if (ret < 0) {
             av_log(NULL, AV_LOG_FATAL,
@@ -3542,10 +3542,10 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
         /*
          * FIXME: ost->st->codec should't be needed here anymore.
          */
-        ret = avcodec_copy_context(ost->st->codec, ost->enc_ctx);
+        ret = avcodec_copy_context(ost->st->codec, ost->enc_ctx);//01.01.11 复制到st的AVCodecContext
         if (ret < 0)
             return ret;
-
+        //01.01.12
         if (ost->enc_ctx->nb_coded_side_data) {
             int i;
 
@@ -3567,7 +3567,7 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
          * packet side data, and then potentially using the first packet for
          * global side data.
          */
-        if (ist) {
+        if (ist) {//01.01.13
             int i;
             for (i = 0; i < ist->st->nb_side_data; i++) {
                 AVPacketSideData *sd = &ist->st->side_data[i];
@@ -3579,22 +3579,22 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
                     av_display_rotation_set((uint32_t *)dst, 0);
             }
         }
-
+        //01.01.14
         // copy timebase while removing common factors
         if (ost->st->time_base.num <= 0 || ost->st->time_base.den <= 0)
             ost->st->time_base = av_add_q(ost->enc_ctx->time_base, (AVRational){0, 1});
-
+        //01.01.15
         // copy estimated duration as a hint to the muxer
         if (ost->st->duration <= 0 && ist && ist->st->duration > 0)
             ost->st->duration = av_rescale_q(ist->st->duration, ist->st->time_base, ost->st->time_base);
 
         ost->st->codec->codec= ost->enc_ctx->codec;
     } else if (ost->stream_copy) {
-        ret = init_output_stream_streamcopy(ost);
+        ret = init_output_stream_streamcopy(ost);//01.02 ffmpeg 里的copy参数 直接copy即可
         if (ret < 0)
             return ret;
     }
-
+    //02.tiger TODO 这些额外的参数ffmpeg -i in.mkv -c copy -disposition:s:0 0 -disposition:s:1 default out.mkv To make the second subtitle stream the default stream and remove the default      
     // parse user provided disposition, and update stream values
     if (ost->disposition) {
         static const AVOption opts[] = {
@@ -3628,16 +3628,16 @@ static int init_output_stream(OutputStream *ost, char *error, int error_len)
         if (ret < 0)
             return ret;
     }
-
+    //03.初始化filter，暂时不看
     /* initialize bitstream filters for the output stream
      * needs to be done here, because the codec id for streamcopy is not
      * known until now */
     ret = init_output_bsfs(ost);
     if (ret < 0)
         return ret;
-
+    //04.设置标志位
     ost->initialized = 1;
-
+    //05.检查输出流是否已经初始化，调用avformat_write_header，并发送
     ret = check_init_output_file(output_files[ost->file_index], ost->file_index);
     if (ret < 0)
         return ret;
