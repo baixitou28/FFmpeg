@@ -24,18 +24,18 @@
 #include "avassert.h"
 #include "mem.h"
 
-static inline int ff_fast_malloc(void *ptr, unsigned int *size, size_t min_size, int zero_realloc)
+static inline int ff_fast_malloc(void *ptr, unsigned int *size, size_t min_size, int zero_realloc)//tiger 快速分配
 {
     void *val;
 
     memcpy(&val, ptr, sizeof(val));
-    if (min_size <= *size) {
+    if (min_size <= *size) {//如果原有尺寸*size比需要分配min_size的还大，先用着再说，这样可以减少一次free释放和分配malloc的2次调用。
         av_assert0(val || !min_size);
         return 0;
     }
-    min_size = FFMAX(min_size + min_size / 16 + 32, min_size);
+    min_size = FFMAX(min_size + min_size / 16 + 32, min_size);//tiger 尺寸不够大，则需要计算和分配，//TIGER TODO: 为什么要加min_size / 16 ==> 这里一般用于频繁的大尺寸内存(4K?)分配获取  //TIGER TOO: 64字节对齐还管用吗？==>有用，最后都是调用av_malloc
     av_freep(ptr);
-    val = zero_realloc ? av_mallocz(min_size) : av_malloc(min_size);
+    val = zero_realloc ? av_mallocz(min_size) : av_malloc(min_size);//是否要重置为0
     memcpy(ptr, &val, sizeof(val));
     if (!val)
         min_size = 0;

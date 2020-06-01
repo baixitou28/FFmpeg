@@ -2400,7 +2400,7 @@ static int audio_decode_frame(VideoState *is)
                 return -1;
             }
         }
-        av_fast_malloc(&is->audio_buf1, &is->audio_buf1_size, out_size);//
+        av_fast_malloc(&is->audio_buf1, &is->audio_buf1_size, out_size);//如果audio_buf1_size不够大，尝试分配内存out_size，如果够大，就用老的，减少free和malloc次数
         if (!is->audio_buf1)
             return AVERROR(ENOMEM);
         len2 = swr_convert(is->swr_ctx, out, out_count, in, af->frame->nb_samples);//

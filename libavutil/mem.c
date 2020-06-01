@@ -308,7 +308,7 @@ int av_dynarray_add_nofree(void *tab_ptr, int *nb_ptr, void *elem)
 void av_dynarray_add(void *tab_ptr, int *nb_ptr, void *elem)//TIGER dynarray
 {
     void **tab;
-    memcpy(&tab, tab_ptr, sizeof(tab));
+    memcpy(&tab, tab_ptr, sizeof(tab)); 
 
     FF_DYNARRAY_ADD(INT_MAX, sizeof(*tab), tab, *nb_ptr, {
         tab[*nb_ptr] = elem;
@@ -497,7 +497,7 @@ void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)
     return ptr;
 }
 
-void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)
+void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)//TIGER program 如果原先内存块够大，尽量用以前的内存块，
 {
     ff_fast_malloc(ptr, size, min_size, 0);
 }
