@@ -80,7 +80,7 @@
  * @defgroup lavc_encdec send/receive encoding and decoding API overview
  * @{
  *
- * The avcodec_send_packet()/avcodec_receive_frame()/avcodec_send_frame()/
+ * The avcodec_send_packet()/avcodec_receive_frame()/avcodec_send_frame()/ //TIGER program 这2对函数(AVPacket,AVFrame) 提供了编解码的使用方法，也使得输入和输出分离
  * avcodec_receive_packet() functions provide an encode/decode API, which
  * decouples input and output.
  *
@@ -88,11 +88,11 @@
  * follows:
  * - Set up and open the AVCodecContext as usual.
  * - Send valid input:
- *   - For decoding, call avcodec_send_packet() to give the decoder raw
+ *   - For decoding, call avcodec_send_packet() to give the decoder raw//TIGER AVPacket
  *     compressed data in an AVPacket.
- *   - For encoding, call avcodec_send_frame() to give the encoder an AVFrame
+ *   - For encoding, call avcodec_send_frame() to give the encoder an AVFrame//TIGER AVFrame 
  *     containing uncompressed audio or video.
- *   In both cases, it is recommended that AVPackets and AVFrames are
+ *   In both cases, it is recommended that AVPackets and AVFrames are //建议使用引用
  *   refcounted, or libavcodec might have to copy the input data. (libavformat
  *   always returns refcounted AVPackets, and av_frame_get_buffer() allocates
  *   refcounted AVFrames.)
@@ -102,49 +102,49 @@
  *     an AVFrame containing uncompressed audio or video data.
  *   - For encoding, call avcodec_receive_packet(). On success, it will return
  *     an AVPacket with a compressed frame.
- *   Repeat this call until it returns AVERROR(EAGAIN) or an error. The
+ *   Repeat this call until it returns AVERROR(EAGAIN) or an error. The//TIGER 循环，直到EAGAIN或者错误
  *   AVERROR(EAGAIN) return value means that new input data is required to
  *   return new output. In this case, continue with sending input. For each
  *   input frame/packet, the codec will typically return 1 output frame/packet,
  *   but it can also be 0 or more than 1.
  *
  * At the beginning of decoding or encoding, the codec might accept multiple
- * input frames/packets without returning a frame, until its internal buffers
+ * input frames/packets without returning a frame, until its internal buffers//开始的时候，可能接收n个帧，也不返回一帧，直到内部buffer被填满
  * are filled. This situation is handled transparently if you follow the steps
  * outlined above.
  *
- * In theory, sending input can result in EAGAIN - this should happen only if
+ * In theory, sending input can result in EAGAIN - this should happen only if//理论上
  * not all output was received. You can use this to structure alternative decode
  * or encode loops other than the one suggested above. For example, you could
  * try sending new input on each iteration, and try to receive output if that
  * returns EAGAIN.
  *
- * End of stream situations. These require "flushing" (aka draining) the codec,
+ * End of stream situations. These require "flushing" (aka draining) the codec,//如何刷新呢？
  * as the codec might buffer multiple frames or packets internally for
  * performance or out of necessity (consider B-frames).
  * This is handled as follows:
  * - Instead of valid input, send NULL to the avcodec_send_packet() (decoding)
- *   or avcodec_send_frame() (encoding) functions. This will enter draining
+ *   or avcodec_send_frame() (encoding) functions. This will enter draining//如果是输入，发送NULL
  *   mode.
  * - Call avcodec_receive_frame() (decoding) or avcodec_receive_packet()
- *   (encoding) in a loop until AVERROR_EOF is returned. The functions will
+ *   (encoding) in a loop until AVERROR_EOF is returned. The functions will//如果是输出，读到出现EOF为止
  *   not return AVERROR(EAGAIN), unless you forgot to enter draining mode.
- * - Before decoding can be resumed again, the codec has to be reset with
+ * - Before decoding can be resumed again, the codec has to be reset with//解码重新启动前，编码器一定要用avcodec_flush_buffers来重置
  *   avcodec_flush_buffers().
  *
  * Using the API as outlined above is highly recommended. But it is also
  * possible to call functions outside of this rigid schema. For example, you can
  * call avcodec_send_packet() repeatedly without calling
- * avcodec_receive_frame(). In this case, avcodec_send_packet() will succeed
+ * avcodec_receive_frame(). In this case, avcodec_send_packet() will succeed//如果不是每次send，就尝试receive一次，你也可以发送多次，直到内部buffer填满，最后返回EAGAIN
  * until the codec's internal buffer has been filled up (which is typically of
  * size 1 per output frame, after initial input), and then reject input with
- * AVERROR(EAGAIN). Once it starts rejecting input, you have no choice but to
+ * AVERROR(EAGAIN). Once it starts rejecting input, you have no choice but to//这时候你就只有读了
  * read at least some output.
  *
  * Not all codecs will follow a rigid and predictable dataflow; the only
- * guarantee is that an AVERROR(EAGAIN) return value on a send/receive call on
+ * guarantee is that an AVERROR(EAGAIN) return value on a send/receive call on//还有些非正统不可预期的流，只有当EGAIN时才说明是成功的，或者不会出现EAGAIN
  * one end implies that a receive/send call on the other end will succeed, or
- * at least will not fail with AVERROR(EAGAIN). In general, no codec will
+ * at least will not fail with AVERROR(EAGAIN). In general, no codec will//一般，所有的编解码内部的buffer都是有限的
  * permit unlimited buffering of input or output.
  *
  * This API replaces the following legacy functions:
@@ -154,15 +154,15 @@
  *   Unlike with the old video decoding API, multiple frames might result from
  *   a packet. For audio, splitting the input packet into frames by partially
  *   decoding packets becomes transparent to the API user. You never need to
- *   feed an AVPacket to the API twice (unless it is rejected with AVERROR(EAGAIN) - then
+ *   feed an AVPacket to the API twice (unless it is rejected with AVERROR(EAGAIN) - then//
  *   no data was read from the packet).
- *   Additionally, sending a flush/draining packet is required only once.
+ *   Additionally, sending a flush/draining packet is required only once.//特别的，如果flush的话，只需要一次即可
  * - avcodec_encode_video2()/avcodec_encode_audio2():
  *   Use avcodec_send_frame() to feed input to the encoder, then use
  *   avcodec_receive_packet() to receive encoded packets.
  *   Providing user-allocated buffers for avcodec_receive_packet() is not
  *   possible.
- * - The new API does not handle subtitles yet.
+ * - The new API does not handle subtitles yet.//新的api没有处理字幕
  *
  * Mixing new and old function calls on the same AVCodecContext is not allowed,
  * and will result in undefined behavior.
@@ -170,7 +170,7 @@
  * Some codecs might require using the new API; using the old API will return
  * an error when calling it. All codecs support the new API.
  *
- * A codec is not allowed to return AVERROR(EAGAIN) for both sending and receiving. This
+ * A codec is not allowed to return AVERROR(EAGAIN) for both sending and receiving. This//编解码send和receive不能同时返回egain
  * would be an invalid state, which could put the codec user into an endless
  * loop. The API has no concept of time either: it cannot happen that trying to
  * do avcodec_send_packet() results in AVERROR(EAGAIN), but a repeated call 1 second

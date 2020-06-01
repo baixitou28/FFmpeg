@@ -475,7 +475,7 @@ static int read_key(void)
 
 static int decode_interrupt_cb(void *ctx)
 {
-    return received_nb_signals > atomic_load(&transcode_init_done);
+    return received_nb_signals > atomic_load(&transcode_init_done);//tiger program 注意atomic_load的写法，不需要额外加锁
 }
 
 const AVIOInterruptCB int_cb = { decode_interrupt_cb, NULL };
@@ -2971,15 +2971,15 @@ static int compare_int64(const void *a, const void *b)
 static int check_init_output_file(OutputFile *of, int file_index)
 {
     int ret, i;
-
+    //01. 检查是否已经初始化完成
     for (i = 0; i < of->ctx->nb_streams; i++) {
         OutputStream *ost = output_streams[of->ost_index + i];
         if (!ost->initialized)
-            return 0;
+            return 0;//如果没有初始化完成，返回0
     }
-
-    of->ctx->interrupt_callback = int_cb;
-
+    //02.随时准备中断
+    of->ctx->interrupt_callback = int_cb;//decode_interrupt_cb 是调用
+    //03.
     ret = avformat_write_header(of->ctx, &of->opts);
     if (ret < 0) {
         av_log(NULL, AV_LOG_ERROR,
@@ -2990,24 +2990,24 @@ static int check_init_output_file(OutputFile *of, int file_index)
     }
     //assert_avoptions(of->opts);
     of->header_written = 1;
-
+    //04.打印输出的流
     av_dump_format(of->ctx, file_index, of->ctx->url, 1);
-
+    //05.是否打印sdp文件
     if (sdp_filename || want_sdp)
         print_sdp();
-
+    //06.
     /* flush the muxing queues */
     for (i = 0; i < of->ctx->nb_streams; i++) {
         OutputStream *ost = output_streams[of->ost_index + i];
 
         /* try to improve muxing time_base (only possible if nothing has been written yet) */
-        if (!av_fifo_size(ost->muxing_queue))
+        if (!av_fifo_size(ost->muxing_queue))//06.01
             ost->mux_timebase = ost->st->time_base;
 
-        while (av_fifo_size(ost->muxing_queue)) {
+        while (av_fifo_size(ost->muxing_queue)) {//06.02 如果队列里面已经有数据了: ==>avformat_write_header的数据需要提前写 
             AVPacket pkt;
-            av_fifo_generic_read(ost->muxing_queue, &pkt, sizeof(pkt), NULL);
-            write_packet(of, &pkt, ost, 1);
+            av_fifo_generic_read(ost->muxing_queue, &pkt, sizeof(pkt), NULL);//06.03 取
+            write_packet(of, &pkt, ost, 1);//06.04 写
         }
     }
 

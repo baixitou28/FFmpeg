@@ -52,7 +52,7 @@
 /* fraction handling */
 
 /**
- * f = val + (num / den) + 0.5.
+ * f = val + (num / den) + 0.5.//tiger 为什么要这么做？
  *
  * 'num' is normalized so that it is such as 0 <= num < den.
  *
@@ -66,7 +66,7 @@ static void frac_init(FFFrac *f, int64_t val, int64_t num, int64_t den)
     num += (den >> 1);
     if (num >= den) {
         val += num / den;//四舍五入
-        num  = num % den;//但num不对？
+        num  = num % den;//但num不对？==>看需求f = val + (num / den) + 0.5
     }
     f->val = val;
     f->num = num;
@@ -239,7 +239,7 @@ static int validate_codec_tag(AVFormatContext *s, AVStream *st)
     return 1;//如果不严格，codec_id相等即可
 }
 
-//tiger
+//tiger 初始化muxer
 static int init_muxer(AVFormatContext *s, AVDictionary **options)
 {
     int ret = 0, i;
@@ -255,13 +255,13 @@ static int init_muxer(AVFormatContext *s, AVDictionary **options)
     //02. 选项设置到context
     if ((ret = av_opt_set_dict(s, &tmp)) < 0)
         goto fail;
-    if (s->priv_data && s->oformat->priv_class && *(const AVClass**)s->priv_data==s->oformat->priv_class &&
-        (ret = av_opt_set_dict2(s->priv_data, &tmp, AV_OPT_SEARCH_CHILDREN)) < 0)
+    if (s->priv_data && s->oformat->priv_class && *(const AVClass**)s->priv_data==s->oformat->priv_class &&//举例：s->oformat->priv_class：flv_muxer_class
+        (ret = av_opt_set_dict2(s->priv_data, &tmp, AV_OPT_SEARCH_CHILDREN)) < 0)//如果输入和输出的类型一样，那可选项可以复制一下
         goto fail;
 
 #if FF_API_FORMAT_FILENAME
 FF_DISABLE_DEPRECATION_WARNINGS
-    if (!s->url && !(s->url = av_strdup(s->filename))) {
+    if (!s->url && !(s->url = av_strdup(s->filename))) {//复制地址
 FF_ENABLE_DEPRECATION_WARNINGS
 #else
     if (!s->url && !(s->url = av_strdup(""))) {
@@ -272,7 +272,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-    if (s->nb_streams && s->streams[0]->codec->flags & AV_CODEC_FLAG_BITEXACT) {
+    if (s->nb_streams && s->streams[0]->codec->flags & AV_CODEC_FLAG_BITEXACT) {//
         if (!(s->flags & AVFMT_FLAG_BITEXACT)) {
             av_log(s, AV_LOG_WARNING,
                    "The AVFormatContext is not in set to bitexact mode, only "
@@ -290,7 +290,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         goto fail;
     }
 
-    for (i = 0; i < s->nb_streams; i++) {//04.
+    for (i = 0; i < s->nb_streams; i++) {//04. 对每个流进行设置，但是。。。。调试时，是优化的原因还是啥，直接没几行就直接返回了？
         st  = s->streams[i];
         par = st->codecpar;
 
@@ -308,7 +308,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
         //04.01.PTS设置
-        if (!st->time_base.num) {//如果没有设置
+        if (!st->time_base.num) {//如果没有设置：什么时候会这样
             /* fall back on the default timebase values */
             if (par->codec_type == AVMEDIA_TYPE_AUDIO && par->sample_rate)
                 avpriv_set_pts_info(st, 64, 1, par->sample_rate);//TIGER ?
@@ -350,14 +350,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
                     goto fail;
                 }
             }
-            break;
+            break; flv_video_codec_ids
         }
         //04.03.查询解码器信息
-        desc = avcodec_descriptor_get(par->codec_id);
+        desc = avcodec_descriptor_get(par->codec_id);//举例：
         if (desc && desc->props & AV_CODEC_PROP_REORDER)
             st->internal->reorder = 1;//是否允许reorder
-        //04.04.
-        if (of->codec_tag) {
+        //04.04.//举例flv: par->codec_type:AVMEDIA_TYPE_VIDEO,par->codec_id:AV_CODEC_ID_FLV1:, par->codec_tag:2(AV_CODEC_ID_MPEG2VIDEO?), 
+        if (of->codec_tag) {//举例 *of->codec_tag:flv_video_codec_ids , **of->codec_tag:AV_CODEC_ID_FLV1
             if (   par->codec_tag
                 && par->codec_id == AV_CODEC_ID_RAWVIDEO
                 && (   av_codec_get_tag(of->codec_tag, par->codec_id) == 0
@@ -367,7 +367,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 // the wrong codec_tag for avi/mov, we override it here
                 par->codec_tag = 0;//特例：
             }
-            if (par->codec_tag) {
+            if (par->codec_tag) {//如：**of->codec_tag:AV_CODEC_ID_FLV1
                 if (!validate_codec_tag(s, st)) {//如果存在，则要匹配tag和id
                     const uint32_t otag = av_codec_get_tag(s->oformat->codec_tag, par->codec_id);
                     av_log(s, AV_LOG_ERROR,
@@ -384,7 +384,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             s->internal->nb_interleaved_streams++;
     }
     //05.如果of有私有数据，则复制一份
-    if (!s->priv_data && of->priv_data_size > 0) {
+    if (!s->priv_data && of->priv_data_size > 0) {//FLV :.priv_data_size = sizeof(FLVContext),
         s->priv_data = av_mallocz(of->priv_data_size);
         if (!s->priv_data) {
             ret = AVERROR(ENOMEM);
@@ -404,7 +404,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     } else {
         av_dict_set(&s->metadata, "encoder", NULL, 0);
     }
-    //07. 查询编码参数
+    //07. 查询并设置编码参数
     for (e = NULL; e = av_dict_get(s->metadata, "encoder-", e, AV_DICT_IGNORE_SUFFIX); ) {
         av_dict_set(&s->metadata, e->key, NULL, 0);
     }
@@ -414,7 +414,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
          *options = tmp;
     }
     //09.是否有初始化函数
-    if (s->oformat->init) {//举例?
+    if (s->oformat->init) {//举例：s->oformat：ff_flv_muxer, s->oformat->init:ff_flv_muxer
         if ((ret = s->oformat->init(s)) < 0) {
             if (s->oformat->deinit)
                 s->oformat->deinit(s);
@@ -430,7 +430,7 @@ fail:
     return ret;
 }
 
-static int init_pts(AVFormatContext *s)
+static int init_pts(AVFormatContext *s)//tiger 初始化pts，音频使用st->codecpar->sample_rate采样率8k，视频采用st->time_base.den
 {
     int i;
     AVStream *st;
@@ -442,7 +442,7 @@ static int init_pts(AVFormatContext *s)
         //01.
         switch (st->codecpar->codec_type) {
         case AVMEDIA_TYPE_AUDIO:
-            den = (int64_t)st->time_base.num * st->codecpar->sample_rate;//直接用采样率表示
+            den = (int64_t)st->time_base.num * st->codecpar->sample_rate;//直接用采样率表示， 举例：8bit 8k mono alaw输入：den = 1 * 8000
             break;
         case AVMEDIA_TYPE_VIDEO:
             den = (int64_t)st->time_base.num * st->time_base.den;//用den，90k?
@@ -451,13 +451,13 @@ static int init_pts(AVFormatContext *s)
             break;
         }
         //02.分配内存
-        if (!st->internal->priv_pts)
+        if (!st->internal->priv_pts)//举例：internal->->priv_pts:AVStreamInterval->FFFrac: fractional numbers for exact pts handling
             st->internal->priv_pts = av_mallocz(sizeof(*st->internal->priv_pts));
         if (!st->internal->priv_pts)
             return AVERROR(ENOMEM);
         //03.设置
-        if (den != AV_NOPTS_VALUE) {
-            if (den <= 0)
+        if (den != AV_NOPTS_VALUE) {//特例：什么时候den为0:字幕
+            if (den <= 0)//如果分子小于零，应该是错误的的
                 return AVERROR_INVALIDDATA;
             //设置FFFrac
             frac_init(st->internal->priv_pts, 0, 0, den);//初始化num已加0.5
@@ -466,10 +466,10 @@ static int init_pts(AVFormatContext *s)
     //是否允许负数
     if (s->avoid_negative_ts < 0) {
         av_assert2(s->avoid_negative_ts == AVFMT_AVOID_NEG_TS_AUTO);
-        if (s->oformat->flags & (AVFMT_TS_NEGATIVE | AVFMT_NOTIMESTAMPS)) {
+        if (s->oformat->flags & (AVFMT_TS_NEGATIVE | AVFMT_NOTIMESTAMPS)) {//TIGER PROGRAM是否允许为负数 ，没案例？==>
             s->avoid_negative_ts = 0;
         } else
-            s->avoid_negative_ts = AVFMT_AVOID_NEG_TS_MAKE_NON_NEGATIVE;
+            s->avoid_negative_ts = AVFMT_AVOID_NEG_TS_MAKE_NON_NEGATIVE;//tiger 没看见调用？
     }
 
     return 0;
@@ -494,15 +494,15 @@ int avformat_init_output(AVFormatContext *s, AVDictionary **options)
     //02.标识已经初始化
     s->internal->initialized = 1;
     s->internal->streams_initialized = ret;
-    //02.音视频的pts初始化
-    if (s->oformat->init && ret) {
+    //03.音视频的pts初始化
+    if (s->oformat->init && ret) {//举例：s->oformat->init：flv_init
         if ((ret = init_pts(s)) < 0)
             return ret;
 
-        return AVSTREAM_INIT_IN_INIT_OUTPUT;
+        return AVSTREAM_INIT_IN_INIT_OUTPUT;//
     }
 
-    return AVSTREAM_INIT_IN_WRITE_HEADER;
+    return AVSTREAM_INIT_IN_WRITE_HEADER;//
 }
 //TIGER
 int avformat_write_header(AVFormatContext *s, AVDictionary **options)
@@ -512,24 +512,24 @@ int avformat_write_header(AVFormatContext *s, AVDictionary **options)
     int streams_already_initialized = s->internal->streams_initialized;
 
     if (!already_initialized)
-        if ((ret = avformat_init_output(s, options)) < 0)
+        if ((ret = avformat_init_output(s, options)) < 0)//01.
             return ret;
 
     if (!(s->oformat->flags & AVFMT_NOFILE) && s->pb)
-        avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_HEADER);
+        avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_HEADER);//02.
     if (s->oformat->write_header) {
-        ret = s->oformat->write_header(s);
+        ret = s->oformat->write_header(s);//03.
         if (ret >= 0 && s->pb && s->pb->error < 0)
             ret = s->pb->error;
         if (ret < 0)
             goto fail;
-        flush_if_needed(s);
+        flush_if_needed(s);//04.
     }
     if (!(s->oformat->flags & AVFMT_NOFILE) && s->pb)
-        avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_UNKNOWN);
+        avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_UNKNOWN);//05.
 
     if (!s->internal->streams_initialized) {
-        if ((ret = init_pts(s)) < 0)
+        if ((ret = init_pts(s)) < 0)//06.
             goto fail;
     }
 

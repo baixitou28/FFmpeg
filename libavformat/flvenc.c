@@ -36,7 +36,7 @@
 #include "libavcodec/aacenctab.h"
 
 
-static const AVCodecTag flv_video_codec_ids[] = {
+static const AVCodecTag flv_video_codec_ids[] = {//flv支持的视频列表
     { AV_CODEC_ID_FLV1,     FLV_CODECID_H263 },
     { AV_CODEC_ID_H263,     FLV_CODECID_REALH263 },
     { AV_CODEC_ID_MPEG4,    FLV_CODECID_MPEG4 },
@@ -49,7 +49,7 @@ static const AVCodecTag flv_video_codec_ids[] = {
     { AV_CODEC_ID_NONE,     0 }
 };
 
-static const AVCodecTag flv_audio_codec_ids[] = {
+static const AVCodecTag flv_audio_codec_ids[] = {//FLV支持的音频列表
     { AV_CODEC_ID_MP3,        FLV_CODECID_MP3        >> FLV_AUDIO_CODECID_OFFSET },
     { AV_CODEC_ID_PCM_U8,     FLV_CODECID_PCM        >> FLV_AUDIO_CODECID_OFFSET },
     { AV_CODEC_ID_PCM_S16BE,  FLV_CODECID_PCM        >> FLV_AUDIO_CODECID_OFFSET },
@@ -485,7 +485,7 @@ static int unsupported_codec(AVFormatContext *s,
     return AVERROR(ENOSYS);
 }
 
-static void flv_write_codec_header(AVFormatContext* s, AVCodecParameters* par, int64_t ts) {
+static void flv_write_codec_header(AVFormatContext* s, AVCodecParameters* par, int64_t ts) {//tiger 如aac需要额外的头信息
     int64_t data_size;
     AVIOContext *pb = s->pb;
     FLVContext *flv = s->priv_data;
@@ -653,7 +653,7 @@ end:
     return ret;
 }
 
-static int flv_init(struct AVFormatContext *s)
+static int flv_init(struct AVFormatContext *s)//TIGER flv_init
 {
     int i;
     FLVContext *flv = s->priv_data;
@@ -665,7 +665,7 @@ static int flv_init(struct AVFormatContext *s)
         case AVMEDIA_TYPE_VIDEO:
             if (s->streams[i]->avg_frame_rate.den &&
                 s->streams[i]->avg_frame_rate.num) {
-                flv->framerate = av_q2d(s->streams[i]->avg_frame_rate);
+                flv->framerate = av_q2d(s->streams[i]->avg_frame_rate);//重新设置实际的frame rate
             }
             if (flv->video_par) {
                 av_log(s, AV_LOG_ERROR,
@@ -725,7 +725,7 @@ static int flv_init(struct AVFormatContext *s)
         }
         avpriv_set_pts_info(s->streams[i], 32, 1, 1000); /* 32 bit pts in ms */
 
-        sc = av_mallocz(sizeof(FLVStreamContext));
+        sc = av_mallocz(sizeof(FLVStreamContext));//分配私有
         if (!sc)
             return AVERROR(ENOMEM);
         s->streams[i]->priv_data = sc;
@@ -737,21 +737,21 @@ static int flv_init(struct AVFormatContext *s)
     return 0;
 }
 
-static int flv_write_header(AVFormatContext *s)
+static int flv_write_header(AVFormatContext *s)//写flv 头
 {
     int i;
     AVIOContext *pb = s->pb;
     FLVContext *flv = s->priv_data;
-
+    //01.写flv 头
     avio_write(pb, "FLV", 3);
     avio_w8(pb, 1);
     avio_w8(pb, FLV_HEADER_FLAG_HASAUDIO * !!flv->audio_par +
                 FLV_HEADER_FLAG_HASVIDEO * !!flv->video_par);
     avio_wb32(pb, 9);
     avio_wb32(pb, 0);
-
+    //01.特例：
     for (i = 0; i < s->nb_streams; i++)
-        if (s->streams[i]->codecpar->codec_tag == 5) {
+        if (s->streams[i]->codecpar->codec_tag == 5) {//5是什么？
             avio_w8(pb, 8);     // message type
             avio_wb24(pb, 0);   // include flags
             avio_wb24(pb, 0);   // time stamp
@@ -759,15 +759,15 @@ static int flv_write_header(AVFormatContext *s)
             avio_wb32(pb, 11);  // size
             flv->reserved = 5;
         }
-
+    //03.
     if (flv->flags & FLV_NO_METADATA) {
         pb->seekable = 0;
     } else {
-        write_metadata(s, 0);
+        write_metadata(s, 0);//写视频的长宽，音频的采样率，声道数等
     }
-
+    //04.
     for (i = 0; i < s->nb_streams; i++) {
-        flv_write_codec_header(s, s->streams[i]->codecpar, 0);
+        flv_write_codec_header(s, s->streams[i]->codecpar, 0);//aac和h264需要额外的头信息
     }
 
     flv->datastart_offset = avio_tell(pb);
