@@ -473,7 +473,7 @@ void av_memcpy_backptr(uint8_t *dst, int back, int cnt)
     }
 }
 
-void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)
+void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)//TIGER 减少内存频繁分配，最好预分配一个大一点的*size
 {
     if (min_size <= *size)
         return ptr;
@@ -497,7 +497,7 @@ void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)
     return ptr;
 }
 
-void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)//TIGER program 如果原先内存块够大，尽量用以前的内存块，
+void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size)//TIGER program 减少内存频繁分配，如果原先内存块够大，尽量用以前的内存块，
 {
     ff_fast_malloc(ptr, size, min_size, 0);
 }

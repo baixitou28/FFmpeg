@@ -1134,7 +1134,7 @@ static void intercept_id3(struct playlist *pls, uint8_t *buf,
              * both of those cases together with the possibility for multiple
              * tags would make the handling a bit complex.
              */
-            pls->id3_buf = av_fast_realloc(pls->id3_buf, &pls->id3_buf_size, id3_buf_pos + taglen);
+            pls->id3_buf = av_fast_realloc(pls->id3_buf, &pls->id3_buf_size, id3_buf_pos + taglen);//减少内存频繁分配
             if (!pls->id3_buf)
                 break;
             memcpy(pls->id3_buf + id3_buf_pos, buf, tag_got_bytes);
@@ -1305,7 +1305,7 @@ static int update_init_section(struct playlist *pls, struct segment *seg)
 
     sec_size = FFMIN(sec_size, max_init_section_size);
 
-    av_fast_malloc(&pls->init_sec_buf, &pls->init_sec_buf_size, sec_size);
+    av_fast_malloc(&pls->init_sec_buf, &pls->init_sec_buf_size, sec_size);//是否内存不够
 
     ret = read_from_url(pls, seg->init_section, pls->init_sec_buf,
                         pls->init_sec_buf_size);

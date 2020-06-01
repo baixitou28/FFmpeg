@@ -131,7 +131,7 @@ static int alloc_scratch_buffers(H264SliceContext *sl, int linesize)
     const H264Context *h = sl->h264;
     int alloc_size = FFALIGN(FFABS(linesize) + 32, 32);
 
-    av_fast_malloc(&sl->bipred_scratchpad, &sl->bipred_scratchpad_allocated, 16 * 6 * alloc_size);
+    av_fast_malloc(&sl->bipred_scratchpad, &sl->bipred_scratchpad_allocated, 16 * 6 * alloc_size);//TIGER ¿ìËÙ·ÖÅä
     // edge emu needs blocksize + filter length - 1
     // (= 21x21 for  H.264)
     av_fast_malloc(&sl->edge_emu_buffer, &sl->edge_emu_buffer_allocated, alloc_size * 2 * 21);
