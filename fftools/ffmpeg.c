@@ -387,7 +387,7 @@ static BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 void term_init(void)
 {
 #if HAVE_TERMIOS_H
-    if (!run_as_daemon && stdin_interaction) {
+    if (!run_as_daemon && stdin_interaction) {//终端设置
         struct termios tty;
         if (tcgetattr (0, &tty) == 0) {
             oldtty = tty;
@@ -407,7 +407,7 @@ void term_init(void)
         signal(SIGQUIT, sigterm_handler); /* Quit (POSIX).  */
     }
 #endif
-
+    //信号处理
     signal(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
     signal(SIGTERM, sigterm_handler); /* Termination (ANSI).  */
 #ifdef SIGXCPU
@@ -473,34 +473,34 @@ static int read_key(void)
     return -1;
 }
 
-static int decode_interrupt_cb(void *ctx)
+static int decode_interrupt_cb(void *ctx)//tiger decode_interrupt_cb
 {
     return received_nb_signals > atomic_load(&transcode_init_done);//tiger program 注意atomic_load的写法，不需要额外加锁
 }
 
 const AVIOInterruptCB int_cb = { decode_interrupt_cb, NULL };
 
-static void ffmpeg_cleanup(int ret)
+static void ffmpeg_cleanup(int ret)//tiger program 关闭filtergraph 输出文件、流，输入文件、流，中间的队列数据，申请的动态资源。//
 {
     int i, j;
-
+    //01.是性能测试吗？
     if (do_benchmark) {
         int maxrss = getmaxrss() / 1024;
         av_log(NULL, AV_LOG_INFO, "bench: maxrss=%ikB\n", maxrss);
     }
-
+    //02. filtergraph相关的操作
     for (i = 0; i < nb_filtergraphs; i++) {
         FilterGraph *fg = filtergraphs[i];
         avfilter_graph_free(&fg->graph);
         for (j = 0; j < fg->nb_inputs; j++) {
-            while (av_fifo_size(fg->inputs[j]->frame_queue)) {
+            while (av_fifo_size(fg->inputs[j]->frame_queue)) {//如果FilterGraph队列里面还有数据，继续读取，直到为空
                 AVFrame *frame;
-                av_fifo_generic_read(fg->inputs[j]->frame_queue, &frame,
+                av_fifo_generic_read(fg->inputs[j]->frame_queue, &frame,//继续读取
                                      sizeof(frame), NULL);
                 av_frame_free(&frame);
             }
             av_fifo_freep(&fg->inputs[j]->frame_queue);
-            if (fg->inputs[j]->ist->sub2video.sub_queue) {
+            if (fg->inputs[j]->ist->sub2video.sub_queue) {//如果sub2video.sub_queu队列里面还有数据
                 while (av_fifo_size(fg->inputs[j]->ist->sub2video.sub_queue)) {
                     AVSubtitle sub;
                     av_fifo_generic_read(fg->inputs[j]->ist->sub2video.sub_queue,
@@ -514,7 +514,7 @@ static void ffmpeg_cleanup(int ret)
             av_freep(&fg->inputs[j]);
         }
         av_freep(&fg->inputs);
-        for (j = 0; j < fg->nb_outputs; j++) {
+        for (j = 0; j < fg->nb_outputs; j++) {//如果sub2video.sub_queu队列里面还有数据
             av_freep(&fg->outputs[j]->name);
             av_freep(&fg->outputs[j]->formats);
             av_freep(&fg->outputs[j]->channel_layouts);
@@ -531,7 +531,7 @@ static void ffmpeg_cleanup(int ret)
     av_freep(&subtitle_out);
 
     /* close files */
-    for (i = 0; i < nb_output_files; i++) {
+    for (i = 0; i < nb_output_files; i++) {//03.关闭输出文件
         OutputFile *of = output_files[i];
         AVFormatContext *s;
         if (!of)
@@ -544,7 +544,7 @@ static void ffmpeg_cleanup(int ret)
 
         av_freep(&output_files[i]);
     }
-    for (i = 0; i < nb_output_streams; i++) {
+    for (i = 0; i < nb_output_streams; i++) {//04. 输出流相关的操作
         OutputStream *ost = output_streams[i];
 
         if (!ost)
@@ -572,7 +572,7 @@ static void ffmpeg_cleanup(int ret)
         avcodec_parameters_free(&ost->ref_par);
 
         if (ost->muxing_queue) {
-            while (av_fifo_size(ost->muxing_queue)) {
+            while (av_fifo_size(ost->muxing_queue)) {//muxing_queue队列
                 AVPacket pkt;
                 av_fifo_generic_read(ost->muxing_queue, &pkt, sizeof(pkt), NULL);
                 av_packet_unref(&pkt);
@@ -583,13 +583,13 @@ static void ffmpeg_cleanup(int ret)
         av_freep(&output_streams[i]);
     }
 #if HAVE_THREADS
-    free_input_threads();
+    free_input_threads();//05. 线程
 #endif
-    for (i = 0; i < nb_input_files; i++) {
+    for (i = 0; i < nb_input_files; i++) {//06. 输入文件
         avformat_close_input(&input_files[i]->ctx);
         av_freep(&input_files[i]);
     }
-    for (i = 0; i < nb_input_streams; i++) {
+    for (i = 0; i < nb_input_streams; i++) {//07. 输入流
         InputStream *ist = input_streams[i];
 
         av_frame_free(&ist->decoded_frame);
@@ -605,14 +605,14 @@ static void ffmpeg_cleanup(int ret)
 
         av_freep(&input_streams[i]);
     }
-
+    //08. 
     if (vstats_file) {
         if (fclose(vstats_file))
             av_log(NULL, AV_LOG_ERROR,
                    "Error closing vstats file, loss of information possible: %s\n",
                    av_err2str(AVERROR(errno)));
     }
-    av_freep(&vstats_filename);
+    av_freep(&vstats_filename);//09.关闭动态结构
 
     av_freep(&input_streams);
     av_freep(&input_files);
@@ -620,17 +620,17 @@ static void ffmpeg_cleanup(int ret)
     av_freep(&output_files);
 
     uninit_opts();
-
+    //10.网络
     avformat_network_deinit();
-
+    //11.
     if (received_sigterm) {
         av_log(NULL, AV_LOG_INFO, "Exiting normally, received signal %d.\n",
-               (int) received_sigterm);
+               (int) received_sigterm);//提示信号
     } else if (ret && atomic_load(&transcode_init_done)) {
-        av_log(NULL, AV_LOG_INFO, "Conversion failed!\n");
+        av_log(NULL, AV_LOG_INFO, "Conversion failed!\n");//转换成功
     }
-    term_exit();
-    ffmpeg_exited = 1;
+    term_exit();//12.恢复终端颜色设置等
+    ffmpeg_exited = 1;//13.终于可以设成功退出标志位了。
 }
 
 void remove_avoptions(AVDictionary **a, AVDictionary *b)
@@ -3164,34 +3164,34 @@ static int init_output_stream_streamcopy(OutputStream *ost)//TIGER init_output_s
     return 0;
 }
 
-static void set_encoder_id(OutputFile *of, OutputStream *ost)
+static void set_encoder_id(OutputFile *of, OutputStream *ost)//命令行有encoder 参数吗，如果有ost->st->metadata设置类似"Lavc4.2.2 aac"，设置ost->enc_ctx 的flags，设置of->ctx的fflags
 {
     AVDictionaryEntry *e;
 
     uint8_t *encoder_string;
     int encoder_string_len;
     int format_flags = 0;
-    int codec_flags = ost->enc_ctx->flags;
-
+    int codec_flags = ost->enc_ctx->flags;//举例 codec_flags:0x400000: AV_CODEC_FLAG_GLOBAL_HEADER
+    //01.查看命令行是否有encoder参数
     if (av_dict_get(ost->st->metadata, "encoder",  NULL, 0))
-        return;
-
-    e = av_dict_get(of->opts, "fflags", NULL, 0);
-    if (e) {
+        return;//如果没有设置直接返回
+    //02.如果是设置了编码器，那肯定还有参数，
+    e = av_dict_get(of->opts, "fflags", NULL, 0);//format_flags：文件的format flags
+    if (e) {//如果是文件类型
         const AVOption *o = av_opt_find(of->ctx, "fflags", NULL, 0, 0);
         if (!o)
-            return;
-        av_opt_eval_flags(of->ctx, o, e->value, &format_flags);
+            return;//如果文件不存在fflags的option
+        av_opt_eval_flags(of->ctx, o, e->value, &format_flags);//设置到输出文件的ctx中
     }
-    e = av_dict_get(ost->encoder_opts, "flags", NULL, 0);
-    if (e) {
+    e = av_dict_get(ost->encoder_opts, "flags", NULL, 0);//codec_flags：流的codec flags
+    if (e) {//如果是流类型
         const AVOption *o = av_opt_find(ost->enc_ctx, "flags", NULL, 0, 0);
         if (!o)
-            return;
-        av_opt_eval_flags(ost->enc_ctx, o, e->value, &codec_flags);
+            return;//如果流不存在flags的option
+        av_opt_eval_flags(ost->enc_ctx, o, e->value, &codec_flags);//设置到stream的enc_ctx中
     }
-
-    encoder_string_len = sizeof(LIBAVCODEC_IDENT) + strlen(ost->enc->name) + 2;
+    //03. 取ost->enc->name，设置类似"Lavc4.2.2 aac"到&ost->st->metadata中
+    encoder_string_len = sizeof(LIBAVCODEC_IDENT) + strlen(ost->enc->name) + 2;//取ost->enc->name
     encoder_string     = av_mallocz(encoder_string_len);
     if (!encoder_string)
         exit_program(1);
@@ -3200,9 +3200,9 @@ static void set_encoder_id(OutputFile *of, OutputStream *ost)
         av_strlcpy(encoder_string, LIBAVCODEC_IDENT " ", encoder_string_len);
     else
         av_strlcpy(encoder_string, "Lavc ", encoder_string_len);
-    av_strlcat(encoder_string, ost->enc->name, encoder_string_len);
+    av_strlcat(encoder_string, ost->enc->name, encoder_string_len);//类似"Lavc4.2.2 aac"
     av_dict_set(&ost->st->metadata, "encoder",  encoder_string,
-                AV_DICT_DONT_STRDUP_VAL | AV_DICT_DONT_OVERWRITE);
+                AV_DICT_DONT_STRDUP_VAL | AV_DICT_DONT_OVERWRITE);//设置到stream的metadata中
 }
 
 static void parse_forced_key_frames(char *kf, OutputStream *ost,
@@ -3273,12 +3273,12 @@ static void init_encoder_time_base(OutputStream *ost, AVRational default_time_ba
     InputStream *ist = get_input_stream(ost);
     AVCodecContext *enc_ctx = ost->enc_ctx;
     AVFormatContext *oc;
-
+    //01.如果已经指定了
     if (ost->enc_timebase.num > 0) {
         enc_ctx->time_base = ost->enc_timebase;
         return;
     }
-
+    //02.如果
     if (ost->enc_timebase.num < 0) {
         if (ist) {
             enc_ctx->time_base = ist->st->time_base;
@@ -3288,41 +3288,41 @@ static void init_encoder_time_base(OutputStream *ost, AVRational default_time_ba
         oc = output_files[ost->file_index]->ctx;
         av_log(oc, AV_LOG_WARNING, "Input stream data not available, using default time base\n");
     }
-
+    //03.使用默认
     enc_ctx->time_base = default_time_base;
 }
 
 static int init_output_stream_encode(OutputStream *ost)
 {
-    InputStream *ist = get_input_stream(ost);
+    InputStream *ist = get_input_stream(ost);//流
     AVCodecContext *enc_ctx = ost->enc_ctx;
     AVCodecContext *dec_ctx = NULL;
-    AVFormatContext *oc = output_files[ost->file_index]->ctx;
+    AVFormatContext *oc = output_files[ost->file_index]->ctx;//文件
     int j, ret;
-    //01.
+    //01. 如果命令行有encode的编码选项
     set_encoder_id(output_files[ost->file_index], ost);
-    //02.
+    //02.删除传统的可选项，因为可能有副作用
     // Muxers use AV_PKT_DATA_DISPLAYMATRIX to signal rotation. On the other
     // hand, the legacy API makes demuxers set "rotate" metadata entries,
     // which have to be filtered out to prevent leaking them to output files.
     av_dict_set(&ost->st->metadata, "rotate", NULL, 0);
-    //03.
+    //03.如果有输入流
     if (ist) {
-        ost->st->disposition          = ist->st->disposition;
+        ost->st->disposition          = ist->st->disposition;//诸如：AV_DISPOSITION_KARAOKE 等
 
         dec_ctx = ist->dec_ctx;
 
-        enc_ctx->chroma_sample_location = dec_ctx->chroma_sample_location;
+        enc_ctx->chroma_sample_location = dec_ctx->chroma_sample_location;//看chroma_sample_location注释，解码由libavcodec设置，编码需用户指定
     } else {
         for (j = 0; j < oc->nb_streams; j++) {
             AVStream *st = oc->streams[j];
             if (st != ost->st && st->codecpar->codec_type == ost->st->codecpar->codec_type)
-                break;
+                break;//不同流且音视频类型相同，中断退出
         }
-        if (j == oc->nb_streams)
+        if (j == oc->nb_streams)//如果找不到
             if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO ||
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-                ost->st->disposition = AV_DISPOSITION_DEFAULT;
+                ost->st->disposition = AV_DISPOSITION_DEFAULT;//设置默认值
     }
     //04.
     if (enc_ctx->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -3352,35 +3352,35 @@ static int init_output_stream_encode(OutputStream *ost)
                       ost->frame_rate.num, ost->frame_rate.den, 65535);
         }
     }
-    //05.
+    //05.从ost->filter->filter取
     switch (enc_ctx->codec_type) {
-    case AVMEDIA_TYPE_AUDIO:
-        enc_ctx->sample_fmt     = av_buffersink_get_format(ost->filter->filter);
+    case AVMEDIA_TYPE_AUDIO://05.01取音频必要参数
+        enc_ctx->sample_fmt     = av_buffersink_get_format(ost->filter->filter);//tiger 取frame_rate ,疑问：ost->filter，ost->filter->filter 何时赋值的
         if (dec_ctx)
             enc_ctx->bits_per_raw_sample = FFMIN(dec_ctx->bits_per_raw_sample,
-                                                 av_get_bytes_per_sample(enc_ctx->sample_fmt) << 3);
+                                                 av_get_bytes_per_sample(enc_ctx->sample_fmt) << 3);//TIGER 
         enc_ctx->sample_rate    = av_buffersink_get_sample_rate(ost->filter->filter);
         enc_ctx->channel_layout = av_buffersink_get_channel_layout(ost->filter->filter);
         enc_ctx->channels       = av_buffersink_get_channels(ost->filter->filter);
 
-        init_encoder_time_base(ost, av_make_q(1, enc_ctx->sample_rate));
+        init_encoder_time_base(ost, av_make_q(1, enc_ctx->sample_rate));//比如 音频 nc_ctx->sample_rate:44100
         break;
 
-    case AVMEDIA_TYPE_VIDEO:
-        init_encoder_time_base(ost, av_inv_q(ost->frame_rate));
+    case AVMEDIA_TYPE_VIDEO://05.02
+        init_encoder_time_base(ost, av_inv_q(ost->frame_rate));//05.02.01.
 
-        if (!(enc_ctx->time_base.num && enc_ctx->time_base.den))
+        if (!(enc_ctx->time_base.num && enc_ctx->time_base.den))//05.02.02.
             enc_ctx->time_base = av_buffersink_get_time_base(ost->filter->filter);
-        if (   av_q2d(enc_ctx->time_base) < 0.001 && video_sync_method != VSYNC_PASSTHROUGH
+        if (   av_q2d(enc_ctx->time_base) < 0.001 && video_sync_method != VSYNC_PASSTHROUGH//05.02.03.
            && (video_sync_method == VSYNC_CFR || video_sync_method == VSYNC_VSCFR || (video_sync_method == VSYNC_AUTO && !(oc->oformat->flags & AVFMT_VARIABLE_FPS)))){
             av_log(oc, AV_LOG_WARNING, "Frame rate very high for a muxer not efficiently supporting it.\n"
                                        "Please consider specifying a lower framerate, a different muxer or -vsync 2\n");
         }
         for (j = 0; j < ost->forced_kf_count; j++)
-            ost->forced_kf_pts[j] = av_rescale_q(ost->forced_kf_pts[j],
+            ost->forced_kf_pts[j] = av_rescale_q(ost->forced_kf_pts[j],//05.02.04.
                                                  AV_TIME_BASE_Q,
                                                  enc_ctx->time_base);
-
+        //05.02.05.
         enc_ctx->width  = av_buffersink_get_w(ost->filter->filter);
         enc_ctx->height = av_buffersink_get_h(ost->filter->filter);
         enc_ctx->sample_aspect_ratio = ost->st->sample_aspect_ratio =
@@ -3396,20 +3396,20 @@ static int init_output_stream_encode(OutputStream *ost)
         enc_ctx->framerate = ost->frame_rate;
 
         ost->st->avg_frame_rate = ost->frame_rate;
-
+        //05.02.06.
         if (!dec_ctx ||
             enc_ctx->width   != dec_ctx->width  ||
             enc_ctx->height  != dec_ctx->height ||
             enc_ctx->pix_fmt != dec_ctx->pix_fmt) {
             enc_ctx->bits_per_raw_sample = frame_bits_per_raw_sample;
         }
-
+        //05.02.07.
         if (ost->top_field_first == 0) {
             enc_ctx->field_order = AV_FIELD_BB;
         } else if (ost->top_field_first == 1) {
             enc_ctx->field_order = AV_FIELD_TT;
         }
-
+        //05.02.08.
         if (ost->forced_keyframes) {
             if (!strncmp(ost->forced_keyframes, "expr:", 5)) {
                 ret = av_expr_parse(&ost->forced_keyframes_pexpr, ost->forced_keyframes+5,
@@ -3444,7 +3444,7 @@ static int init_output_stream_encode(OutputStream *ost)
         abort();
         break;
     }
-    //06.
+    //06.还有一个时间基准
     ost->mux_timebase = enc_ctx->time_base;
 
     return 0;
@@ -4845,24 +4845,24 @@ int main(int argc, char **argv)
     int i, ret;
     BenchmarkTimeStamps ti;//？
     
-    init_dynload();//动态加载目录设置
+    init_dynload();//windows的动态加载目录设置
 
-    register_exit(ffmpeg_cleanup);//这个大概以前是at_exist吧
+    register_exit(ffmpeg_cleanup);//这个大概以前是at_exist吧 //tiger program
     
     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this *///这个不是一直这样的吗？
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
-    parse_loglevel(argc, argv, options);//日志级别和是否将报告写入文件
+    parse_loglevel(argc, argv, options);//解析日志级别，是否将报告写入文件
 
-    if(argc>1 && !strcmp(argv[1], "-d")){//是否后台运行
+    if(argc>1 && !strcmp(argv[1], "-d")){//是否后台运行,注意一定要是第一参数
         run_as_daemon=1;
-        av_log_set_callback(log_callback_null);
+        av_log_set_callback(log_callback_null);//TIGER PROGRAM
         argc--;
         argv++;
     }
 
-#if CONFIG_AVDEVICE//这个不大理解，有什么用==>
-    avdevice_register_all();
+#if CONFIG_AVDEVICE//这个不大理解，有什么用==> 都是可配置的模块
+    avdevice_register_all();//注册所有设备
 #endif
     avformat_network_init();//是否初始化网络，是否初始化ssl
 

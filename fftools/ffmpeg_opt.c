@@ -993,8 +993,8 @@ static void dump_attachment(AVStream *st, const char *filename)
     avio_flush(out);
     avio_close(out);
 }
-//TIGER TODO:
-static int open_input_file(OptionsContext *o, const char *filename)
+//TIGER TODO: 被open_files作为函数指针调用//第一参数是解析后的可选项，第二参数是原始的组信息
+static int open_input_file(OptionsContext *o, const char *filename)//
 {
     InputFile *f;
     AVFormatContext *ic;
@@ -1008,7 +1008,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
     char *subtitle_codec_name = NULL;
     char *    data_codec_name = NULL;
     int scan_all_pmts_set = 0;
-
+    //01.校验可选项的stop_time和recording_time
     if (o->stop_time != INT64_MAX && o->recording_time != INT64_MAX) {
         o->stop_time = INT64_MAX;
         av_log(NULL, AV_LOG_WARNING, "-t and -to cannot be used together; using -t.\n");
@@ -1023,30 +1023,30 @@ static int open_input_file(OptionsContext *o, const char *filename)
             o->recording_time = o->stop_time - start_time;
         }
     }
-
+    //02.可选项的格式
     if (o->format) {
         if (!(file_iformat = av_find_input_format(o->format))) {
             av_log(NULL, AV_LOG_FATAL, "Unknown input format: '%s'\n", o->format);
             exit_program(1);
         }
     }
-
+    //03. 可选项的-代表pipe
     if (!strcmp(filename, "-"))
         filename = "pipe:";
 
     stdin_interaction &= strncmp(filename, "pipe:", 5) &&
                          strcmp(filename, "/dev/stdin");
-
+    //04.创建AVFormatContext
     /* get default parameters from command line */
     ic = avformat_alloc_context();
     if (!ic) {
         print_error(filename, AVERROR(ENOMEM));
         exit_program(1);
     }
-    if (o->nb_audio_sample_rate) {
+    if (o->nb_audio_sample_rate) {//按需查找采样率
         av_dict_set_int(&o->g->format_opts, "sample_rate", o->audio_sample_rate[o->nb_audio_sample_rate - 1].u.i, 0);
     }
-    if (o->nb_audio_channels) {
+    if (o->nb_audio_channels) {//按需查找声道数
         /* because we set audio_channels based on both the "ac" and
          * "channel_layout" options, we need to check that the specified
          * demuxer actually has the "channels" option before setting it */
@@ -1056,7 +1056,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
             av_dict_set_int(&o->g->format_opts, "channels", o->audio_channels[o->nb_audio_channels - 1].u.i, 0);
         }
     }
-    if (o->nb_frame_rates) {
+    if (o->nb_frame_rates) {//按需查找帧率
         /* set the format-level framerate option;
          * this is important for video grabbers, e.g. x11 */
         if (file_iformat && file_iformat->priv_class &&
@@ -1069,10 +1069,10 @@ static int open_input_file(OptionsContext *o, const char *filename)
     if (o->nb_frame_sizes) {
         av_dict_set(&o->g->format_opts, "video_size", o->frame_sizes[o->nb_frame_sizes - 1].u.str, 0);
     }
-    if (o->nb_frame_pix_fmts)
+    if (o->nb_frame_pix_fmts)//按需查找像素格式
         av_dict_set(&o->g->format_opts, "pixel_format", o->frame_pix_fmts[o->nb_frame_pix_fmts - 1].u.str, 0);
-
-    MATCH_PER_TYPE_OPT(codec_names, str,    video_codec_name, ic, "v");
+    //05.查找简写的组名
+    MATCH_PER_TYPE_OPT(codec_names, str,    video_codec_name, ic, "v");//举例
     MATCH_PER_TYPE_OPT(codec_names, str,    audio_codec_name, ic, "a");
     MATCH_PER_TYPE_OPT(codec_names, str, subtitle_codec_name, ic, "s");
     MATCH_PER_TYPE_OPT(codec_names, str,     data_codec_name, ic, "d");
@@ -1094,14 +1094,14 @@ static int open_input_file(OptionsContext *o, const char *filename)
     ic->flags |= AVFMT_FLAG_NONBLOCK;
     if (o->bitexact)
         ic->flags |= AVFMT_FLAG_BITEXACT;
-    ic->interrupt_callback = int_cb;
-
-    if (!av_dict_get(o->g->format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE)) {
+    ic->interrupt_callback = int_cb;//06. 解析时用的call back
+    //07.
+    if (!av_dict_get(o->g->format_opts, "scan_all_pmts", NULL, AV_DICT_MATCH_CASE)) {//扫描全部的ts流的Program Map Table表
         av_dict_set(&o->g->format_opts, "scan_all_pmts", "1", AV_DICT_DONT_OVERWRITE);
         scan_all_pmts_set = 1;
     }
     /* open the input file with generic avformat function */
-    err = avformat_open_input(&ic, filename, file_iformat, &o->g->format_opts);
+    err = avformat_open_input(&ic, filename, file_iformat, &o->g->format_opts);//08.
     if (err < 0) {
         print_error(filename, err);
         if (err == AVERROR_PROTOCOL_NOT_FOUND)
@@ -1115,8 +1115,8 @@ static int open_input_file(OptionsContext *o, const char *filename)
 
     /* apply forced codec ids */
     for (i = 0; i < ic->nb_streams; i++)
-        choose_decoder(o, ic, ic->streams[i]);
-
+        choose_decoder(o, ic, ic->streams[i]);//09.
+    //10.
     if (find_stream_info) {
         AVDictionary **opts = setup_find_stream_info_opts(ic, o->g->codec_opts);
         int orig_nb_streams = ic->nb_streams;
@@ -1137,7 +1137,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
             }
         }
     }
-
+    //11.
     if (o->start_time != AV_NOPTS_VALUE && o->start_time_eof != AV_NOPTS_VALUE) {
         av_log(NULL, AV_LOG_WARNING, "Cannot use -ss and -sseof both, using -ss for %s\n", filename);
         o->start_time_eof = AV_NOPTS_VALUE;
@@ -1185,19 +1185,19 @@ static int open_input_file(OptionsContext *o, const char *filename)
                    filename, (double)timestamp / AV_TIME_BASE);
         }
     }
-
+    //12.
     /* update the current parameters so that they match the one of the input stream */
     add_input_streams(o, ic);
 
     /* dump the file content */
     av_dump_format(ic, nb_input_files, filename, 0);//TIGER AAC 在这里打印输出的aac 为LC模式即LOW不是MAIN
-
+    //13.设置InputFile
     GROW_ARRAY(input_files, nb_input_files);
     f = av_mallocz(sizeof(*f));
     if (!f)
         exit_program(1);
-    input_files[nb_input_files - 1] = f;
-
+    input_files[nb_input_files - 1] = f;//14.放在全局的input_files？
+    //逐一设置
     f->ctx        = ic;
     f->ist_index  = nb_input_streams - ic->nb_streams;
     f->start_time = o->start_time;
@@ -1213,7 +1213,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
 #if HAVE_THREADS
     f->thread_queue_size = o->thread_queue_size > 0 ? o->thread_queue_size : 8;
 #endif
-
+    //15.获取没有用过的option
     /* check if all codec options have been used */
     unused_opts = strip_specifiers(o->g->codec_opts);
     for (i = f->ist_index; i < nb_input_streams; i++) {
@@ -1224,7 +1224,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
     }
 
     e = NULL;
-    while ((e = av_dict_get(unused_opts, "", e, AV_DICT_IGNORE_SUFFIX))) {
+    while ((e = av_dict_get(unused_opts, "", e, AV_DICT_IGNORE_SUFFIX))) {//16.打印没有用过的option，提示用户注意
         const AVClass *class = avcodec_get_class();
         const AVOption *option = av_opt_find(&class, e->key, NULL, 0,
                                              AV_OPT_SEARCH_CHILDREN | AV_OPT_SEARCH_FAKE_OBJ);
@@ -1251,7 +1251,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
                option->help ? option->help : "", nb_input_files - 1, filename);
     }
     av_dict_free(&unused_opts);
-
+    //17.
     for (i = 0; i < o->nb_dump_attachment; i++) {
         int j;
 
@@ -1262,7 +1262,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
                 dump_attachment(st, o->dump_attachment[i].u.str);
         }
     }
-
+    //18.设置标志位
     input_stream_potentially_available = 1;
 
     return 0;
@@ -3252,28 +3252,28 @@ static const OptionGroupDef groups[] = {
     [GROUP_INFILE]  = { "input url",   "i",  OPT_INPUT },
 };
 
-static int open_files(OptionGroupList *l, const char *inout,
+static int open_files(OptionGroupList *l, const char *inout,//用open_file打开多个文件
                       int (*open_file)(OptionsContext*, const char*))
 {
     int i, ret;
 
-    for (i = 0; i < l->nb_groups; i++) {
+    for (i = 0; i < l->nb_groups; i++) {//逐一打开文件
         OptionGroup *g = &l->groups[i];
         OptionsContext o;
-
+        //01.
         init_options(&o);
         o.g = g;
-
+        //02.
         ret = parse_optgroup(&o, g);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error parsing options for %s file "
                    "%s.\n", inout, g->arg);
             return ret;
         }
-
+        //03.用函数指针open_file打开
         av_log(NULL, AV_LOG_DEBUG, "Opening an %s file: %s.\n", inout, g->arg);
-        ret = open_file(&o, g->arg);
-        uninit_options(&o);
+        ret = open_file(&o, g->arg);//第一参数是解析后的可选项，第二参数是原始的组信息
+        uninit_options(&o);//04.
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error opening %s file %s.\n",
                    inout, g->arg);
@@ -3302,31 +3302,31 @@ int ffmpeg_parse_options(int argc, char **argv)
     }
 
     /* apply global options */
-    ret = parse_optgroup(NULL, &octx.global_opts);//全局？
+    ret = parse_optgroup(NULL, &octx.global_opts);//选项还分组：
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error parsing global options: ");
         goto fail;
     }
 
     /* configure terminal and setup signal handlers */
-    term_init();//信号处理，放的地方....不好照
+    term_init();//终端设置和信号处理，放的地方....不好找
     
     /* open input files */
-    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//处理输入文件参数， open_input_file是函数！而且是很长的函数
+    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//解析参数，并用open_input_file打开多个输入文件， open_input_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening input files: ");
         goto fail;
     }
 
     /* create the complex filtergraphs */
-    ret = init_complex_filters();//FILTER 暂时不考虑
+    ret = init_complex_filters();//FILTER 暂时不考虑 ==>后面好像还是用到了，必须看
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error initializing complex filters.\n");
         goto fail;
     }
 
     /* open output files */
-    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//处理输出文件参数， open_output_file是函数！而且是很长的函数
+    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//解析参数，并用open_input_file打开多个输入文件， open_input_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening output files: ");
         goto fail;

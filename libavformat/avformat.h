@@ -922,7 +922,7 @@ typedef struct AVStream {//TIGER AVStream
 
     int64_t nb_frames;                 ///< number of frames in this stream if known or 0
 
-    int disposition; /**< AV_DISPOSITION_* bit field */
+    int disposition; /**< AV_DISPOSITION_* bit field */ //参见使用说明ffmpeg.texi 些额外的参数ffmpeg - i in.mkv - c copy - disposition:s:0 0 - disposition : s : 1 default out.mkv To make the second subtitle stream the default streamand remove the default
 
     enum AVDiscard discard; ///< Selects which packets can be discarded at will and do not need to be demuxed.
 

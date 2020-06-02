@@ -5009,8 +5009,8 @@ int avformat_network_init(void)
 int avformat_network_deinit(void)
 {
 #if CONFIG_NETWORK
-    ff_network_close();
-    ff_tls_deinit();
+    ff_network_close();//windows 影响比较大
+    ff_tls_deinit();//tls 
 #endif
     return 0;
 }

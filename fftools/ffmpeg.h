@@ -456,7 +456,7 @@ typedef struct OutputStream {
     /* dts of the last packet sent to the muxer */
     int64_t last_mux_dts;
     // the timebase of the packets sent to the muxer
-    AVRational mux_timebase;
+    AVRational mux_timebase;//2个
     AVRational enc_timebase;
 
     int                    nb_bitstream_filters;
@@ -523,7 +523,7 @@ typedef struct OutputStream {
     const char *attachment_filename;
     int copy_initial_nonkeyframes;
     int copy_prior_start;
-    char *disposition;//参见使用说明ffmpeg.texi
+    char *disposition;//参见使用说明ffmpeg.texi 些额外的参数ffmpeg -i in.mkv -c copy -disposition:s:0 0 -disposition:s:1 default out.mkv To make the second subtitle stream the default stream and remove the default      
 
     int keep_pix_fmt;
 

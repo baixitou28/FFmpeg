@@ -101,15 +101,15 @@ void log_callback_help(void *ptr, int level, const char *fmt, va_list vl)
     vfprintf(stdout, fmt, vl);
 }
 
-static void log_callback_report(void *ptr, int level, const char *fmt, va_list vl)
+static void log_callback_report(void *ptr, int level, const char *fmt, va_list vl)//TIGER PROGRAM
 {
     va_list vl2;
     char line[1024];
     static int print_prefix = 1;
 
-    va_copy(vl2, vl);
-    av_log_default_callback(ptr, level, fmt, vl);
-    av_log_format_line(ptr, level, fmt, vl2, line, sizeof(line), &print_prefix);
+    va_copy(vl2, vl);//为什么要复制？
+    av_log_default_callback(ptr, level, fmt, vl);//TIGER 
+    av_log_format_line(ptr, level, fmt, vl2, line, sizeof(line), &print_prefix);//tiger
     va_end(vl2);
     if (report_file_level >= level) {
         fputs(line, report_file);
@@ -503,21 +503,21 @@ static void check_options(const OptionDef *po)
     }
 }
 
-void parse_loglevel(int argc, char **argv, const OptionDef *options)
+void parse_loglevel(int argc, char **argv, const OptionDef *options)//解析日志级别，是否report_file
 {
     int idx = locate_option(argc, argv, options, "loglevel");
     const char *env;
 
-    check_options(options);
+    check_options(options);//参数是否为输入输出
 
     if (!idx)
-        idx = locate_option(argc, argv, options, "v");
+        idx = locate_option(argc, argv, options, "v");//日志级别
     if (idx && argv[idx + 1])
         opt_loglevel(NULL, "loglevel", argv[idx + 1]);
     idx = locate_option(argc, argv, options, "report");//用参数开启统计
     if ((env = getenv("FFREPORT")) || idx) {
-        init_report(env);//用环境变量开启统计，前提idx，
-        if (report_file) {
+        init_report(env);//report参数或者FFREPORT环境变量开启统计
+        if (report_file) {//先打印参数
             int i;
             fprintf(report_file, "Command line:\n");
             for (i = 0; i < argc; i++) {
@@ -527,7 +527,7 @@ void parse_loglevel(int argc, char **argv, const OptionDef *options)
             fflush(report_file);
         }
     }
-    idx = locate_option(argc, argv, options, "hide_banner");
+    idx = locate_option(argc, argv, options, "hide_banner");//是否隐含banner
     if (idx)
         hide_banner = 1;
 }
@@ -975,7 +975,7 @@ static void expand_filename_template(AVBPrint *bp, const char *template,
     }
 }
 
-static int init_report(const char *env)
+static int init_report(const char *env)//创建report文件
 {
     char *filename_template = NULL;
     char *key, *val;
@@ -983,14 +983,14 @@ static int init_report(const char *env)
     time_t now;
     struct tm *tm;
     AVBPrint filename;
-
+    //01.已创建？
     if (report_file) /* already opened */
         return 0;
     time(&now);
     tm = localtime(&now);
 
     while (env && *env) {
-        if ((ret = av_opt_get_key_value(&env, "=", ":", 0, &key, &val)) < 0) {
+        if ((ret = av_opt_get_key_value(&env, "=", ":", 0, &key, &val)) < 0) {//02.获取参数
             if (count)
                 av_log(NULL, AV_LOG_ERROR,
                        "Failed to parse FFREPORT environment variable: %s\n",
@@ -1000,11 +1000,11 @@ static int init_report(const char *env)
         if (*env)
             env++;
         count++;
-        if (!strcmp(key, "file")) {
+        if (!strcmp(key, "file")) {//03.如果有文件参数，直接使用文件
             av_free(filename_template);
             filename_template = val;
             val = NULL;
-        } else if (!strcmp(key, "level")) {
+        } else if (!strcmp(key, "level")) {//04.如果有日志级别
             char *tail;
             report_file_level = strtol(val, &tail, 10);
             if (*tail) {
@@ -1017,9 +1017,9 @@ static int init_report(const char *env)
         av_free(val);
         av_free(key);
     }
-
+    //05.生成文件名
     av_bprint_init(&filename, 0, AV_BPRINT_SIZE_AUTOMATIC);
-    expand_filename_template(&filename,
+    expand_filename_template(&filename,//生成文件
                              av_x_if_null(filename_template, "%p-%t.log"), tm);
     av_free(filename_template);
     if (!av_bprint_is_complete(&filename)) {
@@ -1027,14 +1027,14 @@ static int init_report(const char *env)
         return AVERROR(ENOMEM);
     }
 
-    report_file = fopen(filename.str, "w");
+    report_file = fopen(filename.str, "w");//06.打开文件
     if (!report_file) {
         int ret = AVERROR(errno);
         av_log(NULL, AV_LOG_ERROR, "Failed to open report \"%s\": %s\n",
                filename.str, strerror(errno));
         return ret;
     }
-    av_log_set_callback(log_callback_report);
+    av_log_set_callback(log_callback_report);//07.设置回调
     av_log(NULL, AV_LOG_INFO,
            "%s started on %04d-%02d-%02d at %02d:%02d:%02d\n"
            "Report written to \"%s\"\n",
@@ -1042,7 +1042,7 @@ static int init_report(const char *env)
            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
            tm->tm_hour, tm->tm_min, tm->tm_sec,
            filename.str);
-    av_bprint_finalize(&filename, NULL);
+    av_bprint_finalize(&filename, NULL);//08.?
     return 0;
 }
 
