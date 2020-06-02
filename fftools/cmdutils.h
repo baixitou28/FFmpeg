@@ -620,7 +620,7 @@ void *grow_array(void *array, int elem_size, int *size, int new_size);
 #define media_type_string av_get_media_type_string
 
 #define GROW_ARRAY(array, nb_elems)\
-    array = grow_array(array, sizeof(*array), &nb_elems, nb_elems + 1)
+    array = grow_array(array, sizeof(*array), &nb_elems, nb_elems + 1)//注意这里nb_elems + 1是最大用户数再加1，而且nb_elems 会再加1==>太隐晦了，不推荐
 
 #define GET_PIX_FMT_NAME(pix_fmt)\
     const char *name = av_get_pix_fmt_name(pix_fmt);

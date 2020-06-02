@@ -707,7 +707,7 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
 
 /* Add all the streams from the given input file to the global
  * list of input streams. */
-static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
+static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//创建流，查找解码器，创建解码上下文，参数设置
 {
     int i, ret;
 
@@ -727,7 +727,7 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
         if (!ist)
             exit_program(1);
         //01.分配数组，并放入全局变量中
-        GROW_ARRAY(input_streams, nb_input_streams);//看数组够不够
+        GROW_ARRAY(input_streams, nb_input_streams);//看数组够不够：nb_input_streams + 1增长，nb_input_streams也同时自增！
         input_streams[nb_input_streams - 1] = ist;//ist放在全局输入流数组里
         //02.
         ist->st = st;
@@ -786,7 +786,7 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
             av_log(NULL, AV_LOG_ERROR, "Error initializing the decoder context.\n");
             exit_program(1);
         }
-
+        //
         if (o->bitexact)
             ist->dec_ctx->flags |= AV_CODEC_FLAG_BITEXACT;
         //07.
@@ -910,7 +910,7 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
         default:
             abort();
         }
-        //08.
+        //08.再copy回来？==> TIGER TODO
         ret = avcodec_parameters_from_context(par, ist->dec_ctx);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error initializing the decoder context.\n");
@@ -993,8 +993,8 @@ static void dump_attachment(AVStream *st, const char *filename)
     avio_flush(out);
     avio_close(out);
 }
-//TIGER TODO: 被open_files作为函数指针调用//第一参数是解析后的可选项，第二参数是原始的组信息
-static int open_input_file(OptionsContext *o, const char *filename)//重点：创建AVFormatContext
+//TIGER TODO: 被open_files作为函数指针调用 //第一参数是解析后的可选项，第二参数是原始的组信息
+static int open_input_file(OptionsContext *o, const char *filename)//重点函数：创建AVFormatContext，avformat_open_input 打开，可能使用avforamt_find_stream_info再使用 add_input_streams
 {
     InputFile *f;
     AVFormatContext *ic;
@@ -1185,14 +1185,14 @@ static int open_input_file(OptionsContext *o, const char *filename)//重点：创建A
                    filename, (double)timestamp / AV_TIME_BASE);
         }
     }
-    //12. 
+    //12. 逐一处理每个流，创建解码上下文，并更新参数
     /* update the current parameters so that they match the one of the input stream */
-    add_input_streams(o, ic);
+    add_input_streams(o, ic); //创建流，查找解码器，创建解码上下文，参数设置
 
     /* dump the file content */
     av_dump_format(ic, nb_input_files, filename, 0);//TIGER AAC 在这里打印输出的aac 为LC模式即LOW不是MAIN
     //13.分配InputFile的内存，并设置InputFile
-    GROW_ARRAY(input_files, nb_input_files);
+    GROW_ARRAY(input_files, nb_input_files);//nb_input_files+1扩展，并自增
     f = av_mallocz(sizeof(*f));
     if (!f)
         exit_program(1);
@@ -3130,10 +3130,10 @@ static int opt_audio_qscale(void *optctx, const char *opt, const char *arg)
     OptionsContext *o = optctx;
     return parse_option(o, "q:a", arg, options);
 }
-
-static int opt_filter_complex(void *optctx, const char *opt, const char *arg)
+//filter_complex参数 ：create a complex filtergraph 解析命令行自动调用
+static int opt_filter_complex(void *optctx, const char *opt, const char *arg)//增加一个filtergraphs，并赋值
 {
-    GROW_ARRAY(filtergraphs, nb_filtergraphs);
+    GROW_ARRAY(filtergraphs, nb_filtergraphs);//这里nb_filtergraphs 会自动加1
     if (!(filtergraphs[nb_filtergraphs - 1] = av_mallocz(sizeof(*filtergraphs[0]))))
         return AVERROR(ENOMEM);
     filtergraphs[nb_filtergraphs - 1]->index      = nb_filtergraphs - 1;
@@ -3294,7 +3294,7 @@ int ffmpeg_parse_options(int argc, char **argv)
     memset(&octx, 0, sizeof(octx));
 
     /* split the commandline into an internal representation */
-    ret = split_commandline(&octx, argc, argv, options, groups,//自己写命令行
+    ret = split_commandline(&octx, argc, argv, options, groups,//01.解析命令行
                             FF_ARRAY_ELEMS(groups));
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error splitting the argument list: ");
@@ -3302,39 +3302,39 @@ int ffmpeg_parse_options(int argc, char **argv)
     }
 
     /* apply global options */
-    ret = parse_optgroup(NULL, &octx.global_opts);//选项还分组：
+    ret = parse_optgroup(NULL, &octx.global_opts);//02.选项还分组：
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error parsing global options: ");
         goto fail;
     }
 
     /* configure terminal and setup signal handlers */
-    term_init();//终端设置和信号处理，放的地方....不好找
+    term_init();//03.终端设置和信号处理，放的地方....不好找
     
     /* open input files */
-    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//解析参数，并用open_input_file打开多个输入文件， open_input_file是函数！而且是很长的函数
+    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//04.解析参数，并用open_input_file打开多个输入文件， open_input_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening input files: ");
         goto fail;
     }
-
+    //命令行里 filter_complex ：create a complex filtergraph lavfi：create a complex filtergraph
     /* create the complex filtergraphs */
-    ret = init_complex_filters();//FILTER 暂时不考虑 ==>后面好像还是用到了，必须看
+    ret = init_complex_filters();//05.filter_complex选项没有用到 ==>后面好像还是用到了filter?
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error initializing complex filters.\n");
         goto fail;
     }
 
     /* open output files */
-    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//解析参数，并用open_input_file打开多个输入文件， open_input_file是函数！而且是很长的函数
+    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//06.解析参数，并用open_input_file打开多个输出文件， open_input_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening output files: ");
         goto fail;
     }
 
-    check_filter_outputs();//FILTER 暂时不考虑 
+    check_filter_outputs();//07.校验 
 
-fail:
+fail://08.异常
     uninit_parse_context(&octx);
     if (ret < 0) {
         av_strerror(ret, error, sizeof(error));

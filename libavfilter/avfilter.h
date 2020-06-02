@@ -838,7 +838,7 @@ typedef int (avfilter_execute_func)(AVFilterContext *ctx, avfilter_action_func *
                                     void *arg, int *ret, int nb_jobs);
 
 typedef struct AVFilterGraph {
-    const AVClass *av_class;
+    const AVClass *av_class;//¾ÙÀý£ºfiltergraph_class
     AVFilterContext **filters;
     unsigned nb_filters;
 

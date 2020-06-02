@@ -80,21 +80,21 @@ int ff_graph_thread_init(AVFilterGraph *graph)
 }
 #endif
 
-AVFilterGraph *avfilter_graph_alloc(void)
+AVFilterGraph *avfilter_graph_alloc(void)//分配AVFilterGraph内存，并初始化：分配internal内存，设置av_class， option，internal->frame_queues
 {
-    AVFilterGraph *ret = av_mallocz(sizeof(*ret));
+    AVFilterGraph *ret = av_mallocz(sizeof(*ret));//01.
     if (!ret)
         return NULL;
 
-    ret->internal = av_mallocz(sizeof(*ret->internal));
+    ret->internal = av_mallocz(sizeof(*ret->internal));//02.
     if (!ret->internal) {
         av_freep(&ret);
         return NULL;
     }
 
-    ret->av_class = &filtergraph_class;
-    av_opt_set_defaults(ret);
-    ff_framequeue_global_init(&ret->internal->frame_queues);
+    ret->av_class = &filtergraph_class;//03.
+    av_opt_set_defaults(ret);//设置默认的可选项
+    ff_framequeue_global_init(&ret->internal->frame_queues);//初始化队列：暂时是空函数
 
     return ret;
 }

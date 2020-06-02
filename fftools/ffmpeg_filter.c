@@ -337,26 +337,26 @@ static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)
     ist->filters[ist->nb_filters - 1] = fg->inputs[fg->nb_inputs - 1];
 }
 
-int init_complex_filtergraph(FilterGraph *fg)
+int init_complex_filtergraph(FilterGraph *fg)//TIGER 看注释，仅仅用来判断输入出的类型，在退出的时候丢弃
 {
     AVFilterInOut *inputs, *outputs, *cur;
     AVFilterGraph *graph;
     int ret = 0;
-
+    //TIGER 重要的注释
     /* this graph is only used for determining the kinds of inputs
      * and outputs we have, and is discarded on exit from this function */
-    graph = avfilter_graph_alloc();
+    graph = avfilter_graph_alloc();//01.分配AVFilterGraph内存，并初始化：分配internal内存，设置av_class， option，internal->frame_queues
     if (!graph)
         return AVERROR(ENOMEM);
-    graph->nb_threads = 1;
-
+    graph->nb_threads = 1;//02.只允许一个线程
+    //03.
     ret = avfilter_graph_parse2(graph, fg->graph_desc, &inputs, &outputs);
     if (ret < 0)
         goto fail;
-
+    //04.
     for (cur = inputs; cur; cur = cur->next)
         init_input_filter(fg, cur);
-
+    //05.
     for (cur = outputs; cur;) {
         GROW_ARRAY(fg->outputs, fg->nb_outputs);
         fg->outputs[fg->nb_outputs - 1] = av_mallocz(sizeof(*fg->outputs[0]));
@@ -694,7 +694,7 @@ void check_filter_outputs(void)
         int n;
         for (n = 0; n < filtergraphs[i]->nb_outputs; n++) {
             OutputFilter *output = filtergraphs[i]->outputs[n];
-            if (!output->ost) {
+            if (!output->ost) {//日志说是没有连接，说明是异常的 ==>什么时候呢？
                 av_log(NULL, AV_LOG_FATAL, "Filter %s has an unconnected output\n", output->name);
                 exit_program(1);
             }
