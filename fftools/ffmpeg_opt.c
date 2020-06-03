@@ -43,7 +43,7 @@
 
 #define DEFAULT_PASS_LOGFILENAME_PREFIX "ffmpeg2pass"
 
-#define MATCH_PER_STREAM_OPT(name, type, outvar, fmtctx, st)\
+#define MATCH_PER_STREAM_OPT(name, type, outvar, fmtctx, st)\//这是一个坑，这里o是不作为参数的，其实默认是OptionsContext *o，所以有点晕
 {\
     int i, ret;\
     for (i = 0; i < o->nb_ ## name; i++) {\
@@ -1312,19 +1312,19 @@ static int get_preset_file_2(const char *preset_name, const char *codec_name, AV
     }
     return ret;
 }
-
-static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *ost)
+//这里体现了命令行中的参数优先，copy > 编码名称codec_name ,没有就只能猜了
+static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *ost)//TIGER choose_encoder 从命令行的可选项找不到编码，就猜，再看有没有copy，最后用找到的编码
 {
     enum AVMediaType type = ost->st->codecpar->codec_type;
     char *codec_name = NULL;
 
-    if (type == AVMEDIA_TYPE_VIDEO || type == AVMEDIA_TYPE_AUDIO || type == AVMEDIA_TYPE_SUBTITLE) {
-        MATCH_PER_STREAM_OPT(codec_names, str, codec_name, s, ost->st);
-        if (!codec_name) {
-            ost->st->codecpar->codec_id = av_guess_codec(s->oformat, NULL, s->url,
+    if (type == AVMEDIA_TYPE_VIDEO || type == AVMEDIA_TYPE_AUDIO || type == AVMEDIA_TYPE_SUBTITLE) {//01.
+        MATCH_PER_STREAM_OPT(codec_names, str, codec_name, s, ost->st);//从OptionsContext* o中查找
+        if (!codec_name) {//01.01 找不到codec_name
+            ost->st->codecpar->codec_id = av_guess_codec(s->oformat, NULL, s->url,//
                                                          NULL, ost->st->codecpar->codec_type);
-            ost->enc = avcodec_find_encoder(ost->st->codecpar->codec_id);
-            if (!ost->enc) {
+            ost->enc = avcodec_find_encoder(ost->st->codecpar->codec_id);//查找编码
+            if (!ost->enc) {//找不到编码器
                 av_log(NULL, AV_LOG_FATAL, "Automatic encoder selection failed for "
                        "output stream #%d:%d. Default encoder for format %s (codec %s) is "
                        "probably disabled. Please choose an encoder manually.\n",
@@ -1332,71 +1332,71 @@ static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *o
                        avcodec_get_name(ost->st->codecpar->codec_id));
                 return AVERROR_ENCODER_NOT_FOUND;
             }
-        } else if (!strcmp(codec_name, "copy"))
+        } else if (!strcmp(codec_name, "copy"))//01.02 如果找到codec_name，先看有没有copy，优先copy
             ost->stream_copy = 1;
-        else {
+        else {//01.03 如果能找到编码名称，再查找是否是合适的编码
             ost->enc = find_codec_or_die(codec_name, ost->st->codecpar->codec_type, 1);
             ost->st->codecpar->codec_id = ost->enc->id;
         }
-        ost->encoding_needed = !ost->stream_copy;
-    } else {
+        ost->encoding_needed = !ost->stream_copy;//01.04 如果不是copy，就是需要encoding，反之不需要
+    } else {//02.如果不是音视频或者字幕，只能copy模式
         /* no encoding supported for other media types */
         ost->stream_copy     = 1;
-        ost->encoding_needed = 0;
+        ost->encoding_needed = 0;//也不需要encoding
     }
 
     return 0;
 }
-
+//TIGER new_output_stream ，分配OutputStream和AVStream
 static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, enum AVMediaType type, int source_index)
 {
     OutputStream *ost;
-    AVStream *st = avformat_new_stream(oc, NULL);
-    int idx      = oc->nb_streams - 1, ret = 0;
+    AVStream *st = avformat_new_stream(oc, NULL);//创建AVStream流
+    int idx      = oc->nb_streams - 1, ret = 0;//idx是当前最大的index
     const char *bsfs = NULL, *time_base = NULL;
     char *next, *codec_tag = NULL;
     double qscale = -1;
     int i;
-
+    //01. 校验
     if (!st) {
         av_log(NULL, AV_LOG_FATAL, "Could not alloc stream.\n");
         exit_program(1);
     }
-
+    //
     if (oc->nb_streams - 1 < o->nb_streamid_map)
         st->id = o->streamid_map[oc->nb_streams - 1];
-
-    GROW_ARRAY(output_streams, nb_output_streams);
-    if (!(ost = av_mallocz(sizeof(*ost))))
+    //02. 创建OutputStream流
+    GROW_ARRAY(output_streams, nb_output_streams);//扩展队列，并nb_output_streams自增
+    if (!(ost = av_mallocz(sizeof(*ost))))//分配实例
         exit_program(1);
-    output_streams[nb_output_streams - 1] = ost;
-
+    output_streams[nb_output_streams - 1] = ost;//放在全局数组output_streams里
+    //初始化OutputStream
     ost->file_index = nb_output_files - 1;
     ost->index      = idx;
     ost->st         = st;
-    ost->forced_kf_ref_pts = AV_NOPTS_VALUE;
-    st->codecpar->codec_type = type;
-
+    ost->forced_kf_ref_pts = AV_NOPTS_VALUE;//tiger ?
+    st->codecpar->codec_type = type;//tiger AVStream
+    //03. 
     ret = choose_encoder(o, oc, ost);
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error selecting an encoder for stream "
                "%d:%d\n", ost->file_index, ost->index);
         exit_program(1);
     }
-
+    //04.分配上下文
     ost->enc_ctx = avcodec_alloc_context3(ost->enc);
     if (!ost->enc_ctx) {
         av_log(NULL, AV_LOG_ERROR, "Error allocating the encoding context.\n");
         exit_program(1);
     }
     ost->enc_ctx->codec_type = type;
-
+    //05. 分配实例，ref_par是和输入参数相关，在加上编码的选项
     ost->ref_par = avcodec_parameters_alloc();
     if (!ost->ref_par) {
         av_log(NULL, AV_LOG_ERROR, "Error allocating the encoding parameters.\n");
         exit_program(1);
     }
-
+    //06.
     if (ost->enc) {
         AVIOContext *s = NULL;
         char *buf = NULL, *arg = NULL, *preset = NULL;
@@ -1431,10 +1431,10 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         ost->encoder_opts = filter_codec_opts(o->g->codec_opts, AV_CODEC_ID_NONE, oc, st, NULL);
     }
 
-
+    //07.
     if (o->bitexact)
         ost->enc_ctx->flags |= AV_CODEC_FLAG_BITEXACT;
-
+    //08.
     MATCH_PER_STREAM_OPT(time_bases, str, time_base, oc, st);
     if (time_base) {
         AVRational q;
@@ -1445,7 +1445,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         }
         st->time_base = q;
     }
-
+    //09.
     MATCH_PER_STREAM_OPT(enc_time_bases, str, time_base, oc, st);
     if (time_base) {
         AVRational q;
@@ -1456,7 +1456,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         }
         ost->enc_timebase = q;
     }
-
+    //10.
     ost->max_frames = INT64_MAX;
     MATCH_PER_STREAM_OPT(max_frames, i64, ost->max_frames, oc, st);
     for (i = 0; i<o->nb_max_frames; i++) {
@@ -1466,10 +1466,10 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
             break;
         }
     }
-
+    //11.
     ost->copy_prior_start = -1;
     MATCH_PER_STREAM_OPT(copy_prior_start, i, ost->copy_prior_start, oc ,st);
-
+    //12.
     MATCH_PER_STREAM_OPT(bitstream_filters, str, bsfs, oc, st);
     while (bsfs && *bsfs) {
         const AVBitStreamFilter *filter;
@@ -1520,7 +1520,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         if (*bsfs)
             bsfs++;
     }
-
+    //13.
     MATCH_PER_STREAM_OPT(codec_tags, str, codec_tag, oc, st);
     if (codec_tag) {
         uint32_t tag = strtol(codec_tag, &next, 0);
@@ -1529,20 +1529,20 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         ost->st->codecpar->codec_tag =
         ost->enc_ctx->codec_tag = tag;
     }
-
+    //14.
     MATCH_PER_STREAM_OPT(qscale, dbl, qscale, oc, st);
     if (qscale >= 0) {
         ost->enc_ctx->flags |= AV_CODEC_FLAG_QSCALE;
         ost->enc_ctx->global_quality = FF_QP2LAMBDA * qscale;
     }
-
+    //15.
     MATCH_PER_STREAM_OPT(disposition, str, ost->disposition, oc, st);
     ost->disposition = av_strdup(ost->disposition);
-
+    //16.
     ost->max_muxing_queue_size = 128;
     MATCH_PER_STREAM_OPT(max_muxing_queue_size, i, ost->max_muxing_queue_size, oc, st);
     ost->max_muxing_queue_size *= sizeof(AVPacket);
-
+    //17.
     if (oc->oformat->flags & AVFMT_GLOBALHEADER)
         ost->enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
@@ -1561,8 +1561,8 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         input_streams[source_index]->st->discard = input_streams[source_index]->user_set_discard;
     }
     ost->last_mux_dts = AV_NOPTS_VALUE;
-
-    ost->muxing_queue = av_fifo_alloc(8 * sizeof(AVPacket));
+    //15.
+    ost->muxing_queue = av_fifo_alloc(8 * sizeof(AVPacket));//分配默认队列
     if (!ost->muxing_queue)
         exit_program(1);
 
@@ -2055,29 +2055,29 @@ static void init_output_filter(OutputFilter *ofilter, OptionsContext *o,
                                AVFormatContext *oc)
 {
     OutputStream *ost;
-
+    //01.创建流OutputStream
     switch (ofilter->type) {
-    case AVMEDIA_TYPE_VIDEO: ost = new_video_stream(o, oc, -1); break;
+    case AVMEDIA_TYPE_VIDEO: ost = new_video_stream(o, oc, -1); break;//新建
     case AVMEDIA_TYPE_AUDIO: ost = new_audio_stream(o, oc, -1); break;
     default:
         av_log(NULL, AV_LOG_FATAL, "Only video and audio filters are supported "
                "currently.\n");
         exit_program(1);
     }
-
+    //02.对OutputStream ost 赋值
     ost->source_index = -1;
-    ost->filter       = ofilter;
-
-    ofilter->ost      = ost;
+    ost->filter       = ofilter;//相互绑定OutputFilter
+    //03.对OutputFilter赋值
+    ofilter->ost      = ost;//相互绑定
     ofilter->format   = -1;
-
+    //04.不能同时使用copy
     if (ost->stream_copy) {
         av_log(NULL, AV_LOG_ERROR, "Streamcopy requested for output stream %d:%d, "
                "which is fed from a complex filtergraph. Filtering and streamcopy "
                "cannot be used together.\n", ost->file_index, ost->index);
         exit_program(1);
     }
-
+    //05.是否冲突
     if (ost->avfilter && (ost->filters || ost->filters_script)) {
         const char *opt = ost->filters ? "-vf/-af/-filter" : "-filter_script";
         av_log(NULL, AV_LOG_ERROR,
@@ -2089,7 +2089,7 @@ static void init_output_filter(OutputFilter *ofilter, OptionsContext *o,
                opt, ost->file_index, ost->index, opt);
         exit_program(1);
     }
-
+    //06.是否释放
     avfilter_inout_free(&ofilter->out_tmp);
 }
 
@@ -2178,7 +2178,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
             if (!ofilter->out_tmp || ofilter->out_tmp->name)//06.02
                 continue;
 
-            switch (ofilter->type) {//06.03
+            switch (ofilter->type) {//06.03 是否禁止
             case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;
             case AVMEDIA_TYPE_AUDIO:    o->audio_disable    = 1; break;
             case AVMEDIA_TYPE_SUBTITLE: o->subtitle_disable = 1; break;

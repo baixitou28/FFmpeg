@@ -542,7 +542,7 @@ typedef struct OutputStream {
     int max_muxing_queue_size;
 
     /* the packets are buffered here until the muxer is ready to be initialized */
-    AVFifoBuffer *muxing_queue;
+    AVFifoBuffer *muxing_queue;//TIGER 一种情况在new_output_stream分配
 
     /* packet picture type */
     int pict_type;
