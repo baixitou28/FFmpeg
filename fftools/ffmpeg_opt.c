@@ -2130,7 +2130,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
             o->recording_time = o->stop_time - start_time;
         }
     }
-    //02.在output_files的数组里面增加一个输出文件
+    //02.在全局的output_files的数组里面增加一个输出文件
     GROW_ARRAY(output_files, nb_output_files);//扩展数组
     of = av_mallocz(sizeof(*of));//分配内存
     if (!of)
@@ -2417,7 +2417,7 @@ loop_end:
                                 AV_DICT_IGNORE_SUFFIX)))
             av_dict_set(&unused_opts, e->key, NULL, 0);
     }
-    //12. 提示用户未使用的可选项
+    //12. 提示用户未使用的可选项，在使用中很有帮助
     e = NULL;
     while ((e = av_dict_get(unused_opts, "", e, AV_DICT_IGNORE_SUFFIX))) {
         const AVClass *class = avcodec_get_class();
@@ -2461,7 +2461,7 @@ loop_end:
 
             if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||//如果是音视频编码
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                err = init_simple_filtergraph(ist, ost);//创建filtergraph （可用watch filtergraphs ），同时和输入出关联
+                err = init_simple_filtergraph(ist, ost);//tiger init_simple_filtergraph重要 创建filtergraph （可用watch filtergraphs ），同时和输入出关联
                 if (err < 0) {
                     av_log(NULL, AV_LOG_ERROR,
                            "Error initializing a simple filtergraph between streams "
@@ -2471,13 +2471,13 @@ loop_end:
                 }
             }
         }
-        //13.02
+        //13.02 设置OutputFilter  不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
         /* set the filter output constraints */
         if (ost->filter) {//如果输出流Outfilter不为空
             OutputFilter *f = ost->filter;
             int count;
             switch (ost->enc_ctx->codec_type) {//根据codec_type来选择
-            case AVMEDIA_TYPE_VIDEO://13.02.01
+            case AVMEDIA_TYPE_VIDEO://13.02.01  不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
                 f->frame_rate = ost->frame_rate;//帧率是由输出流定的？
                 f->width      = ost->enc_ctx->width;
                 f->height     = ost->enc_ctx->height;
