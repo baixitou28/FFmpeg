@@ -1420,13 +1420,13 @@ static void finish_output_stream(OutputStream *ost)
  *
  * @return  0 for success, <0 for severe errors
  */
-static int reap_filters(int flush)
+static int reap_filters(int flush)//TIGER 看注释，“在没有导致连接？获得一个filtegraph，并从编码输出”==>
 {
     AVFrame *filtered_frame = NULL;
     int i;
 
     /* Reap all buffers present in the buffer sinks */
-    for (i = 0; i < nb_output_streams; i++) {
+    for (i = 0; i < nb_output_streams; i++) {//尝试所有的输出流
         OutputStream *ost = output_streams[i];
         OutputFile    *of = output_files[ost->file_index];
         AVFilterContext *filter;
@@ -1434,7 +1434,7 @@ static int reap_filters(int flush)
         int ret = 0;
         //01.
         if (!ost->filter || !ost->filter->graph->graph)
-            continue;
+            continue;//如果没有graph，忽略
         filter = ost->filter->filter;
         //02.如果未初始化，尝试初始化
         if (!ost->initialized) {
@@ -4581,7 +4581,7 @@ static int transcode_step(void)
     OutputStream *ost;
     InputStream  *ist = NULL;
     int ret;
-
+    //01.挑一个最小index的输出
     ost = choose_output();
     if (!ost) {
         if (got_eagain()) {
@@ -4592,7 +4592,7 @@ static int transcode_step(void)
         av_log(NULL, AV_LOG_VERBOSE, "No more inputs to read from, finishing.\n");
         return AVERROR_EOF;
     }
-
+    //02. 如果没有graph
     if (ost->filter && !ost->filter->graph->graph) {
         if (ifilter_has_all_input_formats(ost->filter->graph)) {
             ret = configure_filtergraph(ost->filter->graph);
@@ -4602,22 +4602,22 @@ static int transcode_step(void)
             }
         }
     }
-
-    if (ost->filter && ost->filter->graph->graph) {
+    //03. 如果没有初始化
+    if (ost->filter && ost->filter->graph->graph) {//03.01 graph存在
         if (!ost->initialized) {
             char error[1024] = {0};
-            ret = init_output_stream(ost, error, sizeof(error));
+            ret = init_output_stream(ost, error, sizeof(error));//初始化
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Error initializing output stream %d:%d -- %s\n",
                        ost->file_index, ost->index, error);
                 exit_program(1);
             }
         }
-        if ((ret = transcode_from_filter(ost->filter->graph, &ist)) < 0)
+        if ((ret = transcode_from_filter(ost->filter->graph, &ist)) < 0)//转码
             return ret;
         if (!ist)
             return 0;
-    } else if (ost->filter) {
+    } else if (ost->filter) {//03.02 graph不存在
         int i;
         for (i = 0; i < ost->filter->graph->nb_inputs; i++) {
             InputFilter *ifilter = ost->filter->graph->inputs[i];
@@ -4630,22 +4630,22 @@ static int transcode_step(void)
             ost->inputs_done = 1;
             return 0;
         }
-    } else {
+    } else {//03.03
         av_assert0(ost->source_index >= 0);
         ist = input_streams[ost->source_index];
     }
-    //
+    //04.处理输入
     ret = process_input(ist->file_index);
-    if (ret == AVERROR(EAGAIN)) {
+    if (ret == AVERROR(EAGAIN)) {//04.01如果是EAGAIN
         if (input_files[ist->file_index]->eagain)
             ost->unavailable = 1;
         return 0;
     }
 
-    if (ret < 0)
+    if (ret < 0)//04.02如果异常
         return ret == AVERROR_EOF ? 0 : ret;
 
-    return reap_filters(0); //如果输出的文件未创建，再这里打开
+    return reap_filters(0); //04.03 如果输出的文件未创建，再这里打开
 }
 //主函数
 /*
@@ -4845,12 +4845,12 @@ int main(int argc, char **argv)
     int i, ret;
     BenchmarkTimeStamps ti;//？
     
-    init_dynload();//windows的动态加载目录设置
+    init_dynload();//01.windows的动态加载目录设置
 
-    register_exit(ffmpeg_cleanup);//这个大概以前是at_exist吧 //tiger program
-    
+    register_exit(ffmpeg_cleanup);//02.这个大概以前是at_exist吧 //tiger program
+    //03.输出处理 
     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this *///这个不是一直这样的吗？
-
+    //04.处理日志界别和后台命令
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     parse_loglevel(argc, argv, options);//解析日志级别，是否将报告写入文件
 
@@ -4860,19 +4860,19 @@ int main(int argc, char **argv)
         argc--;
         argv++;
     }
-
+    //05.初始化
 #if CONFIG_AVDEVICE//这个不大理解，有什么用==> 都是可配置的模块
     avdevice_register_all();//注册所有设备
 #endif
     avformat_network_init();//是否初始化网络，是否初始化ssl
 
     show_banner(argc, argv, options);//打印banner相关信息
-
+    //06.解析参数
     /* parse options and open all input/output files */
     ret = ffmpeg_parse_options(argc, argv);//解析参数，如果数输入出文件，直接打开
     if (ret < 0)
         exit_program(1);
-
+    //07.输入出文件校验
     if (nb_output_files <= 0 && nb_input_files == 0) {//没有输入文件也没有输出文件
         show_usage();
         av_log(NULL, AV_LOG_WARNING, "Use -h to get full help or, even better, run 'man %s'\n", program_name);
@@ -4884,16 +4884,16 @@ int main(int argc, char **argv)
         av_log(NULL, AV_LOG_FATAL, "At least one output file must be specified\n");//对比上面的提示，这样更清楚
         exit_program(1);
     }
-
+    //08. rtp额外处理
     for (i = 0; i < nb_output_files; i++) {
         if (strcmp(output_files[i]->ctx->oformat->name, "rtp"))
             want_sdp = 0;//如果是rtp文件，则需要sdp 提示
     }
 
     current_time = ti = get_benchmark_time_stamps();
-    if (transcode() < 0)//主函数，转码
+    if (transcode() < 0)//09.主函数，转码
         exit_program(1);//转失败，返回1.//TIGER 返回值大于0，都是非正常返回。
-    if (do_benchmark) {//如果是性能测试，打印更多信息
+    if (do_benchmark) {//10.如果是性能测试，打印更多信息
         int64_t utime, stime, rtime;
         current_time = get_benchmark_time_stamps();
         utime = current_time.user_usec - ti.user_usec;
@@ -4908,6 +4908,6 @@ int main(int argc, char **argv)
     if ((decode_error_stat[0] + decode_error_stat[1]) * max_error_rate < decode_error_stat[1])
         exit_program(69);//为什么是69
 
-    exit_program(received_nb_signals ? 255 : main_return_code);//如果是信号，输出信号的ID否则其他返回值
+    exit_program(received_nb_signals ? 255 : main_return_code);//10 如果是信号，输出信号的ID否则其他返回值，同时执行atexist
     return main_return_code;
 }

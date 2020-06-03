@@ -2093,12 +2093,12 @@ static void init_output_filter(OutputFilter *ofilter, OptionsContext *o,
     avfilter_inout_free(&ofilter->out_tmp);
 }
 
-static int init_complex_filters(void)
+static int init_complex_filters(void)//初始化命令行的filter_complex
 {
     int i, ret = 0;
 
     for (i = 0; i < nb_filtergraphs; i++) {
-        ret = init_complex_filtergraph(filtergraphs[i]);
+        ret = init_complex_filtergraph(filtergraphs[i]);//
         if (ret < 0)
             return ret;
     }
@@ -2115,7 +2115,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
     AVDictionary *unused_opts = NULL;
     AVDictionaryEntry *e = NULL;
     int format_flags = 0;
-
+    //01.校验stop_time和recording_time
     if (o->stop_time != INT64_MAX && o->recording_time != INT64_MAX) {
         o->stop_time = INT64_MAX;
         av_log(NULL, AV_LOG_WARNING, "-t and -to cannot be used together; using -t.\n");
@@ -2130,23 +2130,23 @@ static int open_output_file(OptionsContext *o, const char *filename)
             o->recording_time = o->stop_time - start_time;
         }
     }
-
-    GROW_ARRAY(output_files, nb_output_files);
-    of = av_mallocz(sizeof(*of));
+    //02.在output_files的数组里面增加一个输出文件
+    GROW_ARRAY(output_files, nb_output_files);//扩展数组
+    of = av_mallocz(sizeof(*of));//分配内存
     if (!of)
         exit_program(1);
-    output_files[nb_output_files - 1] = of;
-
+    output_files[nb_output_files - 1] = of;//放入数组
+    //初始化
     of->ost_index      = nb_output_streams;
     of->recording_time = o->recording_time;
     of->start_time     = o->start_time;
     of->limit_filesize = o->limit_filesize;
     of->shortest       = o->shortest;
-    av_dict_copy(&of->opts, o->g->format_opts, 0);
+    av_dict_copy(&of->opts, o->g->format_opts, 0);//可选项
 
-    if (!strcmp(filename, "-"))
+    if (!strcmp(filename, "-"))//是否用pipe
         filename = "pipe:";
-
+    //03.创建输出的上下文
     err = avformat_alloc_output_context2(&oc, NULL, o->format, filename);
     if (!oc) {
         print_error(filename, err);
@@ -2154,43 +2154,43 @@ static int open_output_file(OptionsContext *o, const char *filename)
     }
 
     of->ctx = oc;
-    if (o->recording_time != INT64_MAX)
+    if (o->recording_time != INT64_MAX)//设置录制时间
         oc->duration = o->recording_time;
-
-    oc->interrupt_callback = int_cb;
-
+    //04.创建回调函数
+    oc->interrupt_callback = int_cb;//解析过程中的回调，只判断是否结束
+    //05.设置format flag
     e = av_dict_get(o->g->format_opts, "fflags", NULL, 0);
     if (e) {
         const AVOption *o = av_opt_find(oc, "fflags", NULL, 0, 0);
         av_opt_eval_flags(oc, o, e->value, &format_flags);
     }
-    if (o->bitexact) {
+    if (o->bitexact) {//
         format_flags |= AVFMT_FLAG_BITEXACT;
         oc->flags    |= AVFMT_FLAG_BITEXACT;
     }
-
+    //06.
     /* create streams for all unlabeled output pads */
     for (i = 0; i < nb_filtergraphs; i++) {
         FilterGraph *fg = filtergraphs[i];
         for (j = 0; j < fg->nb_outputs; j++) {
-            OutputFilter *ofilter = fg->outputs[j];
+            OutputFilter *ofilter = fg->outputs[j];//06.01
 
-            if (!ofilter->out_tmp || ofilter->out_tmp->name)
+            if (!ofilter->out_tmp || ofilter->out_tmp->name)//06.02
                 continue;
 
-            switch (ofilter->type) {
+            switch (ofilter->type) {//06.03
             case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;
             case AVMEDIA_TYPE_AUDIO:    o->audio_disable    = 1; break;
             case AVMEDIA_TYPE_SUBTITLE: o->subtitle_disable = 1; break;
             }
-            init_output_filter(ofilter, o, oc);
+            init_output_filter(ofilter, o, oc);//06.04
         }
     }
-
-    if (!o->nb_stream_maps) {
+    //07.
+    if (!o->nb_stream_maps) {//07.01
         char *subtitle_codec_name = NULL;
         /* pick the "best" stream of each type */
-
+        //07.01.01 视频
         /* video: highest resolution */
         if (!o->video_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_VIDEO) != AV_CODEC_ID_NONE) {
             int area = 0, idx = -1;
@@ -2215,7 +2215,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
             if (idx >= 0)
                 new_video_stream(o, oc, idx);
         }
-
+        //07.01.02 音频
         /* audio: most channels */
         if (!o->audio_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_AUDIO) != AV_CODEC_ID_NONE) {
             int best_score = 0, idx = -1;
@@ -2235,7 +2235,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
             if (idx >= 0)
                 new_audio_stream(o, oc, idx);
         }
-
+        //07.01.03 字幕
         /* subtitles: pick first */
         MATCH_PER_TYPE_OPT(codec_names, str, subtitle_codec_name, oc, "s");
         if (!o->subtitle_disable && (avcodec_find_encoder(oc->oformat->subtitle_codec) || subtitle_codec_name)) {
@@ -2267,7 +2267,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
                 }
         }
         /* Data only if codec id match */
-        if (!o->data_disable ) {
+        if (!o->data_disable ) {//07.01.04
             enum AVCodecID codec_id = av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_DATA);
             for (i = 0; codec_id != AV_CODEC_ID_NONE && i < nb_input_streams; i++) {
                 if (input_streams[i]->user_set_discard == AVDISCARD_ALL)
@@ -2277,14 +2277,14 @@ static int open_output_file(OptionsContext *o, const char *filename)
                     new_data_stream(o, oc, i);
             }
         }
-    } else {
+    } else {//07.02
         for (i = 0; i < o->nb_stream_maps; i++) {
             StreamMap *map = &o->stream_maps[i];
 
             if (map->disabled)
                 continue;
 
-            if (map->linklabel) {
+            if (map->linklabel) {//07.02.01
                 FilterGraph *fg;
                 OutputFilter *ofilter = NULL;
                 int j, k;
@@ -2306,7 +2306,7 @@ loop_end:
                     exit_program(1);
                 }
                 init_output_filter(ofilter, o, oc);
-            } else {
+            } else {//07.02.02
                 int src_idx = input_files[map->file_index]->ist_index + map->stream_index;
 
                 ist = input_streams[input_files[map->file_index]->ist_index + map->stream_index];
@@ -2354,7 +2354,7 @@ loop_end:
             }
         }
     }
-
+    //08.
     /* handle attached files */
     for (i = 0; i < o->nb_attachments; i++) {
         AVIOContext *pb;
@@ -2389,7 +2389,7 @@ loop_end:
         av_dict_set(&ost->st->metadata, "filename", (p && *p) ? p + 1 : o->attachments[i], AV_DICT_DONT_OVERWRITE);
         avio_closep(&pb);
     }
-
+    //09.
 #if FF_API_LAVF_AVCTX
     for (i = nb_output_streams - oc->nb_streams; i < nb_output_streams; i++) { //for all streams of this output file
         AVDictionaryEntry *e;
@@ -2402,13 +2402,13 @@ loop_end:
                 exit_program(1);
     }
 #endif
-
+    //10.
     if (!oc->nb_streams && !(oc->oformat->flags & AVFMT_NOSTREAMS)) {
         av_dump_format(oc, nb_output_files - 1, oc->url, 1);
         av_log(NULL, AV_LOG_ERROR, "Output file #%d does not contain any stream\n", nb_output_files - 1);
         exit_program(1);
     }
-
+    //11. 查找未使用的可选项
     /* check if all codec options have been used */
     unused_opts = strip_specifiers(o->g->codec_opts);
     for (i = of->ost_index; i < nb_output_streams; i++) {
@@ -2417,7 +2417,7 @@ loop_end:
                                 AV_DICT_IGNORE_SUFFIX)))
             av_dict_set(&unused_opts, e->key, NULL, 0);
     }
-
+    //12. 提示用户未使用的可选项
     e = NULL;
     while ((e = av_dict_get(unused_opts, "", e, AV_DICT_IGNORE_SUFFIX))) {
         const AVClass *class = avcodec_get_class();
@@ -2450,7 +2450,7 @@ loop_end:
                option->help ? option->help : "", nb_output_files - 1, filename);
     }
     av_dict_free(&unused_opts);
-
+    //13.
     /* set the decoding_needed flags and create simple filtergraphs */
     for (i = of->ost_index; i < nb_output_streams; i++) {
         OutputStream *ost = output_streams[i];
@@ -2533,7 +2533,7 @@ loop_end:
             }
         }
     }
-
+    //14.
     /* check filename in case of an image number is expected */
     if (oc->oformat->flags & AVFMT_NEEDNUMBER) {
         if (!av_filename_number_test(oc->url)) {
@@ -2541,13 +2541,13 @@ loop_end:
             exit_program(1);
         }
     }
-
+    //15.
     if (!(oc->oformat->flags & AVFMT_NOSTREAMS) && !input_stream_potentially_available) {
         av_log(NULL, AV_LOG_ERROR,
                "No input streams but output needs an input stream\n");
         exit_program(1);
     }
-
+    //16.
     if (!(oc->oformat->flags & AVFMT_NOFILE)) {
         /* test if it already exists to avoid losing precious files */
         assert_file_overwrite(filename);
@@ -2566,7 +2566,7 @@ loop_end:
         av_dict_set_int(&of->opts, "preload", o->mux_preload*AV_TIME_BASE, 0);
     }
     oc->max_delay = (int)(o->mux_max_delay * AV_TIME_BASE);
-
+    //17.
     /* copy metadata */
     for (i = 0; i < o->nb_metadata_map; i++) {
         char *p;
@@ -2580,7 +2580,7 @@ loop_end:
                       in_file_index >= 0 ?
                       input_files[in_file_index]->ctx : NULL, o);
     }
-
+    //18.
     /* copy chapters */
     if (o->chapters_input_file >= nb_input_files) {
         if (o->chapters_input_file == INT_MAX) {
@@ -2600,7 +2600,7 @@ loop_end:
     if (o->chapters_input_file >= 0)
         copy_chapters(input_files[o->chapters_input_file], of,
                       !o->metadata_chapters_manual);
-
+    //19.
     /* copy global metadata by default */
     if (!o->metadata_global_manual && nb_input_files){
         av_dict_copy(&oc->metadata, input_files[0]->ctx->metadata,
@@ -2609,7 +2609,7 @@ loop_end:
             av_dict_set(&oc->metadata, "duration", NULL, 0);
         av_dict_set(&oc->metadata, "creation_time", NULL, 0);
     }
-    if (!o->metadata_streams_manual)
+    if (!o->metadata_streams_manual)//20.
         for (i = of->ost_index; i < nb_output_streams; i++) {
             InputStream *ist;
             if (output_streams[i]->source_index < 0)         /* this is true e.g. for attached files */
@@ -2620,7 +2620,7 @@ loop_end:
                 av_dict_set(&output_streams[i]->st->metadata, "encoder", NULL, 0);
             }
         }
-
+    //21.
     /* process manually set programs */
     for (i = 0; i < o->nb_program; i++) {
         const char *p = o->program[i].u.str;
@@ -2686,7 +2686,7 @@ loop_end:
             av_freep(&key);
         }
     }
-
+    //22.
     /* process manually set metadata */
     for (i = 0; i < o->nb_metadata; i++) {
         AVDictionary **m;
@@ -3326,7 +3326,7 @@ int ffmpeg_parse_options(int argc, char **argv)
     }
 
     /* open output files */
-    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//06.解析参数，并用open_input_file打开多个输出文件， open_input_file是函数！而且是很长的函数
+    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//06.解析参数，并用open_output_file打开多个输出文件， open_output_file是函数！而且是很长的函数
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening output files: ");
         goto fail;
