@@ -193,15 +193,15 @@ DEF_CHOOSE_FORMAT(sample_rates, int, sample_rate, sample_rates, 0,
 
 DEF_CHOOSE_FORMAT(channel_layouts, uint64_t, channel_layout, channel_layouts, 0,
                   GET_CH_LAYOUT_NAME)
-
-int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph
+//tiger program gdb watch filtergraphs 才找到这
+int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph 理解filtergraph和输入出流的关联
 {
     FilterGraph *fg = av_mallocz(sizeof(*fg));//01.创建FilterGraph实例
 
     if (!fg)
         exit_program(1);
-    fg->index = nb_filtergraphs;//nb_filtergraphs 会在末尾增加
-    //02.创建并初始化OutputFilter，使得和OutputStream，FilterGraph关联
+    fg->index = nb_filtergraphs;//这是全局数组的index，nb_filtergraphs 会在末尾增加
+    //02.创建并初始化FilterGraph的OutputFilter，使得和OutputStream，FilterGraph关联
     GROW_ARRAY(fg->outputs, fg->nb_outputs);//扩展输出 fg->outputs，并fg->nb_outputs自增，如果失败，直接退出程序
     if (!(fg->outputs[0] = av_mallocz(sizeof(*fg->outputs[0]))))//创建OutputFilter实例
         exit_program(1);
@@ -210,18 +210,18 @@ int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_sim
     fg->outputs[0]->format = -1;//格式无
 
     ost->filter = fg->outputs[0];//OutputStream和OutputFilter相互关联
-    //03.创建并初始化InputFilter，使得和InputStream，FilterGraph关联
+    //03.创建并初始化FilterGraph的InputFilter，使得和InputStream，FilterGraph关联
     GROW_ARRAY(fg->inputs, fg->nb_inputs);//扩展输入 fg->inputs，并nb_inputs自增
     if (!(fg->inputs[0] = av_mallocz(sizeof(*fg->inputs[0]))))
         exit_program(1);
     fg->inputs[0]->ist   = ist;//初始化InputFilter，且InputFilter和InputStream相互关联
     fg->inputs[0]->graph = fg;//InputFilter和FilterGraph关联
     fg->inputs[0]->format = -1;
-    //04.创建输入队列
+    //04.创建FilterGraph的InputFilter的输入队列
     fg->inputs[0]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));//输入的队列，默认8个：超过了呢？==>
     if (!fg->inputs[0]->frame_queue)
         exit_program(1);
-    //05.创建输入流的filter，
+    //05.输入流的filter里面绑定FilterGraph的InputFilter
     GROW_ARRAY(ist->filters, ist->nb_filters);//扩展ist->filters，并nb_filters自增，如果失败，直接退出程序
     ist->filters[ist->nb_filters - 1] = fg->inputs[0];//
     //06.放到全局数组中
