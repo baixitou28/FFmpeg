@@ -707,7 +707,7 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
 
 /* Add all the streams from the given input file to the global
  * list of input streams. */
-static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//´´½¨Á÷InputStream* istºÍ½âÂëÉÏÏÂÎÄist->dec_ctx £¬²¢½øĞĞ²ÎÊıÉèÖÃ£¬
+static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//´´½¨Á÷InputStream* istºÍ½âÂëÉÏÏÂÎÄist->dec_ctx £¬²¢½øĞĞ²ÎÊıÉèÖÃ£¬ istºÍic->streams[i]°ó¶¨
 {//½«ist·ÅÈëÈ«¾ÖÊı×éinput_streams
     int i, ret;
 
@@ -1101,7 +1101,7 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
         scan_all_pmts_set = 1;
     }
     /* open the input file with generic avformat function */
-    err = avformat_open_input(&ic, filename, file_iformat, &o->g->format_opts);//08.³¢ÊÔ´ò¿ª
+    err = avformat_open_input(&ic, filename, file_iformat, &o->g->format_opts);//08.³¢ÊÔ´ò¿ªfilename
     if (err < 0) {
         print_error(filename, err);
         if (err == AVERROR_PROTOCOL_NOT_FOUND)
@@ -1187,7 +1187,7 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
     }
     //12. ÖğÒ»´¦ÀíÃ¿¸öÁ÷£¬´´½¨½âÂëÉÏÏÂÎÄ£¬²¢¸üĞÂ²ÎÊı
     /* update the current parameters so that they match the one of the input stream */
-    add_input_streams(o, ic); //´´½¨Á÷£¬²éÕÒ½âÂëÆ÷£¬´´½¨½âÂëÉÏÏÂÎÄ£¬²ÎÊıÉèÖÃ
+    add_input_streams(o, ic);//´´½¨Á÷InputStream* istºÍ½âÂëÉÏÏÂÎÄist->dec_ctx £¬²¢½øĞĞ²ÎÊıÉèÖÃ£¬ istºÍic->streams[i]°ó¶¨ 
 
     /* dump the file content */
     av_dump_format(ic, nb_input_files, filename, 0);//TIGER AAC ÔÚÕâÀï´òÓ¡Êä³öµÄaac ÎªLCÄ£Ê½¼´LOW²»ÊÇMAIN
