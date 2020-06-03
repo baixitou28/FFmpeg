@@ -194,38 +194,38 @@ DEF_CHOOSE_FORMAT(sample_rates, int, sample_rate, sample_rates, 0,
 DEF_CHOOSE_FORMAT(channel_layouts, uint64_t, channel_layout, channel_layouts, 0,
                   GET_CH_LAYOUT_NAME)
 
-int init_simple_filtergraph(InputStream *ist, OutputStream *ost)
+int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph
 {
-    FilterGraph *fg = av_mallocz(sizeof(*fg));
+    FilterGraph *fg = av_mallocz(sizeof(*fg));//01.创建FilterGraph实例
 
     if (!fg)
         exit_program(1);
-    fg->index = nb_filtergraphs;
-
-    GROW_ARRAY(fg->outputs, fg->nb_outputs);
-    if (!(fg->outputs[0] = av_mallocz(sizeof(*fg->outputs[0]))))
+    fg->index = nb_filtergraphs;//nb_filtergraphs 会在末尾增加
+    //02.创建并初始化OutputFilter，使得和OutputStream，FilterGraph关联
+    GROW_ARRAY(fg->outputs, fg->nb_outputs);//扩展输出 fg->outputs，并fg->nb_outputs自增，如果失败，直接退出程序
+    if (!(fg->outputs[0] = av_mallocz(sizeof(*fg->outputs[0]))))//创建OutputFilter实例
         exit_program(1);
-    fg->outputs[0]->ost   = ost;
-    fg->outputs[0]->graph = fg;
-    fg->outputs[0]->format = -1;
+    fg->outputs[0]->ost   = ost;//初始化OutputFilter，且OutputFilter和OutputStream相互关联
+    fg->outputs[0]->graph = fg;//OutputFilter和FilterGraph关联
+    fg->outputs[0]->format = -1;//格式无
 
-    ost->filter = fg->outputs[0];
-
-    GROW_ARRAY(fg->inputs, fg->nb_inputs);
+    ost->filter = fg->outputs[0];//OutputStream和OutputFilter相互关联
+    //03.创建并初始化InputFilter，使得和InputStream，FilterGraph关联
+    GROW_ARRAY(fg->inputs, fg->nb_inputs);//扩展输入 fg->inputs，并nb_inputs自增
     if (!(fg->inputs[0] = av_mallocz(sizeof(*fg->inputs[0]))))
         exit_program(1);
-    fg->inputs[0]->ist   = ist;
-    fg->inputs[0]->graph = fg;
+    fg->inputs[0]->ist   = ist;//初始化InputFilter，且InputFilter和InputStream相互关联
+    fg->inputs[0]->graph = fg;//InputFilter和FilterGraph关联
     fg->inputs[0]->format = -1;
-
-    fg->inputs[0]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));
+    //04.创建输入队列
+    fg->inputs[0]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));//输入的队列，默认8个：超过了呢？==>
     if (!fg->inputs[0]->frame_queue)
         exit_program(1);
-
-    GROW_ARRAY(ist->filters, ist->nb_filters);
-    ist->filters[ist->nb_filters - 1] = fg->inputs[0];
-
-    GROW_ARRAY(filtergraphs, nb_filtergraphs);
+    //05.创建输入流的filter，
+    GROW_ARRAY(ist->filters, ist->nb_filters);//扩展ist->filters，并nb_filters自增，如果失败，直接退出程序
+    ist->filters[ist->nb_filters - 1] = fg->inputs[0];//
+    //06.放到全局数组中
+    GROW_ARRAY(filtergraphs, nb_filtergraphs);//扩展filtergraphs，并nb_filtergraphs自增，如果失败，直接退出程序
     filtergraphs[nb_filtergraphs - 1] = fg;
 
     return 0;
