@@ -2051,14 +2051,14 @@ static int copy_chapters(InputFile *ifile, OutputFile *ofile, int copy_metadata)
     return 0;
 }
 
-static void init_output_filter(OutputFilter *ofilter, OptionsContext *o,
+static void init_output_filter(OutputFilter *ofilter, OptionsContext *o,//初始化OutputFilter，并创建和初始化相应的音视频流，相互绑定
                                AVFormatContext *oc)
 {
     OutputStream *ost;
     //01.创建流OutputStream
     switch (ofilter->type) {
-    case AVMEDIA_TYPE_VIDEO: ost = new_video_stream(o, oc, -1); break;//新建
-    case AVMEDIA_TYPE_AUDIO: ost = new_audio_stream(o, oc, -1); break;
+    case AVMEDIA_TYPE_VIDEO: ost = new_video_stream(o, oc, -1); break;//新建视频流
+    case AVMEDIA_TYPE_AUDIO: ost = new_audio_stream(o, oc, -1); break;//新建音频流
     default:
         av_log(NULL, AV_LOG_FATAL, "Only video and audio filters are supported "
                "currently.\n");
@@ -2104,7 +2104,7 @@ static int init_complex_filters(void)//初始化命令行的filter_complex
     }
     return 0;
 }
-//TIGER todo: 
+//TIGER 创建OutputFile of，放入全局output_files中，并创建AVFormatContext oc，从OptionsContext o中获取可选项
 static int open_output_file(OptionsContext *o, const char *filename)
 {
     AVFormatContext *oc;
@@ -2135,8 +2135,8 @@ static int open_output_file(OptionsContext *o, const char *filename)
     of = av_mallocz(sizeof(*of));//分配内存
     if (!of)
         exit_program(1);
-    output_files[nb_output_files - 1] = of;//放入数组
-    //初始化
+    output_files[nb_output_files - 1] = of;//放入全局数组
+    //用可选项初始化
     of->ost_index      = nb_output_streams;
     of->recording_time = o->recording_time;
     of->start_time     = o->start_time;
@@ -2153,7 +2153,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
         exit_program(1);
     }
 
-    of->ctx = oc;
+    of->ctx = oc;//相互绑定
     if (o->recording_time != INT64_MAX)//设置录制时间
         oc->duration = o->recording_time;
     //04.创建回调函数
@@ -2169,21 +2169,21 @@ static int open_output_file(OptionsContext *o, const char *filename)
         oc->flags    |= AVFMT_FLAG_BITEXACT;
     }
     //06.
-    /* create streams for all unlabeled output pads */
+    /* create streams for all unlabeled output pads */  //看注释
     for (i = 0; i < nb_filtergraphs; i++) {
-        FilterGraph *fg = filtergraphs[i];
+        FilterGraph *fg = filtergraphs[i];//从全局数组中取
         for (j = 0; j < fg->nb_outputs; j++) {
             OutputFilter *ofilter = fg->outputs[j];//06.01
 
-            if (!ofilter->out_tmp || ofilter->out_tmp->name)//06.02
+            if (!ofilter->out_tmp || ofilter->out_tmp->name)//06.02 !ofilter->out_tmp 什么意思？
                 continue;
 
             switch (ofilter->type) {//06.03 是否禁止
-            case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;
+            case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;//禁止则直接跳出第一层循环
             case AVMEDIA_TYPE_AUDIO:    o->audio_disable    = 1; break;
             case AVMEDIA_TYPE_SUBTITLE: o->subtitle_disable = 1; break;
             }
-            init_output_filter(ofilter, o, oc);//06.04
+            init_output_filter(ofilter, o, oc);//06.04 初始化filter，并隐含创建和初始化对应的输出的音视频流！并和filter绑定
         }
     }
     //07.
@@ -2354,7 +2354,7 @@ loop_end:
             }
         }
     }
-    //08.
+    //08.暂时不看
     /* handle attached files */
     for (i = 0; i < o->nb_attachments; i++) {
         AVIOContext *pb;
