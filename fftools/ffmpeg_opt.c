@@ -692,7 +692,7 @@ static AVCodec *find_codec_or_die(const char *name, enum AVMediaType type, int e
     return codec;
 }
 
-static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *st)//TIGER 
+static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *st)//TIGER  ÏÈ°´codec_name ÔÙ°´st->codecpar->codec_id²éÕÒAVCodec
 {
     char *codec_name = NULL;
 
@@ -707,8 +707,8 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
 
 /* Add all the streams from the given input file to the global
  * list of input streams. */
-static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//´´½¨Á÷£¬²éÕÒ½âÂëÆ÷£¬´´½¨½âÂëÉÏÏÂÎÄ£¬²ÎÊıÉèÖÃ
-{
+static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//´´½¨Á÷InputStream* istºÍ½âÂëÉÏÏÂÎÄist->dec_ctx £¬²¢½øĞĞ²ÎÊıÉèÖÃ£¬
+{//½« ist·ÅÈëÈ«¾ÖÊı×éinput_streams
     int i, ret;
 
     for (i = 0; i < ic->nb_streams; i++) {//ÖğÒ»´¦ÀíÃ¿¸öÁ÷
@@ -993,9 +993,9 @@ static void dump_attachment(AVStream *st, const char *filename)
     avio_flush(out);
     avio_close(out);
 }
-//TIGER TODO: ±»open_files×÷Îªº¯ÊıÖ¸Õëµ÷ÓÃ //µÚÒ»²ÎÊıÊÇ½âÎöºóµÄ¿ÉÑ¡Ïî£¬µÚ¶ş²ÎÊıÊÇÔ­Ê¼µÄ×éĞÅÏ¢
-static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´´½¨AVFormatContext£¬avformat_open_input ´ò¿ª£¬¿ÉÄÜÊ¹ÓÃavforamt_find_stream_infoÔÙÊ¹ÓÃ add_input_streams
-{
+//TIGER ±»open_files×÷Îªº¯ÊıÖ¸Õëµ÷ÓÃ //µÚÒ»²ÎÊıÊÇ½âÎöºóµÄ¿ÉÑ¡Ïî£¬µÚ¶ş²ÎÊıÊÇÔ­Ê¼µÄ×éĞÅÏ¢
+static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´´½¨AVFormatContext£¬avformat_open_input ´ò¿ª£¬add_input_streams,×îºó´´½¨InputFile f ·ÅÔÚÈ«¾Öinput_files
+{//¿ÉÄÜÊ¹ÓÃavforamt_find_stream_infoÔÙÊ¹ÓÃ 
     InputFile *f;
     AVFormatContext *ic;
     AVInputFormat *file_iformat = NULL;
@@ -1025,7 +1025,7 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
     }
     //02.¿ÉÑ¡ÏîµÄ¸ñÊ½
     if (o->format) {
-        if (!(file_iformat = av_find_input_format(o->format))) {
+        if (!(file_iformat = av_find_input_format(o->format))) {//¼òµ¥²éÕÒ¸ñÊ½
             av_log(NULL, AV_LOG_FATAL, "Unknown input format: '%s'\n", o->format);
             exit_program(1);
         }
@@ -1036,7 +1036,7 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
 
     stdin_interaction &= strncmp(filename, "pipe:", 5) &&
                          strcmp(filename, "/dev/stdin");
-    //04.Ö÷Òª¹¦ÄÜ´´½¨AVFormatContext£¬²¢´Ó¿ÉÑ¡ÏîÖĞÈ¡²ÎÊıÀ´ÉèÖÃ
+    //04.Ö÷Òª¹¦ÄÜ´´½¨AVFormatContext ic£¬²¢´Ó¿ÉÑ¡ÏîÖĞÈ¡²ÎÊıÀ´ÉèÖÃ
     /* get default parameters from command line */
     ic = avformat_alloc_context();
     if (!ic) {
@@ -1115,8 +1115,8 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
 
     /* apply forced codec ids */
     for (i = 0; i < ic->nb_streams; i++)
-        choose_decoder(o, ic, ic->streams[i]);//09.Ñ¡Ôñ£¿
-    //10. Èç¹ûÉèÖÃÁËÁ÷Ä£Ê½²éÕÒĞÅÏ¢
+        choose_decoder(o, ic, ic->streams[i]);//09.ÏÈ°´codec_name ÔÙ°´st->codecpar->codec_id²éÕÒAVCodec
+    //10. Èç¹ûÉèÖÃÁËÁ÷Ä£Ê½²éÕÒĞÅÏ¢£¬´ò¿ªÎÄ¼ş»òÕßÁ÷À´ÉèÖÃ²ÎÊı
     if (find_stream_info) {
         AVDictionary **opts = setup_find_stream_info_opts(ic, o->g->codec_opts);//10.01 ¿ÉÑ¡Ïî
         int orig_nb_streams = ic->nb_streams;
@@ -1142,9 +1142,9 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
         av_log(NULL, AV_LOG_WARNING, "Cannot use -ss and -sseof both, using -ss for %s\n", filename);
         o->start_time_eof = AV_NOPTS_VALUE;
     }
-
+    //·´Ïò¶¨Î»
     if (o->start_time_eof != AV_NOPTS_VALUE) {
-        if (o->start_time_eof >= 0) {
+        if (o->start_time_eof >= 0) {//±ØĞëÎª¸ºÊı
             av_log(NULL, AV_LOG_ERROR, "-sseof value must be negative; aborting\n");
             exit_program(1);
         }
@@ -1191,14 +1191,14 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
 
     /* dump the file content */
     av_dump_format(ic, nb_input_files, filename, 0);//TIGER AAC ÔÚÕâÀï´òÓ¡Êä³öµÄaac ÎªLCÄ£Ê½¼´LOW²»ÊÇMAIN
-    //13.·ÖÅäInputFileµÄÄÚ´æ£¬²¢ÉèÖÃInputFile
+    //13.·ÖÅäInputFileµÄÄÚ´æ£¬²¢ÉèÖÃInputFile f
     GROW_ARRAY(input_files, nb_input_files);//nb_input_files+1À©Õ¹£¬²¢×ÔÔö
-    f = av_mallocz(sizeof(*f));
+    f = av_mallocz(sizeof(*f));//·ÖÅäÊµÀı
     if (!f)
         exit_program(1);
-    input_files[nb_input_files - 1] = f;//14.·ÅÔÚÈ«¾ÖµÄinput_files£¿
-    //ÖğÒ»ÉèÖÃ
-    f->ctx        = ic;
+    input_files[nb_input_files - 1] = f;//14.·ÅÔÚÈ«¾ÖÊı×éµÄinput_filesÖĞ
+    //ÖğÒ»ÉèÖÃ InputFile f
+    f->ctx        = ic;//Ïà»¥Ö¸Ïò
     f->ist_index  = nb_input_streams - ic->nb_streams;
     f->start_time = o->start_time;
     f->recording_time = o->recording_time;
@@ -1211,7 +1211,7 @@ static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´
     f->duration = 0;
     f->time_base = (AVRational){ 1, 1 };
 #if HAVE_THREADS
-    f->thread_queue_size = o->thread_queue_size > 0 ? o->thread_queue_size : 8;
+    f->thread_queue_size = o->thread_queue_size > 0 ? o->thread_queue_size : 8;//Ä¬ÈÏÊÇ8
 #endif
     //15.»ñÈ¡Ã»ÓĞÓÃ¹ıµÄoption
     /* check if all codec options have been used */
@@ -2130,9 +2130,9 @@ static int open_output_file(OptionsContext *o, const char *filename)
             o->recording_time = o->stop_time - start_time;
         }
     }
-    //02.ÔÚÈ«¾ÖµÄoutput_filesµÄÊı×éÀïÃæÔö¼ÓÒ»¸öÊä³öÎÄ¼ş
+    //02.ÔÚÈ«¾ÖµÄoutput_filesµÄÊı×éÀïÃæÔö¼ÓÒ»¸öÊä³öÎÄ¼şOutputFile of
     GROW_ARRAY(output_files, nb_output_files);//À©Õ¹Êı×é
-    of = av_mallocz(sizeof(*of));//·ÖÅäÄÚ´æ
+    of = av_mallocz(sizeof(*of));//·ÖÅäOutputFile ÊµÀı
     if (!of)
         exit_program(1);
     output_files[nb_output_files - 1] = of;//·ÅÈëÈ«¾ÖÊı×é
@@ -2146,7 +2146,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
 
     if (!strcmp(filename, "-"))//ÊÇ·ñÓÃpipe
         filename = "pipe:";
-    //03.´´½¨Êä³öµÄÉÏÏÂÎÄ
+    //03.´´½¨Êä³öµÄÉÏÏÂÎÄAVFormatContext oc
     err = avformat_alloc_output_context2(&oc, NULL, o->format, filename);
     if (!oc) {
         print_error(filename, err);
@@ -2389,20 +2389,20 @@ loop_end:
         av_dict_set(&ost->st->metadata, "filename", (p && *p) ? p + 1 : o->attachments[i], AV_DICT_DONT_OVERWRITE);
         avio_closep(&pb);
     }
-    //09.
+    //09.Ğ£Ñé copyµÄÊ±ºò²»ĞèÒªflags²ÎÊı
 #if FF_API_LAVF_AVCTX
     for (i = nb_output_streams - oc->nb_streams; i < nb_output_streams; i++) { //for all streams of this output file
         AVDictionaryEntry *e;
-        ost = output_streams[i];
+        ost = output_streams[i];//ÆäËûµÄ´«ÊäÁ÷OutputStream
 
         if ((ost->stream_copy || ost->attachment_filename)
             && (e = av_dict_get(o->g->codec_opts, "flags", NULL, AV_DICT_IGNORE_SUFFIX))
             && (!e->key[5] || check_stream_specifier(oc, ost->st, e->key+6)))
-            if (av_opt_set(ost->st->codec, "flags", e->value, 0) < 0)
+            if (av_opt_set(ost->st->codec, "flags", e->value, 0) < 0)//²»ÄÜº¬ÓĞflagsµÈ²ÎÊı
                 exit_program(1);
     }
 #endif
-    //10.
+    //10. Òì³£Ğ£Ñé£ºÊä³öÃ»ÓĞÁ÷
     if (!oc->nb_streams && !(oc->oformat->flags & AVFMT_NOSTREAMS)) {
         av_dump_format(oc, nb_output_files - 1, oc->url, 1);
         av_log(NULL, AV_LOG_ERROR, "Output file #%d does not contain any stream\n", nb_output_files - 1);
@@ -2450,7 +2450,7 @@ loop_end:
                option->help ? option->help : "", nb_output_files - 1, filename);
     }
     av_dict_free(&unused_opts);
-    //13. ÎªÊ²Ã´Ò»¶¨Òª´´½¨filtergraph£º
+    //13. ÎªÊ²Ã´Ò»¶¨Òª´´½¨filtergraph£º==>
     /* set the decoding_needed flags and create simple filtergraphs */
     for (i = of->ost_index; i < nb_output_streams; i++) {//¼¸¸öÊä³öÁ÷ÖğÒ»´¦Àí
         OutputStream *ost = output_streams[i];
