@@ -2450,18 +2450,18 @@ loop_end:
                option->help ? option->help : "", nb_output_files - 1, filename);
     }
     av_dict_free(&unused_opts);
-    //13.
+    //13. 为什么一定要创建filtergraph：
     /* set the decoding_needed flags and create simple filtergraphs */
-    for (i = of->ost_index; i < nb_output_streams; i++) {
+    for (i = of->ost_index; i < nb_output_streams; i++) {//几个输出流逐一处理
         OutputStream *ost = output_streams[i];
-
+        //13.01
         if (ost->encoding_needed && ost->source_index >= 0) {
-            InputStream *ist = input_streams[ost->source_index];
-            ist->decoding_needed |= DECODING_FOR_OST;
+            InputStream *ist = input_streams[ost->source_index];//获取对应的输入流
+            ist->decoding_needed |= DECODING_FOR_OST;//有啥区别？==>
 
-            if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||
+            if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||//如果是音视频编码
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                err = init_simple_filtergraph(ist, ost);
+                err = init_simple_filtergraph(ist, ost);//创建filtergraph （可用watch filtergraphs ），同时和输入出关联
                 if (err < 0) {
                     av_log(NULL, AV_LOG_ERROR,
                            "Error initializing a simple filtergraph between streams "
@@ -2471,19 +2471,19 @@ loop_end:
                 }
             }
         }
-
+        //13.02
         /* set the filter output constraints */
-        if (ost->filter) {
+        if (ost->filter) {//如果输出流Outfilter不为空
             OutputFilter *f = ost->filter;
             int count;
-            switch (ost->enc_ctx->codec_type) {
-            case AVMEDIA_TYPE_VIDEO:
-                f->frame_rate = ost->frame_rate;
+            switch (ost->enc_ctx->codec_type) {//根据codec_type来选择
+            case AVMEDIA_TYPE_VIDEO://13.02.01
+                f->frame_rate = ost->frame_rate;//帧率是由输出流定的？
                 f->width      = ost->enc_ctx->width;
                 f->height     = ost->enc_ctx->height;
-                if (ost->enc_ctx->pix_fmt != AV_PIX_FMT_NONE) {
+                if (ost->enc_ctx->pix_fmt != AV_PIX_FMT_NONE) {//输出流如果已经有pix_fmt
                     f->format = ost->enc_ctx->pix_fmt;
-                } else if (ost->enc->pix_fmts) {
+                } else if (ost->enc->pix_fmts) {//否则有编码器的pix_fmt
                     count = 0;
                     while (ost->enc->pix_fmts[count] != AV_PIX_FMT_NONE)
                         count++;
@@ -2493,21 +2493,21 @@ loop_end:
                     memcpy(f->formats, ost->enc->pix_fmts, (count + 1) * sizeof(*f->formats));
                 }
                 break;
-            case AVMEDIA_TYPE_AUDIO:
-                if (ost->enc_ctx->sample_fmt != AV_SAMPLE_FMT_NONE) {
-                    f->format = ost->enc_ctx->sample_fmt;
-                } else if (ost->enc->sample_fmts) {
+            case AVMEDIA_TYPE_AUDIO://13.02.02
+                if (ost->enc_ctx->sample_fmt != AV_SAMPLE_FMT_NONE) {//优先尝试enc_ctx，赋单个值
+                    f->format = ost->enc_ctx->sample_fmt;//这里只是一个值
+                } else if (ost->enc->sample_fmts) {//再尝试编码器enc，copy的是数组
                     count = 0;
-                    while (ost->enc->sample_fmts[count] != AV_SAMPLE_FMT_NONE)
+                    while (ost->enc->sample_fmts[count] != AV_SAMPLE_FMT_NONE)//编码器中的所有格式，
                         count++;
-                    f->formats = av_mallocz_array(count + 1, sizeof(*f->formats));
+                    f->formats = av_mallocz_array(count + 1, sizeof(*f->formats));//分配内存，并赋值
                     if (!f->formats)
                         exit_program(1);
-                    memcpy(f->formats, ost->enc->sample_fmts, (count + 1) * sizeof(*f->formats));
+                    memcpy(f->formats, ost->enc->sample_fmts, (count + 1) * sizeof(*f->formats));//这里是一个数组
                 }
-                if (ost->enc_ctx->sample_rate) {
+                if (ost->enc_ctx->sample_rate) {//优先尝试enc_ctx，赋单个值
                     f->sample_rate = ost->enc_ctx->sample_rate;
-                } else if (ost->enc->supported_samplerates) {
+                } else if (ost->enc->supported_samplerates) {//再尝试编码器enc，copy的是数组
                     count = 0;
                     while (ost->enc->supported_samplerates[count])
                         count++;
@@ -2517,9 +2517,9 @@ loop_end:
                     memcpy(f->sample_rates, ost->enc->supported_samplerates,
                            (count + 1) * sizeof(*f->sample_rates));
                 }
-                if (ost->enc_ctx->channels) {
+                if (ost->enc_ctx->channels) {//优先尝试enc_ctx，赋单个值
                     f->channel_layout = av_get_default_channel_layout(ost->enc_ctx->channels);
-                } else if (ost->enc->channel_layouts) {
+                } else if (ost->enc->channel_layouts) {//再尝试编码器enc，copy的是数组
                     count = 0;
                     while (ost->enc->channel_layouts[count])
                         count++;
@@ -2533,7 +2533,7 @@ loop_end:
             }
         }
     }
-    //14.
+    //14.验证文件名序号
     /* check filename in case of an image number is expected */
     if (oc->oformat->flags & AVFMT_NEEDNUMBER) {
         if (!av_filename_number_test(oc->url)) {
@@ -2541,13 +2541,13 @@ loop_end:
             exit_program(1);
         }
     }
-    //15.
+    //15.输出需要流，但没有输入流
     if (!(oc->oformat->flags & AVFMT_NOSTREAMS) && !input_stream_potentially_available) {
         av_log(NULL, AV_LOG_ERROR,
                "No input streams but output needs an input stream\n");
         exit_program(1);
     }
-    //16.
+    //16.如果是文件，打开文件
     if (!(oc->oformat->flags & AVFMT_NOFILE)) {
         /* test if it already exists to avoid losing precious files */
         assert_file_overwrite(filename);
@@ -2561,12 +2561,12 @@ loop_end:
         }
     } else if (strcmp(oc->oformat->name, "image2")==0 && !av_filename_number_test(filename))
         assert_file_overwrite(filename);
-
+    //是否预加载
     if (o->mux_preload) {
         av_dict_set_int(&of->opts, "preload", o->mux_preload*AV_TIME_BASE, 0);
     }
-    oc->max_delay = (int)(o->mux_max_delay * AV_TIME_BASE);
-    //17.
+    oc->max_delay = (int)(o->mux_max_delay * AV_TIME_BASE);//最大延时
+    //17. 复制元数据
     /* copy metadata */
     for (i = 0; i < o->nb_metadata_map; i++) {
         char *p;
@@ -2580,7 +2580,7 @@ loop_end:
                       in_file_index >= 0 ?
                       input_files[in_file_index]->ctx : NULL, o);
     }
-    //18.
+    //18.chapters
     /* copy chapters */
     if (o->chapters_input_file >= nb_input_files) {
         if (o->chapters_input_file == INT_MAX) {
@@ -2600,27 +2600,27 @@ loop_end:
     if (o->chapters_input_file >= 0)
         copy_chapters(input_files[o->chapters_input_file], of,
                       !o->metadata_chapters_manual);
-    //19.
+    //19. 复制 global metadata 
     /* copy global metadata by default */
-    if (!o->metadata_global_manual && nb_input_files){
-        av_dict_copy(&oc->metadata, input_files[0]->ctx->metadata,
+    if (!o->metadata_global_manual && nb_input_files){//20.如果命令行没有g
+        av_dict_copy(&oc->metadata, input_files[0]->ctx->metadata,//
                      AV_DICT_DONT_OVERWRITE);
         if(o->recording_time != INT64_MAX)
-            av_dict_set(&oc->metadata, "duration", NULL, 0);
-        av_dict_set(&oc->metadata, "creation_time", NULL, 0);
+            av_dict_set(&oc->metadata, "duration", NULL, 0);//如果设置了recording_time，则duration必须设置为0
+        av_dict_set(&oc->metadata, "creation_time", NULL, 0);//设置creation_time 为0
     }
-    if (!o->metadata_streams_manual)//20.
+    if (!o->metadata_streams_manual)//20.如果命令行没有s，复制InputStream的metadata
         for (i = of->ost_index; i < nb_output_streams; i++) {
             InputStream *ist;
             if (output_streams[i]->source_index < 0)         /* this is true e.g. for attached files */
                 continue;
             ist = input_streams[output_streams[i]->source_index];
-            av_dict_copy(&output_streams[i]->st->metadata, ist->st->metadata, AV_DICT_DONT_OVERWRITE);
-            if (!output_streams[i]->stream_copy) {
+            av_dict_copy(&output_streams[i]->st->metadata, ist->st->metadata, AV_DICT_DONT_OVERWRITE);//复制输入的metadata
+            if (!output_streams[i]->stream_copy) {//如果不是copy，才能设置encoder
                 av_dict_set(&output_streams[i]->st->metadata, "encoder", NULL, 0);
             }
         }
-    //21.
+    //21. 设置program
     /* process manually set programs */
     for (i = 0; i < o->nb_program; i++) {
         const char *p = o->program[i].u.str;
@@ -2686,14 +2686,14 @@ loop_end:
             av_freep(&key);
         }
     }
-    //22.
+    //22.将元数据分别保存在oc->metadata，&oc->streams[j]->metadata， oc->chapters[index]->metadata，oc->programs[index]->metadata
     /* process manually set metadata */
     for (i = 0; i < o->nb_metadata; i++) {
         AVDictionary **m;
         char type, *val;
         const char *stream_spec;
         int index = 0, j, ret = 0;
-
+        //01.有"="吗
         val = strchr(o->metadata[i].u.str, '=');
         if (!val) {
             av_log(NULL, AV_LOG_FATAL, "No '=' character in metadata string %s.\n",
@@ -2701,13 +2701,13 @@ loop_end:
             exit_program(1);
         }
         *val++ = 0;
-
+        //02.解析
         parse_meta_type(o->metadata[i].specifier, &type, &index, &stream_spec);
-        if (type == 's') {
-            for (j = 0; j < oc->nb_streams; j++) {
+        if (type == 's') {//03. 将元数据分别保存在oc->metadata，&oc->streams[j]->metadata， oc->chapters[index]->metadata，oc->programs[index]->metadata
+            for (j = 0; j < oc->nb_streams; j++) {//如果是's'
                 ost = output_streams[nb_output_streams - oc->nb_streams + j];
                 if ((ret = check_stream_specifier(oc, oc->streams[j], stream_spec)) > 0) {
-                    if (!strcmp(o->metadata[i].u.str, "rotate")) {
+                    if (!strcmp(o->metadata[i].u.str, "rotate")) {//如果是rotate，需额外标识，兼容以前的版本
                         char *tail;
                         double theta = av_strtod(val, &tail);
                         if (!*tail) {
@@ -2715,36 +2715,36 @@ loop_end:
                             ost->rotate_override_value = theta;
                         }
                     } else {
-                        av_dict_set(&oc->streams[j]->metadata, o->metadata[i].u.str, *val ? val : NULL, 0);
+                        av_dict_set(&oc->streams[j]->metadata, o->metadata[i].u.str, *val ? val : NULL, 0);//设置,注:和下面的global有略微差别
                     }
                 } else if (ret < 0)
                     exit_program(1);
             }
         }
-        else {
+        else {//其他非's'
             switch (type) {
-            case 'g':
+            case 'g'://global 全局
                 m = &oc->metadata;
                 break;
-            case 'c':
+            case 'c'://chapters
                 if (index < 0 || index >= oc->nb_chapters) {
                     av_log(NULL, AV_LOG_FATAL, "Invalid chapter index %d in metadata specifier.\n", index);
                     exit_program(1);
                 }
                 m = &oc->chapters[index]->metadata;
                 break;
-            case 'p':
+            case 'p'://programs
                 if (index < 0 || index >= oc->nb_programs) {
                     av_log(NULL, AV_LOG_FATAL, "Invalid program index %d in metadata specifier.\n", index);
                     exit_program(1);
                 }
                 m = &oc->programs[index]->metadata;
                 break;
-            default:
+            default://无效
                 av_log(NULL, AV_LOG_FATAL, "Invalid metadata specifier %s.\n", o->metadata[i].specifier);
                 exit_program(1);
             }
-            av_dict_set(m, o->metadata[i].u.str, *val ? val : NULL, 0);
+            av_dict_set(m, o->metadata[i].u.str, *val ? val : NULL, 0);//设置
         }
     }
 
