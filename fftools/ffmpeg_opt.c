@@ -1347,8 +1347,8 @@ static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *o
 
     return 0;
 }
-//TIGER new_output_stream ，分配OutputStream和AVStream
-static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, enum AVMediaType type, int source_index)
+//TIGER new_output_stream ，// 不仅分配OutputStream o，同时还有o->st(AVStream) o->enc o->enc_ctx 还有很多可选项    
+static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, enum AVMediaType type, int source_index)//分配OutputStream和AVStream,设置ost->enc和ost->st->codecpar->codec_id，ost->stream_copy设置ost->enc和enc_ctx 的可选项
 {
     OutputStream *ost;
     AVStream *st = avformat_new_stream(oc, NULL);//创建AVStream流
@@ -1396,7 +1396,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         av_log(NULL, AV_LOG_ERROR, "Error allocating the encoding parameters.\n");
         exit_program(1);
     }
-    //06.
+    //06.如果有编码，则还要处理不少选项
     if (ost->enc) {//06.01 有编码
         AVIOContext *s = NULL;
         char *buf = NULL, *arg = NULL, *preset = NULL;
@@ -1620,19 +1620,19 @@ static char *get_ost_filters(OptionsContext *o, AVFormatContext *oc,
 {
     AVStream *st = ost->st;
 
-    if (ost->filters_script && ost->filters) {
+    if (ost->filters_script && ost->filters) {//都没有，返回错误
         av_log(NULL, AV_LOG_ERROR, "Both -filter and -filter_script set for "
                "output stream #%d:%d.\n", nb_output_files, st->index);
         exit_program(1);
     }
 
     if (ost->filters_script)
-        return read_file(ost->filters_script);
+        return read_file(ost->filters_script);//创建一个avio_open_dyn_buf来读文件，返回所有
     else if (ost->filters)
-        return av_strdup(ost->filters);
+        return av_strdup(ost->filters);//直接复制
 
     return av_strdup(st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ?
-                     "null" : "anull");
+                     "null" : "anull");//实在不行返回null或者anull
 }
 
 static void check_streamcopy_filters(OptionsContext *o, AVFormatContext *oc,
@@ -1648,7 +1648,7 @@ static void check_streamcopy_filters(OptionsContext *o, AVFormatContext *oc,
         exit_program(1);
     }
 }
-
+//公共部分用new_output_stream创建，设置其他可选项
 static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, int source_index)
 {
     AVStream *st;
@@ -1848,63 +1848,63 @@ static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, in
 
     return ost;
 }
-
-static OutputStream *new_audio_stream(OptionsContext *o, AVFormatContext *oc, int source_index)
+//公共部分用new_output_stream创建，设置其他可选项
+static OutputStream *new_audio_stream(OptionsContext *o, AVFormatContext *oc, int source_index)//TIGER new_audio_stream
 {
     int n;
     AVStream *st;
     OutputStream *ost;
     AVCodecContext *audio_enc;
-
+    //01. 不仅分配OutputStream o，同时还有o->st o->enc o->enc_ctx 还有很多可选项
     ost = new_output_stream(o, oc, AVMEDIA_TYPE_AUDIO, source_index);
     st  = ost->st;
 
     audio_enc = ost->enc_ctx;
-    audio_enc->codec_type = AVMEDIA_TYPE_AUDIO;
-
+    audio_enc->codec_type = AVMEDIA_TYPE_AUDIO;//设置音频类型
+    //02. 设置可选项
     MATCH_PER_STREAM_OPT(filter_scripts, str, ost->filters_script, oc, st);
     MATCH_PER_STREAM_OPT(filters,        str, ost->filters,        oc, st);
     if (o->nb_filters > 1)
         av_log(NULL, AV_LOG_ERROR, "Only '-af %s' read, ignoring remaining -af options: Use ',' to separate filters\n", ost->filters);
-
+    //03. 不是流复制需要额外工作
     if (!ost->stream_copy) {
         char *sample_fmt = NULL;
-
-        MATCH_PER_STREAM_OPT(audio_channels, i, audio_enc->channels, oc, st);
-
+        //03.01 音频三件套 采样位数、采样率、声道
+        MATCH_PER_STREAM_OPT(audio_channels, i, audio_enc->channels, oc, st);//声道
+        //03.02 位数
         MATCH_PER_STREAM_OPT(sample_fmts, str, sample_fmt, oc, st);
         if (sample_fmt &&
             (audio_enc->sample_fmt = av_get_sample_fmt(sample_fmt)) == AV_SAMPLE_FMT_NONE) {
             av_log(NULL, AV_LOG_FATAL, "Invalid sample format '%s'\n", sample_fmt);
             exit_program(1);
         }
-
+        //03.03 采样率
         MATCH_PER_STREAM_OPT(audio_sample_rate, i, audio_enc->sample_rate, oc, st);
-
+        //03.04
         MATCH_PER_STREAM_OPT(apad, str, ost->apad, oc, st);
         ost->apad = av_strdup(ost->apad);
-
+        //03.05 获取filter名称
         ost->avfilter = get_ost_filters(o, oc, ost);
         if (!ost->avfilter)
             exit_program(1);
-
+        //03.06 nb_audio_channel_maps加入AudioChannelMap
         /* check for channel mapping for this audio stream */
         for (n = 0; n < o->nb_audio_channel_maps; n++) {
             AudioChannelMap *map = &o->audio_channel_maps[n];
             if ((map->ofile_idx   == -1 || ost->file_index == map->ofile_idx) &&
                 (map->ostream_idx == -1 || ost->st->index  == map->ostream_idx)) {
                 InputStream *ist;
-
+                //01.
                 if (map->channel_idx == -1) {
-                    ist = NULL;
-                } else if (ost->source_index < 0) {
+                    ist = NULL;//没有全局数组的索引
+                } else if (ost->source_index < 0) {//没有全局数组的索引
                     av_log(NULL, AV_LOG_FATAL, "Cannot determine input stream for channel mapping %d.%d\n",
                            ost->file_index, ost->st->index);
                     continue;
                 } else {
-                    ist = input_streams[ost->source_index];
+                    ist = input_streams[ost->source_index];//得到准确值
                 }
-
+                //02.
                 if (!ist || (ist->file_index == map->file_idx && ist->st->index == map->stream_idx)) {
                     if (av_reallocp_array(&ost->audio_channels_map,
                                           ost->audio_channels_mapped + 1,
@@ -1912,12 +1912,12 @@ static OutputStream *new_audio_stream(OptionsContext *o, AVFormatContext *oc, in
                                           ) < 0 )
                         exit_program(1);
 
-                    ost->audio_channels_map[ost->audio_channels_mapped++] = map->channel_idx;
+                    ost->audio_channels_map[ost->audio_channels_mapped++] = map->channel_idx;//加入map中
                 }
             }
         }
     }
-
+    //04.校验stream_copy
     if (ost->stream_copy)
         check_streamcopy_filters(o, oc, ost, AVMEDIA_TYPE_AUDIO);
 
