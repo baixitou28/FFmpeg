@@ -708,7 +708,7 @@ static AVCodec *choose_decoder(OptionsContext *o, AVFormatContext *s, AVStream *
 /* Add all the streams from the given input file to the global
  * list of input streams. */
 static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//创建流InputStream* ist和解码上下文ist->dec_ctx ，并进行参数设置，
-{//将 ist放入全局数组input_streams
+{//将ist放入全局数组input_streams
     int i, ret;
 
     for (i = 0; i < ic->nb_streams; i++) {//逐一处理每个流
@@ -729,16 +729,16 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//创建流Inp
         //01.分配数组，并放入全局变量中
         GROW_ARRAY(input_streams, nb_input_streams);//看数组够不够：nb_input_streams + 1增长，nb_input_streams也同时自增！
         input_streams[nb_input_streams - 1] = ist;//ist放在全局输入流数组里
-        //02.
-        ist->st = st;
+        //02. 初始化ist
+        ist->st = st;//相互指向
         ist->file_index = nb_input_files;
         ist->discard = 1;
-        st->discard  = AVDISCARD_ALL;
+        st->discard  = AVDISCARD_ALL;//为什么要这么设置
         ist->nb_samples = 0;
         ist->min_pts = INT64_MAX;//初始值一定要这么设置吗？//TIGER PROGRAM
         ist->max_pts = INT64_MIN;
         //03.比例
-        ist->ts_scale = 1.0;
+        ist->ts_scale = 1.0;//默认比例
         MATCH_PER_STREAM_OPT(ts_scale, dbl, ist->ts_scale, ic, st);
         //旋转
         ist->autorotate = 1;
@@ -751,8 +751,8 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//创建流Inp
                 tag = AV_RL32(codec_tag);
             st->codecpar->codec_tag = tag;
         }
-        //04.选择解码器？
-        ist->dec = choose_decoder(o, ic, st);
+        //04.选择解码器
+        ist->dec = choose_decoder(o, ic, st);//先按codec_name 再按st->codecpar->codec_id查找AVCodec
         ist->decoder_opts = filter_codec_opts(o->g->codec_opts, ist->st->codecpar->codec_id, ic, st, ist->dec);
         //
         ist->reinit_filters = -1;
