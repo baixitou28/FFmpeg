@@ -1312,7 +1312,7 @@ static int get_preset_file_2(const char *preset_name, const char *codec_name, AV
     }
     return ret;
 }
-//这里体现了命令行中的参数优先，copy > 编码名称codec_name ,没有就只能猜了
+//设置OutputStream的编码ost->enc和ost->st->codecpar->codec_id 这里体现了命令行中的参数优先，copy > 编码名称codec_name ,没有就只能猜了，ost->stream_copy 用于是否需要解压
 static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *ost)//TIGER choose_encoder 从命令行的可选项找不到编码，就猜，再看有没有copy，最后用找到的编码
 {
     enum AVMediaType type = ost->st->codecpar->codec_type;
@@ -1376,14 +1376,14 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
     ost->st         = st;
     ost->forced_kf_ref_pts = AV_NOPTS_VALUE;//tiger ?
     st->codecpar->codec_type = type;//tiger AVStream
-    //03. 
-    ret = choose_encoder(o, oc, ost);
+    //03. 命令行里看是否有编码，或者使用copy根本不用编码
+    ret = choose_encoder(o, oc, ost);//设置ost->enc和ost->st->codecpar->codec_id，ost->stream_copy
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error selecting an encoder for stream "
                "%d:%d\n", ost->file_index, ost->index);
         exit_program(1);
     }
-    //04.分配上下文
+    //04.分配上下文enc_ctx
     ost->enc_ctx = avcodec_alloc_context3(ost->enc);
     if (!ost->enc_ctx) {
         av_log(NULL, AV_LOG_ERROR, "Error allocating the encoding context.\n");
@@ -1397,14 +1397,14 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         exit_program(1);
     }
     //06.
-    if (ost->enc) {
+    if (ost->enc) {//06.01 有编码
         AVIOContext *s = NULL;
         char *buf = NULL, *arg = NULL, *preset = NULL;
-
-        ost->encoder_opts  = filter_codec_opts(o->g->codec_opts, ost->enc->id, oc, st, ost->enc);
-
+        //06.01.01 过滤a 和v的选项
+        ost->encoder_opts  = filter_codec_opts(o->g->codec_opts, ost->enc->id, oc, st, ost->enc);//查找特定编码id的option
+        //06.01.02 preset
         MATCH_PER_STREAM_OPT(presets, str, preset, oc, st);
-        if (preset && (!(ret = get_preset_file_2(preset, ost->enc->name, &s)))) {
+        if (preset && (!(ret = get_preset_file_2(preset, ost->enc->name, &s)))) {//06.01.03 查找特定文件
             do  {
                 buf = get_line(s);
                 if (!buf[0] || buf[0] == '#') {
@@ -1416,7 +1416,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
                     exit_program(1);
                 }
                 *arg++ = 0;
-                av_dict_set(&ost->encoder_opts, buf, arg, AV_DICT_DONT_OVERWRITE);
+                av_dict_set(&ost->encoder_opts, buf, arg, AV_DICT_DONT_OVERWRITE);//设置编码参数encoder_opts
                 av_free(buf);
             } while (!s->eof_reached);
             avio_closep(&s);
@@ -1427,14 +1427,14 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
                    preset, ost->file_index, ost->index);
             exit_program(1);
         }
-    } else {
-        ost->encoder_opts = filter_codec_opts(o->g->codec_opts, AV_CODEC_ID_NONE, oc, st, NULL);
+    } else {//06.02 无编码
+        ost->encoder_opts = filter_codec_opts(o->g->codec_opts, AV_CODEC_ID_NONE, oc, st, NULL);//TIGER AV_CODEC_ID_NONE 对比
     }
 
     //07.
     if (o->bitexact)
         ost->enc_ctx->flags |= AV_CODEC_FLAG_BITEXACT;
-    //08.
+    //08. 可选项time_bases
     MATCH_PER_STREAM_OPT(time_bases, str, time_base, oc, st);
     if (time_base) {
         AVRational q;
@@ -1445,7 +1445,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         }
         st->time_base = q;
     }
-    //09.
+    //09.可选项enc_time_bases
     MATCH_PER_STREAM_OPT(enc_time_bases, str, time_base, oc, st);
     if (time_base) {
         AVRational q;
@@ -1456,7 +1456,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         }
         ost->enc_timebase = q;
     }
-    //10.
+    //10. 可选项max_frames
     ost->max_frames = INT64_MAX;
     MATCH_PER_STREAM_OPT(max_frames, i64, ost->max_frames, oc, st);
     for (i = 0; i<o->nb_max_frames; i++) {
@@ -1466,42 +1466,42 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
             break;
         }
     }
-    //11.
+    //11. 可选项
     ost->copy_prior_start = -1;
     MATCH_PER_STREAM_OPT(copy_prior_start, i, ost->copy_prior_start, oc ,st);
-    //12.
+    //12.可选项bitstream_filters
     MATCH_PER_STREAM_OPT(bitstream_filters, str, bsfs, oc, st);
     while (bsfs && *bsfs) {
         const AVBitStreamFilter *filter;
         char *bsf, *bsf_options_str, *bsf_name;
-
+        //12.01. 逗号分隔
         bsf = av_get_token(&bsfs, ",");
         if (!bsf)
             exit_program(1);
-        bsf_name = av_strtok(bsf, "=", &bsf_options_str);
+        bsf_name = av_strtok(bsf, "=", &bsf_options_str);//取实际名
         if (!bsf_name)
             exit_program(1);
-
-        filter = av_bsf_get_by_name(bsf_name);
+        //12.02
+        filter = av_bsf_get_by_name(bsf_name);//查找
         if (!filter) {
             av_log(NULL, AV_LOG_FATAL, "Unknown bitstream filter %s\n", bsf_name);
             exit_program(1);
         }
-
+        //12.03 创建
         ost->bsf_ctx = av_realloc_array(ost->bsf_ctx,
                                         ost->nb_bitstream_filters + 1,
                                         sizeof(*ost->bsf_ctx));
         if (!ost->bsf_ctx)
             exit_program(1);
-
+        //12.04 分配实例
         ret = av_bsf_alloc(filter, &ost->bsf_ctx[ost->nb_bitstream_filters]);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error allocating a bitstream filter context\n");
             exit_program(1);
         }
 
-        ost->nb_bitstream_filters++;
-
+        ost->nb_bitstream_filters++;//计数
+        //12.05 设置可选项
         if (bsf_options_str && filter->priv_class) {
             const AVOption *opt = av_opt_next(ost->bsf_ctx[ost->nb_bitstream_filters-1]->priv_data, NULL);
             const char * shorthand[2] = {NULL};
@@ -1516,11 +1516,11 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
             }
         }
         av_freep(&bsf);
-
+        //12.06
         if (*bsfs)
-            bsfs++;
+            bsfs++;//计数
     }
-    //13.
+    //13.可选项codec_tags
     MATCH_PER_STREAM_OPT(codec_tags, str, codec_tag, oc, st);
     if (codec_tag) {
         uint32_t tag = strtol(codec_tag, &next, 0);
@@ -1529,31 +1529,31 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         ost->st->codecpar->codec_tag =
         ost->enc_ctx->codec_tag = tag;
     }
-    //14.
+    //14.可选项qscale
     MATCH_PER_STREAM_OPT(qscale, dbl, qscale, oc, st);
     if (qscale >= 0) {
         ost->enc_ctx->flags |= AV_CODEC_FLAG_QSCALE;
         ost->enc_ctx->global_quality = FF_QP2LAMBDA * qscale;
     }
-    //15.
+    //15.可选项disposition
     MATCH_PER_STREAM_OPT(disposition, str, ost->disposition, oc, st);
     ost->disposition = av_strdup(ost->disposition);
-    //16.
+    //16.可选项max_muxing_queue_size 最大AVPacket队列数，默认是128
     ost->max_muxing_queue_size = 128;
     MATCH_PER_STREAM_OPT(max_muxing_queue_size, i, ost->max_muxing_queue_size, oc, st);
     ost->max_muxing_queue_size *= sizeof(AVPacket);
-    //17.
+    //17.可选项AVFMT_GLOBALHEADER
     if (oc->oformat->flags & AVFMT_GLOBALHEADER)
         ost->enc_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-
+    //18.复制组的一些参数
     av_dict_copy(&ost->sws_dict, o->g->sws_dict, 0);
 
     av_dict_copy(&ost->swr_opts, o->g->swr_opts, 0);
-    if (ost->enc && av_get_exact_bits_per_sample(ost->enc->id) == 24)
+    if (ost->enc && av_get_exact_bits_per_sample(ost->enc->id) == 24)//如果确定是24位的
         av_dict_set(&ost->swr_opts, "output_sample_bits", "24", 0);
 
     av_dict_copy(&ost->resample_opts, o->g->resample_opts, 0);
-
+    //序列号
     ost->source_index = source_index;
     if (source_index >= 0) {
         ost->sync_ist = input_streams[source_index];
@@ -1561,7 +1561,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         input_streams[source_index]->st->discard = input_streams[source_index]->user_set_discard;
     }
     ost->last_mux_dts = AV_NOPTS_VALUE;
-    //15.
+    //19. 复用的队列 默认是8
     ost->muxing_queue = av_fifo_alloc(8 * sizeof(AVPacket));//分配默认队列
     if (!ost->muxing_queue)
         exit_program(1);
