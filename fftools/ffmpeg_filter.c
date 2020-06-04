@@ -746,31 +746,31 @@ static int sub2video_prepare(InputStream *ist, InputFilter *ifilter)
 static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
                                         AVFilterInOut *in)
 {
-    AVFilterContext *last_filter;
-    const AVFilter *buffer_filt = avfilter_get_by_name("buffer");
-    InputStream *ist = ifilter->ist;
+    AVFilterContext *last_filter;//01.
+    const AVFilter *buffer_filt = avfilter_get_by_name("buffer");//buffer是视频ff_vsrc_buffer,abuffer是音频
+    InputStream *ist = ifilter->ist;//02.
     InputFile     *f = input_files[ist->file_index];
-    AVRational tb = ist->framerate.num ? av_inv_q(ist->framerate) :
+    AVRational tb = ist->framerate.num ? av_inv_q(ist->framerate) ://03.
                                          ist->st->time_base;
     AVRational fr = ist->framerate;
     AVRational sar;
-    AVBPrint args;
+    AVBPrint args;//04.
     char name[255];
     int ret, pad_idx = 0;
     int64_t tsoffset = 0;
-    AVBufferSrcParameters *par = av_buffersrc_parameters_alloc();
+    AVBufferSrcParameters *par = av_buffersrc_parameters_alloc();//05.
 
     if (!par)
         return AVERROR(ENOMEM);
     memset(par, 0, sizeof(*par));
     par->format = AV_PIX_FMT_NONE;
-
+    //不允许音频
     if (ist->dec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
         av_log(NULL, AV_LOG_ERROR, "Cannot connect video filter to audio input\n");
         ret = AVERROR(EINVAL);
         goto fail;
     }
-
+    //06.
     if (!fr.num)
         fr = av_guess_frame_rate(input_files[ist->file_index]->ctx, ist->st, NULL);
 
@@ -779,11 +779,11 @@ static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
         if (ret < 0)
             goto fail;
     }
-
+    //07.
     sar = ifilter->sample_aspect_ratio;
     if(!sar.den)
         sar = (AVRational){0,1};
-    av_bprint_init(&args, 0, AV_BPRINT_SIZE_AUTOMATIC);
+    av_bprint_init(&args, 0, AV_BPRINT_SIZE_AUTOMATIC);//08.
     av_bprintf(&args,
              "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:"
              "pixel_aspect=%d/%d:sws_param=flags=%d",
@@ -795,17 +795,17 @@ static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
     snprintf(name, sizeof(name), "graph %d input from stream %d:%d", fg->index,
              ist->file_index, ist->st->index);
 
-
+    //09.
     if ((ret = avfilter_graph_create_filter(&ifilter->filter, buffer_filt, name,
                                             args.str, NULL, fg->graph)) < 0)
         goto fail;
     par->hw_frames_ctx = ifilter->hw_frames_ctx;
-    ret = av_buffersrc_parameters_set(ifilter->filter, par);
+    ret = av_buffersrc_parameters_set(ifilter->filter, par);//10.
     if (ret < 0)
         goto fail;
     av_freep(&par);
     last_filter = ifilter->filter;
-
+    //11.
     if (ist->autorotate) {
         double theta = get_rotation(ist->st);
 
@@ -826,7 +826,7 @@ static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
         if (ret < 0)
             return ret;
     }
-
+    //12.
     if (do_deinterlace) {
         AVFilterContext *yadif;
 
@@ -846,17 +846,17 @@ static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
 
     snprintf(name, sizeof(name), "trim_in_%d_%d",
              ist->file_index, ist->st->index);
-    if (copy_ts) {
+    if (copy_ts) {//13.
         tsoffset = f->start_time == AV_NOPTS_VALUE ? 0 : f->start_time;
         if (!start_at_zero && f->ctx->start_time != AV_NOPTS_VALUE)
             tsoffset += f->ctx->start_time;
-    }
+    }//14.
     ret = insert_trim(((f->start_time == AV_NOPTS_VALUE) || !f->accurate_seek) ?
                       AV_NOPTS_VALUE : tsoffset, f->recording_time,
                       &last_filter, &pad_idx, name);
     if (ret < 0)
         return ret;
-
+    //15.
     if ((ret = avfilter_link(last_filter, 0, in->filter_ctx, in->pad_idx)) < 0)
         return ret;
     return 0;
@@ -865,15 +865,15 @@ fail:
 
     return ret;
 }
-
+//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_input_audio_filter
 static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
                                         AVFilterInOut *in)
 {
-    AVFilterContext *last_filter;
-    const AVFilter *abuffer_filt = avfilter_get_by_name("abuffer");
-    InputStream *ist = ifilter->ist;
+    AVFilterContext *last_filter;//01.
+    const AVFilter *abuffer_filt = avfilter_get_by_name("abuffer");//buffer是视频ff_vsrc_buffer,abuffer是音频ff_asrc_abuffer
+    InputStream *ist = ifilter->ist;//02.
     InputFile     *f = input_files[ist->file_index];
-    AVBPrint args;
+    AVBPrint args;//03.
     char name[255];
     int ret, pad_idx = 0;
     int64_t tsoffset = 0;
@@ -882,7 +882,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
         av_log(NULL, AV_LOG_ERROR, "Cannot connect audio filter to non audio input\n");
         return AVERROR(EINVAL);
     }
-
+    //04. 打印音频的参数
     av_bprint_init(&args, 0, AV_BPRINT_SIZE_AUTOMATIC);
     av_bprintf(&args, "time_base=%d/%d:sample_rate=%d:sample_fmt=%s",
              1, ifilter->sample_rate,
@@ -895,7 +895,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
         av_bprintf(&args, ":channels=%d", ifilter->channels);
     snprintf(name, sizeof(name), "graph_%d_in_%d_%d", fg->index,
              ist->file_index, ist->st->index);
-
+    //05.
     if ((ret = avfilter_graph_create_filter(&ifilter->filter, abuffer_filt,
                                             name, args.str, NULL,
                                             fg->graph)) < 0)
@@ -922,7 +922,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
                                                                             \
     last_filter = filt_ctx;                                                 \
 } while (0)
-
+    //06.
     if (audio_sync_method > 0) {
         char args[256] = {0};
 
@@ -946,7 +946,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
 //         AUTO_INSERT_FILTER_INPUT("-map_channel", "pan", pan_buf.str);
 //         av_bprint_finalize(&pan_buf, NULL);
 //     }
-
+    //07.
     if (audio_volume != 256) {
         char args[256];
 
@@ -959,17 +959,17 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
 
     snprintf(name, sizeof(name), "trim for input stream %d:%d",
              ist->file_index, ist->st->index);
-    if (copy_ts) {
+    if (copy_ts) {//08.
         tsoffset = f->start_time == AV_NOPTS_VALUE ? 0 : f->start_time;
         if (!start_at_zero && f->ctx->start_time != AV_NOPTS_VALUE)
             tsoffset += f->ctx->start_time;
-    }
+    }//09.
     ret = insert_trim(((f->start_time == AV_NOPTS_VALUE) || !f->accurate_seek) ?
                       AV_NOPTS_VALUE : tsoffset, f->recording_time,
                       &last_filter, &pad_idx, name);
     if (ret < 0)
         return ret;
-
+    //10.
     if ((ret = avfilter_link(last_filter, 0, in->filter_ctx, in->pad_idx)) < 0)
         return ret;
 
