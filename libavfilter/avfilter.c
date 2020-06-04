@@ -556,7 +556,7 @@ void ff_update_link_current_pts(AVFilterLink *link, int64_t pts)
 
 int avfilter_process_command(AVFilterContext *filter, const char *cmd, const char *arg, char *res, int res_len, int flags)
 {
-    if(!strcmp(cmd, "ping")){
+    if(!strcmp(cmd, "ping")){//01.ping
         char local_res[256] = {0};
 
         if (!res) {
@@ -567,12 +567,12 @@ int avfilter_process_command(AVFilterContext *filter, const char *cmd, const cha
         if (res == local_res)
             av_log(filter, AV_LOG_INFO, "%s", res);
         return 0;
-    }else if(!strcmp(cmd, "enable")) {
+    }else if(!strcmp(cmd, "enable")) {//02. enable
         return set_enable_expr(filter, arg);
-    }else if(filter->filter->process_command) {
+    }else if(filter->filter->process_command) {//03. process_command不为空，执行实际可扩展的命令
         return filter->filter->process_command(filter, cmd, arg, res, res_len, flags);
     }
-    return AVERROR(ENOSYS);
+    return AVERROR(ENOSYS);//04.其他情况
 }
 
 int avfilter_pad_count(const AVFilterPad *pads)
@@ -1052,23 +1052,23 @@ static int ff_filter_frame_framed(AVFilterLink *link, AVFrame *frame)
     AVFilterContext *dstctx = link->dst;
     AVFilterPad *dst = link->dstpad;
     int ret;
-
+    //01.
     if (!(filter_frame = dst->filter_frame))
-        filter_frame = default_filter_frame;
-
+        filter_frame = default_filter_frame;//使用默认函数
+    //02.
     if (dst->needs_writable) {
-        ret = ff_inlink_make_frame_writable(link, &frame);
+        ret = ff_inlink_make_frame_writable(link, &frame);//取
         if (ret < 0)
             goto fail;
     }
-
+    //03.
     ff_inlink_process_commands(link, frame);
-    dstctx->is_disabled = !ff_inlink_evaluate_timeline_at_frame(link, frame);
-
+    dstctx->is_disabled = !ff_inlink_evaluate_timeline_at_frame(link, frame);//04.
+    //04.
     if (dstctx->is_disabled &&
         (dstctx->filter->flags & AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC))
-        filter_frame = default_filter_frame;
-    ret = filter_frame(link, frame);
+        filter_frame = default_filter_frame;//
+    ret = filter_frame(link, frame);//05.
     link->frame_count_out++;
     return ret;
 
@@ -1077,7 +1077,7 @@ fail:
     return ret;
 }
 
-int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
+int ff_filter_frame(AVFilterLink *link, AVFrame *frame)//link->fifo加入一帧frame,
 {
     int ret;//01.打印日志有点怪，这里要打开trace才行
     FF_TPRINTF_START(NULL, filter_frame); ff_tlog_link(NULL, link, 1); ff_tlog(NULL, " "); ff_tlog_ref(NULL, frame, 1);
@@ -1115,12 +1115,12 @@ int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
     link->frame_blocked_in = link->frame_wanted_out = 0;
     link->frame_count_in++;
     filter_unblock(link->dst);//不是很理解？
-    ret = ff_framequeue_add(&link->fifo, frame);//04.加入
+    ret = ff_framequeue_add(&link->fifo, frame);//04.&link->fifo加入一帧
     if (ret < 0) {
         av_frame_free(&frame);
         return ret;
     }
-    ff_filter_set_ready(link->dst, 300);//04. 设置ready状态，还可以设置优先级
+    ff_filter_set_ready(link->dst, 300);//04. 设置link的ready状态，还可以设置优先级
     return 0;
 
 error:
@@ -1202,9 +1202,9 @@ static int ff_filter_frame_to_filter(AVFilterLink *link)
     int ret;
 
     av_assert1(ff_framequeue_queued_frames(&link->fifo));
-    ret = link->min_samples ?
-          ff_inlink_consume_samples(link, link->min_samples, link->max_samples, &frame) :
-          ff_inlink_consume_frame(link, &frame);
+    ret = link->min_samples ?//01.
+          ff_inlink_consume_samples(link, link->min_samples, link->max_samples, &frame) ://
+          ff_inlink_consume_frame(link, &frame);//取frame
     av_assert1(ret);
     if (ret < 0) {
         av_assert1(!frame);
@@ -1212,17 +1212,17 @@ static int ff_filter_frame_to_filter(AVFilterLink *link)
     }
     /* The filter will soon have received a new frame, that may allow it to
        produce one or more: unblock its outputs. */
-    filter_unblock(dst);
+    filter_unblock(dst);//02.
     /* AVFilterPad.filter_frame() expect frame_count_out to have the value
        before the frame; ff_filter_frame_framed() will re-increment it. */
     link->frame_count_out--;
-    ret = ff_filter_frame_framed(link, frame);
-    if (ret < 0 && ret != link->status_out) {
-        ff_avfilter_link_set_out_status(link, ret, AV_NOPTS_VALUE);
+    ret = ff_filter_frame_framed(link, frame);//03.
+    if (ret < 0 && ret != link->status_out) {//04.
+        ff_avfilter_link_set_out_status(link, ret, AV_NOPTS_VALUE);//如果异常
     } else {
         /* Run once again, to see if several frames were available, or if
            the input status has also changed, or any other reason. */
-        ff_filter_set_ready(dst, 300);
+        ff_filter_set_ready(dst, 300);//提高优先级，期望再跑一次
     }
     return ret;
 }
@@ -1312,7 +1312,7 @@ static int ff_filter_activate_default(AVFilterContext *filter)
      It is also cleared when a status change is sent from the source using
      ff_avfilter_link_set_in_status().
 
-   - frame_blocked_in:
+   - frame_blocked_in://tiger 标志位，避免频繁调用request_frame
 
      This field means that the source filter can not generate a frame as is.
      Its goal is to avoid repeatedly calling the request_frame() method on
@@ -1573,14 +1573,14 @@ int ff_inlink_make_frame_writable(AVFilterLink *link, AVFrame **rframe)
 
 int ff_inlink_process_commands(AVFilterLink *link, const AVFrame *frame)
 {
-    AVFilterCommand *cmd = link->dst->command_queue;
+    AVFilterCommand *cmd = link->dst->command_queue;//01. 是否有命令
 
-    while(cmd && cmd->time <= frame->pts * av_q2d(link->time_base)){
+    while(cmd && cmd->time <= frame->pts * av_q2d(link->time_base)){//02.如果cmd不为空 且时间？
         av_log(link->dst, AV_LOG_DEBUG,
                "Processing command time:%f command:%s arg:%s\n",
                cmd->time, cmd->command, cmd->arg);
-        avfilter_process_command(link->dst, cmd->command, cmd->arg, 0, 0, cmd->flags);
-        ff_command_queue_pop(link->dst);
+        avfilter_process_command(link->dst, cmd->command, cmd->arg, 0, 0, cmd->flags);//执行可扩展的命令
+        ff_command_queue_pop(link->dst);//指向下一个command
         cmd= link->dst->command_queue;
     }
     return 0;

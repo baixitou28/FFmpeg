@@ -304,7 +304,7 @@ unsigned av_buffersrc_get_nb_failed_requests(AVFilterContext *buffer_src)
 #define OFFSET(x) offsetof(BufferSourceContext, x)
 #define A AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_AUDIO_PARAM
 #define V AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM
-
+//ff_vsrc_buffer 视频参数
 static const AVOption buffer_options[] = {
     { "width",         NULL,                     OFFSET(w),                AV_OPT_TYPE_INT,      { .i64 = 0 }, 0, INT_MAX, V },
     { "video_size",    NULL,                     OFFSET(w),                AV_OPT_TYPE_IMAGE_SIZE,                .flags = V },
@@ -319,7 +319,7 @@ static const AVOption buffer_options[] = {
 };
 
 AVFILTER_DEFINE_CLASS(buffer);
-
+//ff_asrc_abuffer 音频参数
 static const AVOption abuffer_options[] = {
     { "time_base",      NULL, OFFSET(time_base),           AV_OPT_TYPE_RATIONAL, { .dbl = 0 }, 0, INT_MAX, A },
     { "sample_rate",    NULL, OFFSET(sample_rate),         AV_OPT_TYPE_INT,      { .i64 = 0 }, 0, INT_MAX, A },
@@ -335,7 +335,7 @@ static av_cold int init_audio(AVFilterContext *ctx)
 {
     BufferSourceContext *s = ctx->priv;
     int ret = 0;
-    //01. 是否以获取foramt参数
+    //01. 是否以获取format参数
     if (!(s->sample_fmt != AV_SAMPLE_FMT_NONE || s->got_format_from_params)) {
         av_log(ctx, AV_LOG_ERROR, "Sample format was not set or was invalid\n");
         return AVERROR(EINVAL);
@@ -396,7 +396,7 @@ static av_cold void uninit(AVFilterContext *ctx)
     av_fifo_freep(&s->fifo);
 }
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//设置格式
 {
     BufferSourceContext *c = ctx->priv;
     AVFilterChannelLayouts *channel_layouts = NULL;
@@ -460,7 +460,7 @@ static int config_props(AVFilterLink *link)
     return 0;
 }
 
-static int request_frame(AVFilterLink *link)
+static int request_frame(AVFilterLink *link)//从c->fifo读取一帧，放
 {
     BufferSourceContext *c = link->src->priv;
     AVFrame *frame;
@@ -473,8 +473,8 @@ static int request_frame(AVFilterLink *link)
         return AVERROR(EAGAIN);
     }
     av_fifo_generic_read(c->fifo, &frame, sizeof(frame), NULL);//02.阻塞式从fifo读取AVFrame* frame大小，因为先判断av_fifo_size，读一帧不会阻塞
-    //03.
-    ret = ff_filter_frame(link, frame);
+    //03. 这里是生产者：加入一帧，等待消费者来读
+    ret = ff_filter_frame(link, frame); //link->fifo加入一帧
 
     return ret;
 }

@@ -60,7 +60,7 @@ void ff_framequeue_free(FFFrameQueue *fq)
         av_freep(&fq->queue);//释放fifo队列
 }
 
-int ff_framequeue_add(FFFrameQueue *fq, AVFrame *frame)//这是一个循环队列
+int ff_framequeue_add(FFFrameQueue *fq, AVFrame *frame)//加入一帧，空间不够，按2的指数增加，且这是一个循环队列
 {
     FFFrameBucket *b;
     
@@ -107,7 +107,7 @@ AVFrame *ff_framequeue_take(FFFrameQueue *fq)//从循环队列中取
     fq->tail &= fq->allocated - 1;//01.防止溢出 02.指针位置周期性循环
     fq->total_frames_tail++;
     fq->total_samples_tail += b->frame->nb_samples;
-    fq->samples_skipped = 0;
+    fq->samples_skipped = 0;//没有skip的采样值
     check_consistency(fq);
     return b->frame;
 }
