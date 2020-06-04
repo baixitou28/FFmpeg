@@ -106,7 +106,7 @@ static const struct {
     { "downmix",     2,  AV_CH_LAYOUT_STEREO_DOWNMIX, },
 };
 
-static uint64_t get_channel_layout_single(const char *name, int name_len)
+static uint64_t get_channel_layout_single(const char *name, int name_len)//先尝试查找名字，找不到则直接转化为十进制匹配
 {
     int i;
     char *end;
@@ -124,7 +124,7 @@ static uint64_t get_channel_layout_single(const char *name, int name_len)
             return (int64_t)1 << i;
 
     errno = 0;
-    i = strtol(name, &end, 10);
+    i = strtol(name, &end, 10);//不能用名字查找，就把它转化成十进制
 
     if (!errno && (end + 1 - name == name_len && *end  == 'c'))
         return av_get_default_channel_layout(i);
@@ -143,11 +143,11 @@ uint64_t av_get_channel_layout(const char *name)
     int64_t layout = 0, layout_single;
 
     for (n = name; n < name_end; n = e + 1) {
-        for (e = n; e < name_end && *e != '+' && *e != '|'; e++);
-        layout_single = get_channel_layout_single(n, e - n);
-        if (!layout_single)
+        for (e = n; e < name_end && *e != '+' && *e != '|'; e++);//注意分隔符
+        layout_single = get_channel_layout_single(n, e - n);//寻找单个声道的layout
+        if (!layout_single)//如果只是...
             return 0;
-        layout |= layout_single;
+        layout |= layout_single;//能合并吗？
     }
     return layout;
 }

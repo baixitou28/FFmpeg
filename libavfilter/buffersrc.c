@@ -335,15 +335,15 @@ static av_cold int init_audio(AVFilterContext *ctx)
 {
     BufferSourceContext *s = ctx->priv;
     int ret = 0;
-
+    //01.
     if (!(s->sample_fmt != AV_SAMPLE_FMT_NONE || s->got_format_from_params)) {
         av_log(ctx, AV_LOG_ERROR, "Sample format was not set or was invalid\n");
         return AVERROR(EINVAL);
     }
-
+    //02.
     if (s->channel_layout_str || s->channel_layout) {
         int n;
-
+        //没有layout，用名称去获取layout
         if (!s->channel_layout) {
             s->channel_layout = av_get_channel_layout(s->channel_layout_str);
             if (!s->channel_layout) {
@@ -351,7 +351,7 @@ static av_cold int init_audio(AVFilterContext *ctx)
                        s->channel_layout_str);
                 return AVERROR(EINVAL);
             }
-        }
+        }//声道数
         n = av_get_channel_layout_nb_channels(s->channel_layout);
         if (s->channels) {
             if (n != s->channels) {
@@ -368,10 +368,10 @@ static av_cold int init_audio(AVFilterContext *ctx)
                                   "channel layout specified\n");
         return AVERROR(EINVAL);
     }
-
+    //03.分配单向列表
     if (!(s->fifo = av_fifo_alloc(sizeof(AVFrame*))))
         return AVERROR(ENOMEM);
-
+    //04. 如果没有指定是用原始采样率的
     if (!s->time_base.num)
         s->time_base = (AVRational){1, s->sample_rate};
 
@@ -387,7 +387,7 @@ static av_cold int init_audio(AVFilterContext *ctx)
 static av_cold void uninit(AVFilterContext *ctx)
 {
     BufferSourceContext *s = ctx->priv;
-    while (s->fifo && av_fifo_size(s->fifo)) {
+    while (s->fifo && av_fifo_size(s->fifo)) {//释放单向队列中的数据
         AVFrame *frame;
         av_fifo_generic_read(s->fifo, &frame, sizeof(frame), NULL);
         av_frame_free(&frame);
@@ -535,5 +535,5 @@ AVFilter ff_asrc_abuffer = {
 
     .inputs    = NULL,
     .outputs   = avfilter_asrc_abuffer_outputs,
-    .priv_class = &abuffer_class,
+    .priv_class = &abuffer_class,//定义是红，参看AVFILTER_DEFINE_CLASS(abuffer);
 };
