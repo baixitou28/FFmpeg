@@ -58,7 +58,7 @@ typedef struct FFFrameQueue {
     FFFrameBucket *queue;
 
     /**
-     * Size of the array of buckets.
+     * Size of the array of buckets.//已分配的最大值
      */
     size_t allocated;
 

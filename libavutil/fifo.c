@@ -142,7 +142,7 @@ int av_fifo_generic_write(AVFifoBuffer *f, void *src, int size,
             wptr = f->buffer;
         wndx    += len;
         size    -= len;
-    } while (size > 0);//Èç¹û»¹ÒªÐ´£¬¿ÉÄÜÐèÒªµÈ´ý¶Á£¬ËùÒÔÕâÀï¾ÍÎÞÌõ¼þÑ­»·×èÈûÁË
+    } while (size > 0);//Èç¹û»¹ÒªÐ´£¬¿ÉÄÜÐèÒªµÈ´ý¶ÁÇå¿Õfifo£¬ËùÒÔÕâÀï¾ÍÎÞÌõ¼þÑ­»·×èÈûÁË==>Ò»°ãÐ´Ò»Ö¡£¬¶ÁÒ»Ö¡µÄ½Ú×àÒ²ÊÇ»á×èÈûµÄ£¬
     f->wndx= wndx;//Ð´³É¹¦£¬¸üÐÂÖ¸Õë£¬Í³¼ÆÖµµÈ
     f->wptr= wptr;
     return total - size;
@@ -225,7 +225,7 @@ int av_fifo_generic_read(AVFifoBuffer *f, void *dest, int buf_size,//Ñ­»·´¦Àí£¬½
 // memory barrier needed for SMP here in theory
         av_fifo_drain(f, len);//Ìø¹ýsize£¬f->rptr += size
         buf_size -= len;//Ê£ÏÂµÄbuff¼õÉÙ
-    } while (buf_size > 0);//¾ÙÀý£ºÔ­Ê¼µÄbuf_size = sizeof(AVFrame) £¬ buf_size>0ËµÃ÷»¹Ã»ÓÐ¶ÁÈ«  ==>ÕæµÄ»á¶Á²»È«Âð£¿»á¿ÉÄÜfifoÂúÁË¡£ÕâÀïÊÇÎÞÌõ¼þ×èÈû
+    } while (buf_size > 0);//¾ÙÀý£ºÔ­Ê¼µÄbuf_size = sizeof(AVFrame) £¬ buf_size>0ËµÃ÷»¹Ã»ÓÐ¶ÁÈ«  ==>ÕæµÄ»á¶Á²»È«Âð£¿¶ÁÒ»Ö¡£¬Ò²¿ÉÄÜÃ»Êý¾Ý£¬Èç¹ûÊÇ¶Á¶àÖ¡£¬¸ÅÂÊ¸ü´ó£¬fifo¿ÕÁË¡£ÕâÀïÊÇÎÞÌõ¼þ×èÈû
     return 0;
 }
 

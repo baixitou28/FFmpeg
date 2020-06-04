@@ -1079,11 +1079,11 @@ fail:
 
 int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
 {
-    int ret;
+    int ret;//01.打印日志有点怪，这里要打开trace才行
     FF_TPRINTF_START(NULL, filter_frame); ff_tlog_link(NULL, link, 1); ff_tlog(NULL, " "); ff_tlog_ref(NULL, frame, 1);
-
+    //02. 不能随便更改音视频的参数
     /* Consistency checks */
-    if (link->type == AVMEDIA_TYPE_VIDEO) {
+    if (link->type == AVMEDIA_TYPE_VIDEO) {//02.01 视频 更改就报错
         if (strcmp(link->dst->filter->name, "buffersink") &&
             strcmp(link->dst->filter->name, "format") &&
             strcmp(link->dst->filter->name, "idet") &&
@@ -1093,7 +1093,7 @@ int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
             av_assert1(frame->width               == link->w);
             av_assert1(frame->height               == link->h);
         }
-    } else {
+    } else {//02.02 音频 更改就报错
         if (frame->format != link->format) {
             av_log(link->dst, AV_LOG_ERROR, "Format change is not supported\n");
             goto error;
@@ -1111,16 +1111,16 @@ int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
             goto error;
         }
     }
-
+    //03.统计值和状态
     link->frame_blocked_in = link->frame_wanted_out = 0;
     link->frame_count_in++;
-    filter_unblock(link->dst);
-    ret = ff_framequeue_add(&link->fifo, frame);
+    filter_unblock(link->dst);//不是很理解？
+    ret = ff_framequeue_add(&link->fifo, frame);//04.加入
     if (ret < 0) {
         av_frame_free(&frame);
         return ret;
     }
-    ff_filter_set_ready(link->dst, 300);
+    ff_filter_set_ready(link->dst, 300);//04. 设置ready状态，还可以设置优先级
     return 0;
 
 error:

@@ -335,12 +335,12 @@ static av_cold int init_audio(AVFilterContext *ctx)
 {
     BufferSourceContext *s = ctx->priv;
     int ret = 0;
-    //01.
+    //01. 是否以获取foramt参数
     if (!(s->sample_fmt != AV_SAMPLE_FMT_NONE || s->got_format_from_params)) {
         av_log(ctx, AV_LOG_ERROR, "Sample format was not set or was invalid\n");
         return AVERROR(EINVAL);
     }
-    //02.
+    //02.获取layout和声道数
     if (s->channel_layout_str || s->channel_layout) {
         int n;
         //没有layout，用名称去获取layout
@@ -363,7 +363,7 @@ static av_cold int init_audio(AVFilterContext *ctx)
             }
         }
         s->channels = n;
-    } else if (!s->channels) {
+    } else if (!s->channels) {//不能没有声道
         av_log(ctx, AV_LOG_ERROR, "Neither number of channels nor "
                                   "channel layout specified\n");
         return AVERROR(EINVAL);
@@ -379,7 +379,7 @@ static av_cold int init_audio(AVFilterContext *ctx)
            "tb:%d/%d samplefmt:%s samplerate:%d chlayout:%s\n",
            s->time_base.num, s->time_base.den, av_get_sample_fmt_name(s->sample_fmt),
            s->sample_rate, s->channel_layout_str);
-    s->warning_limit = 100;
+    s->warning_limit = 100;//警告上限
 
     return ret;
 }
@@ -466,20 +466,20 @@ static int request_frame(AVFilterLink *link)
     AVFrame *frame;
     int ret;
 
-    if (!av_fifo_size(c->fifo)) {//如果一帧都没有，要么eof，要么是EAGAIN
+    if (!av_fifo_size(c->fifo)) {//01.如果一帧都没有，要么eof，要么是EAGAIN
         if (c->eof)
             return AVERROR_EOF;
         c->nb_failed_requests++;
         return AVERROR(EAGAIN);
     }
-    av_fifo_generic_read(c->fifo, &frame, sizeof(frame), NULL);
-
+    av_fifo_generic_read(c->fifo, &frame, sizeof(frame), NULL);//02.阻塞式从fifo读取AVFrame* frame大小，因为先判断av_fifo_size，读一帧不会阻塞
+    //03.
     ret = ff_filter_frame(link, frame);
 
     return ret;
 }
 
-static int poll_frame(AVFilterLink *link)
+static int poll_frame(AVFilterLink *link)//看看有几个可用帧
 {
     BufferSourceContext *c = link->src->priv;
     int size = av_fifo_size(c->fifo);
