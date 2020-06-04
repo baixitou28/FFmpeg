@@ -466,7 +466,7 @@ static int request_frame(AVFilterLink *link)
     AVFrame *frame;
     int ret;
 
-    if (!av_fifo_size(c->fifo)) {
+    if (!av_fifo_size(c->fifo)) {//如果一帧都没有，要么eof，要么是EAGAIN
         if (c->eof)
             return AVERROR_EOF;
         c->nb_failed_requests++;
@@ -484,7 +484,7 @@ static int poll_frame(AVFilterLink *link)
     BufferSourceContext *c = link->src->priv;
     int size = av_fifo_size(c->fifo);
     if (!size && c->eof)
-        return AVERROR_EOF;
+        return AVERROR_EOF;//如果长度为0，或者eof，都算EOF
     return size/sizeof(AVFrame*);
 }
 

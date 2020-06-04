@@ -29,9 +29,9 @@
 #include "attributes.h"
 
 typedef struct AVFifoBuffer {
-    uint8_t *buffer;
-    uint8_t *rptr, *wptr, *end;
-    uint32_t rndx, wndx;
+    uint8_t *buffer;//这是8位指针
+    uint8_t *rptr, *wptr, *end;//这是8位的指针
+    uint32_t rndx, wndx;//这是32位
 } AVFifoBuffer;
 
 /**
