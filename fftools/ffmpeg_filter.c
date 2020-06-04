@@ -336,7 +336,7 @@ static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)
     GROW_ARRAY(ist->filters, ist->nb_filters);
     ist->filters[ist->nb_filters - 1] = fg->inputs[fg->nb_inputs - 1];
 }
-
+//complex filtergraph 的说明看ffmpeg.texi
 int init_complex_filtergraph(FilterGraph *fg)//TIGER 看注释，仅仅用来判断输入出的类型，在退出的时候丢弃
 {
     AVFilterInOut *inputs, *outputs, *cur;
@@ -742,7 +742,7 @@ static int sub2video_prepare(InputStream *ist, InputFilter *ifilter)
     ist->sub2video.end_pts  = INT64_MIN;
     return 0;
 }
-
+//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
 static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
                                         AVFilterInOut *in)
 {
@@ -1005,21 +1005,21 @@ static void cleanup_filtergraph(FilterGraph *fg)
 int configure_filtergraph(FilterGraph *fg)
 {
     AVFilterInOut *inputs, *outputs, *cur;
-    int ret, i, simple = filtergraph_is_simple(fg);
+    int ret, i, simple = filtergraph_is_simple(fg);//01.是否是simple
     const char *graph_desc = simple ? fg->outputs[0]->ost->avfilter :
                                       fg->graph_desc;
-
+    //02.
     cleanup_filtergraph(fg);
-    if (!(fg->graph = avfilter_graph_alloc()))
+    if (!(fg->graph = avfilter_graph_alloc()))//03.分配AVFilterGraph实例
         return AVERROR(ENOMEM);
-
-    if (simple) {
+    //04.
+    if (simple) {//04.01
         OutputStream *ost = fg->outputs[0]->ost;
         char args[512];
         AVDictionaryEntry *e = NULL;
-
+        //04.01.01
         fg->graph->nb_threads = filter_nbthreads;
-
+        //04.01.02 取sws_dict 放fg->graph->scale_sws_opts
         args[0] = 0;
         while ((e = av_dict_get(ost->sws_dict, "", e,
                                 AV_DICT_IGNORE_SUFFIX))) {
@@ -1028,7 +1028,7 @@ int configure_filtergraph(FilterGraph *fg)
         if (strlen(args))
             args[strlen(args)-1] = 0;
         fg->graph->scale_sws_opts = av_strdup(args);
-
+        //04.01.02 取swr_opts 放fg->graph的aresample_swr_opts
         args[0] = 0;
         while ((e = av_dict_get(ost->swr_opts, "", e,
                                 AV_DICT_IGNORE_SUFFIX))) {
@@ -1037,7 +1037,7 @@ int configure_filtergraph(FilterGraph *fg)
         if (strlen(args))
             args[strlen(args)-1] = 0;
         av_opt_set(fg->graph, "aresample_swr_opts", args, 0);
-
+        //04.01.03 取resample_opts 没用起来？
         args[0] = '\0';
         while ((e = av_dict_get(fg->outputs[0]->ost->resample_opts, "", e,
                                 AV_DICT_IGNORE_SUFFIX))) {
@@ -1045,17 +1045,17 @@ int configure_filtergraph(FilterGraph *fg)
         }
         if (strlen(args))
             args[strlen(args) - 1] = '\0';
-
+        //04.01.02 取threads 放fg->graph的threads
         e = av_dict_get(ost->encoder_opts, "threads", NULL, 0);
         if (e)
             av_opt_set(fg->graph, "threads", e->value, 0);
-    } else {
+    } else {//04.02 只考虑线程
         fg->graph->nb_threads = filter_complex_nbthreads;
     }
-
+    //05.
     if ((ret = avfilter_graph_parse2(fg->graph, graph_desc, &inputs, &outputs)) < 0)
         goto fail;
-
+    //06. 硬件
     if (filter_hw_device || hw_device_ctx) {
         AVBufferRef *device = filter_hw_device ? filter_hw_device->device_ref
                                                : hw_device_ctx;
@@ -1067,7 +1067,7 @@ int configure_filtergraph(FilterGraph *fg)
             }
         }
     }
-
+    //07.如果是simple，且inputs或outputs有多个AVFilterInOut
     if (simple && (!inputs || inputs->next || !outputs || outputs->next)) {
         const char *num_inputs;
         const char *num_outputs;
@@ -1093,7 +1093,7 @@ int configure_filtergraph(FilterGraph *fg)
         ret = AVERROR(EINVAL);
         goto fail;
     }
-
+    //08.
     for (cur = inputs, i = 0; cur; cur = cur->next, i++)
         if ((ret = configure_input_filter(fg, fg->inputs[i], cur)) < 0) {
             avfilter_inout_free(&inputs);
@@ -1101,14 +1101,14 @@ int configure_filtergraph(FilterGraph *fg)
             goto fail;
         }
     avfilter_inout_free(&inputs);
-
+    //09.
     for (cur = outputs, i = 0; cur; cur = cur->next, i++)
         configure_output_filter(fg, fg->outputs[i], cur);
     avfilter_inout_free(&outputs);
-
+    //10.
     if ((ret = avfilter_graph_config(fg->graph, NULL)) < 0)
         goto fail;
-
+    //11.
     /* limit the lists of allowed formats to the ones selected, to
      * make sure they stay the same if the filtergraph is reconfigured later */
     for (i = 0; i < fg->nb_outputs; i++) {
@@ -1123,9 +1123,9 @@ int configure_filtergraph(FilterGraph *fg)
         ofilter->sample_rate    = av_buffersink_get_sample_rate(sink);
         ofilter->channel_layout = av_buffersink_get_channel_layout(sink);
     }
-
+    //
     fg->reconfiguration = 1;
-
+    //12.
     for (i = 0; i < fg->nb_outputs; i++) {
         OutputStream *ost = fg->outputs[i]->ost;
         if (!ost->enc) {
@@ -1141,7 +1141,7 @@ int configure_filtergraph(FilterGraph *fg)
             av_buffersink_set_frame_size(ost->filter->filter,
                                          ost->enc_ctx->frame_size);
     }
-
+    //13.
     for (i = 0; i < fg->nb_inputs; i++) {
         while (av_fifo_size(fg->inputs[i]->frame_queue)) {
             AVFrame *tmp;
@@ -1152,7 +1152,7 @@ int configure_filtergraph(FilterGraph *fg)
                 goto fail;
         }
     }
-
+    //14.
     /* send the EOFs for the finished inputs */
     for (i = 0; i < fg->nb_inputs; i++) {
         if (fg->inputs[i]->eof) {
@@ -1161,7 +1161,7 @@ int configure_filtergraph(FilterGraph *fg)
                 goto fail;
         }
     }
-
+    //15.
     /* process queued up subtitle packets */
     for (i = 0; i < fg->nb_inputs; i++) {
         InputStream *ist = fg->inputs[i]->ist;

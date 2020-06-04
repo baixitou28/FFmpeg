@@ -2125,7 +2125,7 @@ static int ifilter_has_all_input_formats(FilterGraph *fg)
     }
     return 1;
 }
-
+//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
 static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)
 {
     FilterGraph *fg = ifilter->graph;
@@ -2267,7 +2267,7 @@ static int send_frame_to_filters(InputStream *ist, AVFrame *decoded_frame)
                 break;
         } else
             f = decoded_frame;
-        ret = ifilter_send_frame(ist->filters[i], f);
+        ret = ifilter_send_frame(ist->filters[i], f);//
         if (ret == AVERROR_EOF)
             ret = 0; /* ignore */
         if (ret < 0) {
@@ -2340,7 +2340,7 @@ static int decode_audio(InputStream *ist, AVPacket *pkt, int *got_output,
     av_frame_unref(decoded_frame);
     return err < 0 ? err : ret;
 }
-
+//transcode_step-->prcess_input --> prcess_input_packet-->decode_video-->send_frame_to_filter -->ifilter_send_frame -->configure_filtergraph-->configure_output_video_filter
 static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_t *duration_pts, int eof,
                         int *decode_failed)
 {
@@ -2466,7 +2466,7 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_
     if (ist->st->sample_aspect_ratio.num)
         decoded_frame->sample_aspect_ratio = ist->st->sample_aspect_ratio;
 
-    err = send_frame_to_filters(ist, decoded_frame);
+    err = send_frame_to_filters(ist, decoded_frame);//
 
 fail:
     av_frame_unref(ist->filter_frame);
@@ -4276,7 +4276,7 @@ static int process_input(int file_index)
             ist = input_streams[ifile->ist_index + i];
             avctx = ist->dec_ctx;
             if (ist->decoding_needed) {
-                ret = process_input_packet(ist, NULL, 1);
+                ret = process_input_packet(ist, NULL, 1);//
                 if (ret>0)
                     return 0;
                 avcodec_flush_buffers(avctx);
@@ -4595,7 +4595,7 @@ static int transcode_step(void)
     //02. 如果没有graph
     if (ost->filter && !ost->filter->graph->graph) {
         if (ifilter_has_all_input_formats(ost->filter->graph)) {
-            ret = configure_filtergraph(ost->filter->graph);
+            ret = configure_filtergraph(ost->filter->graph);//
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Error reinitializing filters!\n");
                 return ret;
@@ -4634,7 +4634,7 @@ static int transcode_step(void)
         av_assert0(ost->source_index >= 0);
         ist = input_streams[ost->source_index];
     }
-    //04.处理输入
+    //04.处理输入 transcode_step-->prcess_input --> prcess_input_packet-->decode_video-->send_frame_to_filter -->ifilter_send_frame -->configure_filtergraph-->configure_output_video_filter
     ret = process_input(ist->file_index);
     if (ret == AVERROR(EAGAIN)) {//04.01如果是EAGAIN
         if (input_files[ist->file_index]->eagain)
