@@ -82,7 +82,7 @@ static int return_or_keep_frame(BufferSinkContext *buf, AVFrame *out, AVFrame *i
         return 0;
     }
 }
-
+//
 static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, int samples)
 {
     BufferSinkContext *buf = ctx->priv;
@@ -90,32 +90,32 @@ static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, i
     int status, ret;
     AVFrame *cur_frame;
     int64_t pts;
-
+    //01.
     if (buf->peeked_frame)
         return return_or_keep_frame(buf, frame, buf->peeked_frame, flags);
-
+    //02.
     while (1) {
-        ret = samples ? ff_inlink_consume_samples(inlink, samples, samples, &cur_frame) :
-                        ff_inlink_consume_frame(inlink, &cur_frame);
+        ret = samples ? ff_inlink_consume_samples(inlink, samples, samples, &cur_frame) ://02.01
+                        ff_inlink_consume_frame(inlink, &cur_frame);//02.02
         if (ret < 0) {
-            return ret;
+            return ret;//一直循环
         } else if (ret) {
             /* TODO return the frame instead of copying it */
-            return return_or_keep_frame(buf, frame, cur_frame, flags);
-        } else if (ff_inlink_acknowledge_status(inlink, &status, &pts)) {
+            return return_or_keep_frame(buf, frame, cur_frame, flags);//02.03
+        } else if (ff_inlink_acknowledge_status(inlink, &status, &pts)) {//02.04
             return status;
-        } else if ((flags & AV_BUFFERSINK_FLAG_NO_REQUEST)) {
+        } else if ((flags & AV_BUFFERSINK_FLAG_NO_REQUEST)) {//02.05
             return AVERROR(EAGAIN);
-        } else if (inlink->frame_wanted_out) {
+        } else if (inlink->frame_wanted_out) {//02.06
             ret = ff_filter_graph_run_once(ctx->graph);
             if (ret < 0)
                 return ret;
         } else {
-            ff_inlink_request_frame(inlink);
+            ff_inlink_request_frame(inlink);//02.07 frame_wanted_out未设置，设置即请求输出
         }
     }
 }
-
+//
 int attribute_align_arg av_buffersink_get_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)
 {
     return get_frame_internal(ctx, frame, flags, ctx->inputs[0]->min_samples);

@@ -1413,9 +1413,9 @@ static void finish_output_stream(OutputStream *ost)
             output_streams[of->ost_index + i]->finished = ENCODER_FINISHED | MUXER_FINISHED;
     }
 }
-
+//调用路线transcode-->transcode_step-->reap_filters-->do_audio_out-->output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->wav_write_packet
 /**
- * Get and encode new output from any of the filtergraphs, without causing
+ * Get and encode new output from any of the filtergraphs, without causing//注释
  * activity.
  *
  * @return  0 for success, <0 for severe errors
@@ -1452,19 +1452,19 @@ static int reap_filters(int flush)//TIGER 看注释，“在没有导致连接？获得一个filt
         }
         filtered_frame = ost->filtered_frame;
         //03.
-        while (1) {
+        while (1) {//
             double float_pts = AV_NOPTS_VALUE; // this is identical to filtered_frame.pts but with higher precision//03.01
-            ret = av_buffersink_get_frame_flags(filter, filtered_frame,//03.02
+            ret = av_buffersink_get_frame_flags(filter, filtered_frame,//03.02 从filter 里面去一帧
                                                AV_BUFFERSINK_FLAG_NO_REQUEST);
             if (ret < 0) {//03.03 返回值不为0，可能是有异常
-                if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {//异常
+                if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {//异常提示
                     av_log(NULL, AV_LOG_WARNING,
                            "Error in av_buffersink_get_frame_flags(): %s\n", av_err2str(ret));
-                } else if (flush && ret == AVERROR_EOF) {//需要flush，或者EOF
+                } else if (flush && ret == AVERROR_EOF) {//EOF时且需要flush
                     if (av_buffersink_get_type(filter) == AVMEDIA_TYPE_VIDEO)//
                         do_video_out(of, ost, NULL, AV_NOPTS_VALUE);//tiger 
                 }
-                break;
+                break;//AVERROR_EOF、EAGAIN、其他异常，都退出循环。 ==>这里的隐含的处理机制：不停读filter的buffersink，直到读空为止. 
             }
             if (ost->finished) {//03.04 已经结束了吗？
                 av_frame_unref(filtered_frame);
@@ -1488,7 +1488,7 @@ static int reap_filters(int flush)//TIGER 看注释，“在没有导致连接？获得一个filt
                     av_rescale_q(filtered_frame->pts, filter_tb, enc->time_base) -
                     av_rescale_q(start_time, AV_TIME_BASE_Q, enc->time_base);
             }
-            //03.06
+            //03.06 判断音频或者视频种类，分别对应不同的编码输出
             switch (av_buffersink_get_type(filter)) {
             case AVMEDIA_TYPE_VIDEO:
                 if (!ost->frame_aspect_ratio.num)
@@ -1509,7 +1509,7 @@ static int reap_filters(int flush)//TIGER 看注释，“在没有导致连接？获得一个filt
                     av_log(NULL, AV_LOG_ERROR,
                            "Audio filter graph output is not normalized and encoder does not support parameter changes\n");
                     break;
-                }
+                }//调用路线transcode-->transcode_step-->reap_filters-->do_audio_out-->output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->wav_write_packet
                 do_audio_out(of, ost, filtered_frame);
                 break;
             default:

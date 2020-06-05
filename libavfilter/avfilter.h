@@ -63,7 +63,7 @@ const char *avfilter_configuration(void);
  * Return the libavfilter license.
  */
 const char *avfilter_license(void);
-
+//tiger Filter 的几个重要概念
 typedef struct AVFilterContext AVFilterContext;
 typedef struct AVFilterLink    AVFilterLink;
 typedef struct AVFilterPad     AVFilterPad;

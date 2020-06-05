@@ -109,7 +109,7 @@ int av_get_bytes_per_sample(enum AVSampleFormat sample_fmt)
         0 : sample_fmt_info[sample_fmt].bits >> 3;
 }
 
-int av_sample_fmt_is_planar(enum AVSampleFormat sample_fmt)
+int av_sample_fmt_is_planar(enum AVSampleFormat sample_fmt)//ÊÇ·ñÊÇ¶ÑµþplanarµÄ
 {
      if (sample_fmt < 0 || sample_fmt >= AV_SAMPLE_FMT_NB)
          return 0;

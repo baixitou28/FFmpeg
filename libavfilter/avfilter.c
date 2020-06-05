@@ -1470,29 +1470,29 @@ int ff_inlink_check_available_samples(AVFilterLink *link, unsigned min)
     return samples >= min || (link->status_in && samples);
 }
 
-static void consume_update(AVFilterLink *link, const AVFrame *frame)
+static void consume_update(AVFilterLink *link, const AVFrame *frame)//更新link，并执行所有的cmd
 {
-    ff_update_link_current_pts(link, frame->pts);
-    ff_inlink_process_commands(link, frame);
-    link->dst->is_disabled = !ff_inlink_evaluate_timeline_at_frame(link, frame);
-    link->frame_count_out++;
+    ff_update_link_current_pts(link, frame->pts);//更新pts
+    ff_inlink_process_commands(link, frame);//执行所有cmd
+    link->dst->is_disabled = !ff_inlink_evaluate_timeline_at_frame(link, frame);//?
+    link->frame_count_out++;//统计
 }
-
+//
 int ff_inlink_consume_frame(AVFilterLink *link, AVFrame **rframe)
 {
     AVFrame *frame;
-
+    //01.是否有frame
     *rframe = NULL;
     if (!ff_inlink_check_available_frame(link))
         return 0;
-
+    //02.是否需要跳过
     if (link->fifo.samples_skipped) {
         frame = ff_framequeue_peek(&link->fifo, 0);
         return ff_inlink_consume_samples(link, frame->nb_samples, frame->nb_samples, rframe);
     }
-
+    //03.取一帧
     frame = ff_framequeue_take(&link->fifo);
-    consume_update(link, frame);
+    consume_update(link, frame);//04.执行cmd，并更新
     *rframe = frame;
     return 1;
 }
@@ -1570,8 +1570,8 @@ int ff_inlink_make_frame_writable(AVFilterLink *link, AVFrame **rframe)
     *rframe = out;
     return 0;
 }
-
-int ff_inlink_process_commands(AVFilterLink *link, const AVFrame *frame)
+//tiger
+int ff_inlink_process_commands(AVFilterLink *link, const AVFrame *frame)//tiger 处理 link->dst->command_queue的所有命令
 {
     AVFilterCommand *cmd = link->dst->command_queue;//01. 是否有命令
 
@@ -1586,21 +1586,21 @@ int ff_inlink_process_commands(AVFilterLink *link, const AVFrame *frame)
     return 0;
 }
 
-int ff_inlink_evaluate_timeline_at_frame(AVFilterLink *link, const AVFrame *frame)
+int ff_inlink_evaluate_timeline_at_frame(AVFilterLink *link, const AVFrame *frame)//TIGER ?
 {
     AVFilterContext *dstctx = link->dst;
     int64_t pts = frame->pts;
-    int64_t pos = frame->pkt_pos;
-
+    int64_t pos = frame->pkt_pos;//01.
+    //02.
     if (!dstctx->enable_str)
         return 1;
-
+    //03.
     dstctx->var_values[VAR_N] = link->frame_count_out;
     dstctx->var_values[VAR_T] = pts == AV_NOPTS_VALUE ? NAN : pts * av_q2d(link->time_base);
     dstctx->var_values[VAR_W] = link->w;
     dstctx->var_values[VAR_H] = link->h;
     dstctx->var_values[VAR_POS] = pos == -1 ? NAN : pos;
-
+    //04.
     return fabs(av_expr_eval(dstctx->enable, dstctx->var_values, NULL)) >= 0.5;
 }
 
@@ -1608,7 +1608,7 @@ void ff_inlink_request_frame(AVFilterLink *link)
 {
     av_assert1(!link->status_in);
     av_assert1(!link->status_out);
-    link->frame_wanted_out = 1;
+    link->frame_wanted_out = 1;//设置标准
     ff_filter_set_ready(link->src, 100);
 }
 

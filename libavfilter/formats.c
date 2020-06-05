@@ -283,8 +283,8 @@ int ff_fmt_is_in(int fmt, const int *fmts)
 AVFilterFormats *ff_make_format_list(const int *fmts)
 {
     MAKE_FORMAT_LIST(AVFilterFormats, formats, nb_formats);
-    while (count--)
-        formats->formats[count] = fmts[count];
+    while (count--)//隐含宏里面的变量
+        formats->formats[count] = fmts[count];//赋值
 
     return formats;
 }
@@ -409,7 +409,7 @@ AVFilterChannelLayouts *ff_all_channel_layouts(void)
 
 AVFilterChannelLayouts *ff_all_channel_counts(void)
 {
-    AVFilterChannelLayouts *ret = av_mallocz(sizeof(*ret));
+    AVFilterChannelLayouts *ret = av_mallocz(sizeof(*ret));//诡异的写法
     if (!ret)
         return NULL;
     ret->all_layouts = ret->all_counts = 1;

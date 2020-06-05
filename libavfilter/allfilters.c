@@ -22,7 +22,7 @@
 #include "libavutil/thread.h"
 #include "avfilter.h"
 #include "config.h"
-
+//tiger AVFilter ап╠М
 extern AVFilter ff_af_abench;
 extern AVFilter ff_af_acompressor;
 extern AVFilter ff_af_acontrast;
