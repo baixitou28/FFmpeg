@@ -259,7 +259,7 @@ int avresample_is_open(AVAudioResampleContext *avr)
     return !!avr->out_fifo;
 }
 
-void avresample_close(AVAudioResampleContext *avr)
+void avresample_close(AVAudioResampleContext *avr)//要关闭的项目不少
 {
     ff_audio_data_free(&avr->in_buffer);
     ff_audio_data_free(&avr->resample_out_buffer);

@@ -53,17 +53,17 @@ static av_cold int init(AVFilterContext *ctx, AVDictionary **opts)
     ResampleContext *s = ctx->priv;
     const AVClass *avr_class = avresample_get_class();
     AVDictionaryEntry *e = NULL;
-
+    //01.可忽略的
     while ((e = av_dict_get(*opts, "", e, AV_DICT_IGNORE_SUFFIX))) {
         if (av_opt_find(&avr_class, e->key, NULL, 0,
                         AV_OPT_SEARCH_FAKE_OBJ | AV_OPT_SEARCH_CHILDREN))
             av_dict_set(&s->options, e->key, e->value, 0);
     }
-
+    //02.可忽略的
     e = NULL;
     while ((e = av_dict_get(s->options, "", e, AV_DICT_IGNORE_SUFFIX)))
         av_dict_set(opts, e->key, NULL, 0);
-
+    //03.防止用户更改以下参数
     /* do not allow the user to override basic format options */
     av_dict_set(&s->options,  "in_channel_layout", NULL, 0);
     av_dict_set(&s->options, "out_channel_layout", NULL, 0);
@@ -80,20 +80,20 @@ static av_cold void uninit(AVFilterContext *ctx)
     ResampleContext *s = ctx->priv;
 
     if (s->avr) {
-        avresample_close(s->avr);
+        avresample_close(s->avr);//关闭很多项，才可以
         avresample_free(&s->avr);
     }
-    av_dict_free(&s->options);
+    av_dict_free(&s->options);//释放option
 }
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//查询格式
 {
     AVFilterLink *inlink  = ctx->inputs[0];
     AVFilterLink *outlink = ctx->outputs[0];
     AVFilterFormats *in_formats, *out_formats, *in_samplerates, *out_samplerates;
     AVFilterChannelLayouts *in_layouts, *out_layouts;
     int ret;
-
+    //01.
     if (!(in_formats      = ff_all_formats         (AVMEDIA_TYPE_AUDIO)) ||
         !(out_formats     = ff_all_formats         (AVMEDIA_TYPE_AUDIO)) ||
         !(in_samplerates  = ff_all_samplerates     (                  )) ||
@@ -101,7 +101,7 @@ static int query_formats(AVFilterContext *ctx)
         !(in_layouts      = ff_all_channel_layouts (                  )) ||
         !(out_layouts     = ff_all_channel_layouts (                  )))
         return AVERROR(ENOMEM);
-
+    //02. 引用
     if ((ret = ff_formats_ref         (in_formats,      &inlink->out_formats        )) < 0 ||
         (ret = ff_formats_ref         (out_formats,     &outlink->in_formats        )) < 0 ||
         (ret = ff_formats_ref         (in_samplerates,  &inlink->out_samplerates    )) < 0 ||
@@ -122,12 +122,12 @@ static int config_output(AVFilterLink *outlink)
     int ret;
 
     int64_t resampling_forced;
-
+    //01.
     if (s->avr) {
         avresample_close(s->avr);
         avresample_free(&s->avr);
     }
-
+    //02.
     if (inlink->channel_layout == outlink->channel_layout &&
         inlink->sample_rate    == outlink->sample_rate    &&
         (inlink->format        == outlink->format ||
@@ -136,10 +136,10 @@ static int config_output(AVFilterLink *outlink)
          av_get_planar_sample_fmt(inlink->format) ==
          av_get_planar_sample_fmt(outlink->format))))
         return 0;
-
+    //03.
     if (!(s->avr = avresample_alloc_context()))
         return AVERROR(ENOMEM);
-
+    //04.
     if (s->options) {
         int ret;
         AVDictionaryEntry *e = NULL;
@@ -150,17 +150,17 @@ static int config_output(AVFilterLink *outlink)
         if (ret < 0)
             return ret;
     }
-
+    //05.
     av_opt_set_int(s->avr,  "in_channel_layout", inlink ->channel_layout, 0);
     av_opt_set_int(s->avr, "out_channel_layout", outlink->channel_layout, 0);
     av_opt_set_int(s->avr,  "in_sample_fmt",     inlink ->format,         0);
     av_opt_set_int(s->avr, "out_sample_fmt",     outlink->format,         0);
     av_opt_set_int(s->avr,  "in_sample_rate",    inlink ->sample_rate,    0);
     av_opt_set_int(s->avr, "out_sample_rate",    outlink->sample_rate,    0);
-
+    //06.
     if ((ret = avresample_open(s->avr)) < 0)
         return ret;
-
+    //07.
     av_opt_get_int(s->avr, "force_resampling", 0, &resampling_forced);
     s->resampling = resampling_forced || (inlink->sample_rate != outlink->sample_rate);
 
@@ -170,7 +170,7 @@ static int config_output(AVFilterLink *outlink)
         s->next_in_pts     = AV_NOPTS_VALUE;
     } else
         outlink->time_base = inlink->time_base;
-
+    //08.
     av_get_channel_layout_string(buf1, sizeof(buf1),
                                  -1, inlink ->channel_layout);
     av_get_channel_layout_string(buf2, sizeof(buf2),
@@ -183,64 +183,64 @@ static int config_output(AVFilterLink *outlink)
     return 0;
 }
 
-static int request_frame(AVFilterLink *outlink)
+static int request_frame(AVFilterLink *outlink)//输出是request_frame
 {
     AVFilterContext *ctx = outlink->src;
     ResampleContext   *s = ctx->priv;
     int ret = 0;
-
+    //01.
     s->got_output = 0;
     while (ret >= 0 && !s->got_output)
         ret = ff_request_frame(ctx->inputs[0]);
 
     /* flush the lavr delay buffer */
-    if (ret == AVERROR_EOF && s->avr) {
+    if (ret == AVERROR_EOF && s->avr) {//02.
         AVFrame *frame;
-        int nb_samples = avresample_get_out_samples(s->avr, 0);
+        int nb_samples = avresample_get_out_samples(s->avr, 0);//02.01
 
         if (!nb_samples)
             return ret;
 
-        frame = ff_get_audio_buffer(outlink, nb_samples);
+        frame = ff_get_audio_buffer(outlink, nb_samples);//02.02
         if (!frame)
             return AVERROR(ENOMEM);
 
-        ret = avresample_convert(s->avr, frame->extended_data,
+        ret = avresample_convert(s->avr, frame->extended_data,//02.03
                                  frame->linesize[0], nb_samples,
                                  NULL, 0, 0);
         if (ret <= 0) {
             av_frame_free(&frame);
             return (ret == 0) ? AVERROR_EOF : ret;
         }
-
+        //02.04
         frame->nb_samples = ret;
         frame->pts = s->next_pts;
-        return ff_filter_frame(outlink, frame);
+        return ff_filter_frame(outlink, frame);//02.05
     }
     return ret;
 }
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *in)
+static int filter_frame(AVFilterLink *inlink, AVFrame *in)//输入是filter_frame
 {
     AVFilterContext  *ctx = inlink->dst;
     ResampleContext    *s = ctx->priv;
     AVFilterLink *outlink = ctx->outputs[0];
     int ret;
-
+    //01.
     if (s->avr) {
         AVFrame *out;
         int delay, nb_samples;
 
         /* maximum possible samples lavr can output */
-        delay      = avresample_get_delay(s->avr);
-        nb_samples = avresample_get_out_samples(s->avr, in->nb_samples);
+        delay      = avresample_get_delay(s->avr);//01.01.
+        nb_samples = avresample_get_out_samples(s->avr, in->nb_samples);//01.02.
 
-        out = ff_get_audio_buffer(outlink, nb_samples);
+        out = ff_get_audio_buffer(outlink, nb_samples);//01.03.
         if (!out) {
             ret = AVERROR(ENOMEM);
             goto fail;
         }
-
+        //01.04.
         ret = avresample_convert(s->avr, out->extended_data, out->linesize[0],
                                  nb_samples, in->extended_data, in->linesize[0],
                                  in->nb_samples);
@@ -251,7 +251,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
         }
 
         av_assert0(!avresample_available(s->avr));
-
+        //01.05.
         if (s->resampling && s->next_pts == AV_NOPTS_VALUE) {
             if (in->pts == AV_NOPTS_VALUE) {
                 av_log(ctx, AV_LOG_WARNING, "First timestamp is missing, "
@@ -261,16 +261,16 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
                 s->next_pts = av_rescale_q(in->pts, inlink->time_base,
                                            outlink->time_base);
         }
-
+        //01.06.
         if (ret > 0) {
             out->nb_samples = ret;
-
+            //01.06.01
             ret = av_frame_copy_props(out, in);
             if (ret < 0) {
                 av_frame_free(&out);
                 goto fail;
             }
-
+            //01.06.02
             if (s->resampling) {
                 out->sample_rate = outlink->sample_rate;
                 /* Only convert in->pts if there is a discontinuous jump.
@@ -290,14 +290,14 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
                 s->next_in_pts = in->pts + in->nb_samples;
             } else
                 out->pts = in->pts;
-
+            //01.06.03
             ret = ff_filter_frame(outlink, out);
             s->got_output = 1;
         }
 
 fail:
         av_frame_free(&in);
-    } else {
+    } else {//02.没有context ==>会没有吗？
         in->format = outlink->format;
         ret = ff_filter_frame(outlink, in);
         s->got_output = 1;
@@ -329,7 +329,7 @@ static const AVFilterPad avfilter_af_resample_inputs[] = {
     {
         .name          = "default",
         .type          = AVMEDIA_TYPE_AUDIO,
-        .filter_frame  = filter_frame,
+        .filter_frame  = filter_frame,//输入处理主函数
     },
     { NULL }
 };
@@ -339,7 +339,7 @@ static const AVFilterPad avfilter_af_resample_outputs[] = {
         .name          = "default",
         .type          = AVMEDIA_TYPE_AUDIO,
         .config_props  = config_output,
-        .request_frame = request_frame
+        .request_frame = request_frame//输出处理主函数
     },
     { NULL }
 };

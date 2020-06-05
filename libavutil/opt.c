@@ -1310,7 +1310,7 @@ void av_opt_set_defaults(void *s)
 void av_opt_set_defaults2(void *s, int mask, int flags)//设置参数
 {
     const AVOption *opt = NULL;
-    while ((opt = av_opt_next(s, opt))) {//去s->option项，来操作
+    while ((opt = av_opt_next(s, opt))) {//取s->option项，来操作
         void *dst = ((uint8_t*)s) + opt->offset;
 
         if ((opt->flags & mask) != flags)

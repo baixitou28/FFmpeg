@@ -416,20 +416,20 @@ AVFilterChannelLayouts *ff_all_channel_counts(void)
     return ret;
 }
 
-#define FORMATS_REF(f, ref, unref_fn)                                           \
+#define FORMATS_REF(f, ref, unref_fn)                                           \//tiger todo有点不理解
     void *tmp;                                                                  \
                                                                                 \
     if (!f || !ref)                                                             \
         return AVERROR(ENOMEM);                                                 \
                                                                                 \
-    tmp = av_realloc_array(f->refs, sizeof(*f->refs), f->refcount + 1);         \
+    tmp = av_realloc_array(f->refs, sizeof(*f->refs), f->refcount + 1);         \//引用列表扩展
     if (!tmp) {                                                                 \
         unref_fn(&f);                                                           \
         return AVERROR(ENOMEM);                                                 \
     }                                                                           \
     f->refs = tmp;                                                              \
-    f->refs[f->refcount++] = ref;                                               \
-    *ref = f;                                                                   \
+    f->refs[f->refcount++] = ref;                                               \//加入
+    *ref = f;                                                                   \//这个对吗？
     return 0
 
 int ff_channel_layouts_ref(AVFilterChannelLayouts *f, AVFilterChannelLayouts **ref)
