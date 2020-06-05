@@ -35,7 +35,7 @@ static int query_formats(AVFilterContext *ctx)
     for (fmt = 0; av_pix_fmt_desc_get(fmt); fmt++) {
         const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(fmt);
         int ret;
-        if (desc->flags & AV_PIX_FMT_FLAG_HWACCEL)
+        if (desc->flags & AV_PIX_FMT_FLAG_HWACCEL)//忽略硬件加速
             continue;
         if ((ret = ff_add_format(&formats, fmt)) < 0)
             return ret;
@@ -44,7 +44,7 @@ static int query_formats(AVFilterContext *ctx)
     return ff_set_common_formats(ctx, formats);
 }
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *in)
+static int filter_frame(AVFilterLink *inlink, AVFrame *in)//输入主函数filter_frame:和音频类似
 {
     AVFilterLink *outlink = inlink->dst->outputs[0];
     AVFrame *out = ff_get_video_buffer(outlink, in->width, in->height);
@@ -63,7 +63,7 @@ static const AVFilterPad avfilter_vf_copy_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
-        .filter_frame = filter_frame,
+        .filter_frame = filter_frame,//主函数
     },
     { NULL }
 };
@@ -76,7 +76,7 @@ static const AVFilterPad avfilter_vf_copy_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_copy = {
+AVFilter ff_vf_copy = {//TIGER ff_vf_copy
     .name        = "copy",
     .description = NULL_IF_CONFIG_SMALL("Copy the input video unchanged to the output."),
     .inputs      = avfilter_vf_copy_inputs,
