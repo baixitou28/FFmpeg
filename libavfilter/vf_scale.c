@@ -531,21 +531,21 @@ static int filter_frame_ref(AVFilterLink *link, AVFrame *in)
     return ff_filter_frame(outlink, in);
 }
 
-static int process_command(AVFilterContext *ctx, const char *cmd, const char *args,
+static int process_command(AVFilterContext *ctx, const char *cmd, const char *args,//tiger command 的例子
                            char *res, int res_len, int flags)
 {
     ScaleContext *scale = ctx->priv;
     int ret;
 
     if (   !strcmp(cmd, "width")  || !strcmp(cmd, "w")
-        || !strcmp(cmd, "height") || !strcmp(cmd, "h")) {
+        || !strcmp(cmd, "height") || !strcmp(cmd, "h")) {//如何是其中一个命令
 
-        int old_w = scale->w;
+        int old_w = scale->w;//tiger 为什么要单独这样写？
         int old_h = scale->h;
         AVFilterLink *outlink = ctx->outputs[0];
 
         av_opt_set(scale, cmd, args, 0);
-        if ((ret = config_props(outlink)) < 0) {
+        if ((ret = config_props(outlink)) < 0) {//config_props 写的略微复杂
             scale->w = old_w;
             scale->h = old_h;
         }
