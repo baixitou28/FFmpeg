@@ -93,36 +93,36 @@ static int get_sample_rate(const char *samplerate)
     int ret = strtol(samplerate, NULL, 0);
     return FFMAX(ret, 0);
 }
-
-static av_cold int init(AVFilterContext *ctx)
+//tiger  av_cold 非热点数据，类似内核的不同程序块
+static av_cold int init(AVFilterContext *ctx) //tiger 分别设置formats，sample_rates，channel_layouts，限制输出格式，尽量不转码
 {
     AFormatContext *s = ctx->priv;
 
-    PARSE_FORMATS(s->formats_str, enum AVSampleFormat, s->formats,
+    PARSE_FORMATS(s->formats_str, enum AVSampleFormat, s->formats,//01.
                   ff_add_format, ff_formats_unref, av_get_sample_fmt, AV_SAMPLE_FMT_NONE, "sample format");
-    PARSE_FORMATS(s->sample_rates_str, int, s->sample_rates, ff_add_format, ff_formats_unref,
+    PARSE_FORMATS(s->sample_rates_str, int, s->sample_rates, ff_add_format, ff_formats_unref,//02.
                   get_sample_rate, 0, "sample rate");
-    PARSE_FORMATS(s->channel_layouts_str, uint64_t, s->channel_layouts,
+    PARSE_FORMATS(s->channel_layouts_str, uint64_t, s->channel_layouts,//03.
                   ff_add_channel_layout, ff_channel_layouts_unref, av_get_channel_layout, 0,
                   "channel layout");
 
     return 0;
 }
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//查询格式，如果没有限定值，采用所有可能值
 {
     AFormatContext *s = ctx->priv;
     int ret;
 
-    ret = ff_set_common_formats(ctx, s->formats ? s->formats :
+    ret = ff_set_common_formats(ctx, s->formats ? s->formats ://01. 如果没有限定s->formats ，就使用全部格式ff_all_formats
                                             ff_all_formats(AVMEDIA_TYPE_AUDIO));
     if (ret < 0)
         return ret;
-    ret = ff_set_common_samplerates(ctx, s->sample_rates ? s->sample_rates :
+    ret = ff_set_common_samplerates(ctx, s->sample_rates ? s->sample_rates ://02.
                                                      ff_all_samplerates());
     if (ret < 0)
         return ret;
-    return ff_set_common_channel_layouts(ctx, s->channel_layouts ? s->channel_layouts :
+    return ff_set_common_channel_layouts(ctx, s->channel_layouts ? s->channel_layouts ://03.
                                                             ff_all_channel_counts());
 }
 
@@ -141,14 +141,14 @@ static const AVFilterPad avfilter_af_aformat_outputs[] = {
     },
     { NULL }
 };
-
-AVFilter ff_af_aformat = {
+//TIGER Set output format constraints for the input audio. The framework will negotiate the most appropriate format to minimize conversions.
+AVFilter ff_af_aformat = {//TIGER ff_af_aformat   //tiger aformat=sample_fmts=u8|s16:channel_layouts=stereo
     .name          = "aformat",
     .description   = NULL_IF_CONFIG_SMALL("Convert the input audio to one of the specified formats."),
     .init          = init,
     .query_formats = query_formats,
     .priv_size     = sizeof(AFormatContext),
-    .priv_class    = &aformat_class,
-    .inputs        = avfilter_af_aformat_inputs,
-    .outputs       = avfilter_af_aformat_outputs,
+    .priv_class    = &aformat_class,//可选项
+    .inputs        = avfilter_af_aformat_inputs,//不需要做什么
+    .outputs       = avfilter_af_aformat_outputs,//不需要做什么
 };
