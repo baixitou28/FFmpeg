@@ -175,8 +175,8 @@ static void update_sample_stats(const uint8_t *src, int len, int64_t *sum, int64
         *sum2 += src[i] * src[i];
     }
 }
-
-static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
+//
+static int filter_frame(AVFilterLink *inlink, AVFrame *frame)//输入流处理：
 {
     AVFilterContext *ctx = inlink->dst;
     ShowInfoContext *s = ctx->priv;
@@ -185,7 +185,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     int64_t sum[4] = {0}, sum2[4] = {0};
     int32_t pixelcount[4] = {0};
     int i, plane, vsub = desc->log2_chroma_h;
-
+    //01.
     for (plane = 0; plane < 4 && s->calculate_checksums && frame->data[plane] && frame->linesize[plane]; plane++) {
         uint8_t *data = frame->data[plane];
         int h = plane == 1 || plane == 2 ? AV_CEIL_RSHIFT(inlink->h, vsub) : inlink->h;
@@ -216,7 +216,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
            frame->top_field_first   ? 'T' : 'B',    /* Top / Bottom */
            frame->key_frame,
            av_get_picture_type_char(frame->pict_type));
-
+    //02.
     if (s->calculate_checksums) {
         av_log(ctx, AV_LOG_INFO,
                "checksum:%08"PRIX32" plane_checksum:[%08"PRIX32,
@@ -234,7 +234,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
         av_log(ctx, AV_LOG_INFO, "\b]");
     }
     av_log(ctx, AV_LOG_INFO, "\n");
-
+    //03.将信息打印到sd中
     for (i = 0; i < frame->nb_side_data; i++) {
         AVFrameSideData *sd = frame->side_data[i];
 
@@ -282,7 +282,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
 
     dump_color_property(ctx, frame);
 
-    return ff_filter_frame(inlink->dst->outputs[0], frame);
+    return ff_filter_frame(inlink->dst->outputs[0], frame);//加入fifo
 }
 
 static int config_props(AVFilterContext *ctx, AVFilterLink *link, int is_out)
