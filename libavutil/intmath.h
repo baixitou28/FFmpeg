@@ -48,18 +48,18 @@ extern const uint8_t ff_log2_tab[256];
 
 #ifndef ff_log2
 #define ff_log2 ff_log2_c
-static av_always_inline av_const int ff_log2_c(unsigned int v)
+static av_always_inline av_const int ff_log2_c(unsigned int v)//32位2的对数，精度是256就够了？
 {
     int n = 0;
-    if (v & 0xffff0000) {
+    if (v & 0xffff0000) {//只取高16
         v >>= 16;
         n += 16;
     }
-    if (v & 0xff00) {
+    if (v & 0xff00) {//只取高8
         v >>= 8;
         n += 8;
     }
-    n += ff_log2_tab[v];
+    n += ff_log2_tab[v];//低4 速查手册
 
     return n;
 }
