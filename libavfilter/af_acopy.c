@@ -20,26 +20,26 @@
 #include "avfilter.h"
 #include "internal.h"
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *in)
+static int filter_frame(AVFilterLink *inlink, AVFrame *in)//TIGER 统一入口函数
 {
-    AVFilterLink *outlink = inlink->dst->outputs[0];
-    AVFrame *out = ff_get_audio_buffer(outlink, in->nb_samples);
+    AVFilterLink *outlink = inlink->dst->outputs[0];//01. 取第一个输出的AVFilterLink， 因为copy 只允许一个
+    AVFrame *out = ff_get_audio_buffer(outlink, in->nb_samples);//02. AVFilterLink 的pool里分配AVFrame实例，并设置参数。
 
     if (!out) {
         av_frame_free(&in);
         return AVERROR(ENOMEM);
     }
-    av_frame_copy_props(out, in);
-    av_frame_copy(out, in);
-    av_frame_free(&in);
-    return ff_filter_frame(outlink, out);
+    av_frame_copy_props(out, in);//03.复制关键的参数，很多参数！
+    av_frame_copy(out, in);//04.复制AVFrame *in到out
+    av_frame_free(&in);//05. 释放in，copy后不允许其他操作
+    return ff_filter_frame(outlink, out);//06.调用ff_filter_frame，输出
 }
 
 static const AVFilterPad acopy_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
-        .filter_frame = filter_frame,
+        .filter_frame = filter_frame,//统一接口函数
     },
     { NULL }
 };

@@ -122,11 +122,11 @@ int av_samples_get_buffer_size(int *linesize, int nb_channels, int nb_samples,
     int line_size;
     int sample_size = av_get_bytes_per_sample(sample_fmt);
     int planar      = av_sample_fmt_is_planar(sample_fmt);
-
+    //01.
     /* validate parameter ranges */
     if (!sample_size || nb_samples <= 0 || nb_channels <= 0)
         return AVERROR(EINVAL);
-
+    //02.
     /* auto-select alignment if not specified */
     if (!align) {
         if (nb_samples > INT_MAX - 31)
@@ -134,17 +134,17 @@ int av_samples_get_buffer_size(int *linesize, int nb_channels, int nb_samples,
         align = 1;
         nb_samples = FFALIGN(nb_samples, 32);
     }
-
+    //03.
     /* check for integer overflow */
     if (nb_channels > INT_MAX / align ||
         (int64_t)nb_channels * nb_samples > (INT_MAX - (align * nb_channels)) / sample_size)
         return AVERROR(EINVAL);
-
+    //04.
     line_size = planar ? FFALIGN(nb_samples * sample_size,               align) :
                          FFALIGN(nb_samples * sample_size * nb_channels, align);
     if (linesize)
         *linesize = line_size;
-
+    //05.
     return planar ? line_size * nb_channels : line_size;
 }
 
@@ -234,7 +234,7 @@ int av_samples_copy(uint8_t **dst, uint8_t * const *src, int dst_offset,
     return 0;
 }
 
-int av_samples_set_silence(uint8_t **audio_data, int offset, int nb_samples,
+int av_samples_set_silence(uint8_t **audio_data, int offset, int nb_samples,//tiger 不是特别理解
                            int nb_channels, enum AVSampleFormat sample_fmt)
 {
     int planar      = av_sample_fmt_is_planar(sample_fmt);

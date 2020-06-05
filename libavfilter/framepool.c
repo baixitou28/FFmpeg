@@ -124,26 +124,26 @@ FFFramePool *ff_frame_pool_audio_init(AVBufferRef* (*alloc)(int size),
 {
     int ret, planar;
     FFFramePool *pool;
-
+    //01.分配并清零
     pool = av_mallocz(sizeof(FFFramePool));
     if (!pool)
         return NULL;
-
+    //02.是堆叠？
     planar = av_sample_fmt_is_planar(format);
-
+    //03.常用设置
     pool->type = AVMEDIA_TYPE_AUDIO;
     pool->planes = planar ? channels : 1;
     pool->channels = channels;
     pool->nb_samples = nb_samples;
     pool->format = format;
     pool->align = align;
-
+    //03.tiger TODO
     ret = av_samples_get_buffer_size(&pool->linesize[0], channels,
                                      nb_samples, format, 0);
     if (ret < 0)
         goto fail;
-
-    pool->pools[0] = av_buffer_pool_init(pool->linesize[0], NULL);
+    //04. 初始化设置
+    pool->pools[0] = av_buffer_pool_init(pool->linesize[0], NULL);//NULL按理需要替换为alloc tiger improvement 
     if (!pool->pools[0])
         goto fail;
 
@@ -192,19 +192,19 @@ int ff_frame_pool_get_audio_config(FFFramePool *pool,
     return 0;
 }
 
-AVFrame *ff_frame_pool_get(FFFramePool *pool)
+AVFrame *ff_frame_pool_get(FFFramePool *pool)//分配AVFrame实例，并按音频或者视频设置AVFrame的参数，参数取自pool
 {
     int i;
     AVFrame *frame;
     const AVPixFmtDescriptor *desc;
-
+    //01. 分配内存
     frame = av_frame_alloc();
     if (!frame) {
         return NULL;
     }
-
+    //02.
     switch(pool->type) {
-    case AVMEDIA_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO://如果是视频，设置视频参数
         desc = av_pix_fmt_desc_get(pool->format);
         if (!desc) {
             goto fail;
@@ -238,7 +238,7 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
 
         frame->extended_data = frame->data;
         break;
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://如果音频从pool里取参数，设置参数
         frame->nb_samples = pool->nb_samples;
         frame->channels = pool->channels;
         frame->format = pool->format;

@@ -107,7 +107,7 @@ static void print_stats(AVFilterContext *ctx)
        multiplication or the sum: shift all histogram values to avoid that.
        The total number of samples must be recomputed to avoid rounding
        errors. */
-    shift = av_log2(nb_samples >> 33);//02.
+    shift = av_log2(nb_samples >> 33);//02. int
     for (i = 0; i < 0x10000; i++) {//03.
         nb_samples_shift += vd->histogram[i] >> shift;
         power += (i - 0x8000) * (i - 0x8000) * (vd->histogram[i] >> shift);

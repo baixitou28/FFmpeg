@@ -35,24 +35,24 @@ AVFrame *ff_null_get_audio_buffer(AVFilterLink *link, int nb_samples)
     return ff_get_audio_buffer(link->dst->outputs[0], nb_samples);
 }
 
-AVFrame *ff_default_get_audio_buffer(AVFilterLink *link, int nb_samples)
+AVFrame *ff_default_get_audio_buffer(AVFilterLink *link, int nb_samples)//tiger 获取指定nb_samples的
 {
     AVFrame *frame = NULL;
     int channels = link->channels;
 
     av_assert0(channels == av_get_channel_layout_nb_channels(link->channel_layout) || !av_get_channel_layout_nb_channels(link->channel_layout));
-
-    if (!link->frame_pool) {
-        link->frame_pool = ff_frame_pool_audio_init(av_buffer_allocz, channels,
+    //01.
+    if (!link->frame_pool) {//01.01 没有pool直接初始化一个
+        link->frame_pool = ff_frame_pool_audio_init(av_buffer_allocz, channels,//01.01.01
                                                     nb_samples, link->format, BUFFER_ALIGN);
         if (!link->frame_pool)
             return NULL;
-    } else {
+    } else {//01.02 如果存在，还需要每帧对比，是不是会比较慢?
         int pool_channels = 0;
         int pool_nb_samples = 0;
         int pool_align = 0;
         enum AVSampleFormat pool_format = AV_SAMPLE_FMT_NONE;
-
+        //01.02.01 取参数，看是否不一致
         if (ff_frame_pool_get_audio_config(link->frame_pool,
                                            &pool_channels, &pool_nb_samples,
                                            &pool_format, &pool_align) < 0) {
@@ -61,36 +61,36 @@ AVFrame *ff_default_get_audio_buffer(AVFilterLink *link, int nb_samples)
 
         if (pool_channels != channels || pool_nb_samples < nb_samples ||
             pool_format != link->format || pool_align != BUFFER_ALIGN) {
-
+            //01.02.02 如果参数不一致，释放再重新初始化一个新的，==>什么情况下出现？
             ff_frame_pool_uninit((FFFramePool **)&link->frame_pool);
-            link->frame_pool = ff_frame_pool_audio_init(av_buffer_allocz, channels,
+            link->frame_pool = ff_frame_pool_audio_init(av_buffer_allocz, channels, //01.02.03 初始化
                                                         nb_samples, link->format, BUFFER_ALIGN);
             if (!link->frame_pool)
                 return NULL;
         }
     }
-
+    //02. 从pool里面分配AVFrame，并pool获取参数，设置AVFrame
     frame = ff_frame_pool_get(link->frame_pool);
     if (!frame)
         return NULL;
-
+    //03.以link为准
     frame->nb_samples = nb_samples;
     frame->channel_layout = link->channel_layout;
     frame->sample_rate = link->sample_rate;
-
+    //04.
     av_samples_set_silence(frame->extended_data, 0, nb_samples, channels, link->format);
 
     return frame;
 }
 
-AVFrame *ff_get_audio_buffer(AVFilterLink *link, int nb_samples)
+AVFrame *ff_get_audio_buffer(AVFilterLink *link, int nb_samples)//分配AVFrame实例，并设置
 {
     AVFrame *ret = NULL;
 
-    if (link->dstpad->get_audio_buffer)
+    if (link->dstpad->get_audio_buffer)//01. PAD还没有用到
         ret = link->dstpad->get_audio_buffer(link, nb_samples);
 
-    if (!ret)
+    if (!ret)//02. 
         ret = ff_default_get_audio_buffer(link, nb_samples);
 
     return ret;

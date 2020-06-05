@@ -24,34 +24,34 @@
 #include "common.h"
 #include "mem.h"
 #include "thread.h"
-
-AVBufferRef *av_buffer_create(uint8_t *data, int size,
+//AVBufferRef包含AVBuffer buffer，AVBuffer包含原始数据data
+AVBufferRef *av_buffer_create(uint8_t *data, int size,//tiger先创建AVBuffer实例，再创建AVBufferRef实例
                               void (*free)(void *opaque, uint8_t *data),
                               void *opaque, int flags)
 {
     AVBufferRef *ref = NULL;
     AVBuffer    *buf = NULL;
-
+    //分配AVBuffer实例
     buf = av_mallocz(sizeof(*buf));
     if (!buf)
         return NULL;
-
+    //设置
     buf->data     = data;
     buf->size     = size;
-    buf->free     = free ? free : av_buffer_default_free;
+    buf->free     = free ? free : av_buffer_default_free;//默认释放函数
     buf->opaque   = opaque;
-
+    //计数器
     atomic_init(&buf->refcount, 1);
 
     if (flags & AV_BUFFER_FLAG_READONLY)
         buf->flags |= BUFFER_FLAG_READONLY;
-
+    //分配AVBufferRef实例
     ref = av_mallocz(sizeof(*ref));
     if (!ref) {
         av_freep(&buf);
         return NULL;
     }
-
+    //设置
     ref->buffer = buf;
     ref->data   = data;
     ref->size   = size;
@@ -64,15 +64,15 @@ void av_buffer_default_free(void *opaque, uint8_t *data)
     av_free(data);
 }
 
-AVBufferRef *av_buffer_alloc(int size)
+AVBufferRef *av_buffer_alloc(int size)//采用AVBufferRef计数方式,分配size大小
 {
     AVBufferRef *ret = NULL;
     uint8_t    *data = NULL;
-
+    //分配raw数据的大小
     data = av_malloc(size);
     if (!data)
         return NULL;
-
+    //创建AVBufferRef实例，//AVBufferRef包含AVBuffer buffer，AVBuffer包含原始数据data
     ret = av_buffer_create(data, size, av_buffer_default_free, NULL, 0);
     if (!ret)
         av_freep(&data);
@@ -82,11 +82,11 @@ AVBufferRef *av_buffer_alloc(int size)
 
 AVBufferRef *av_buffer_allocz(int size)
 {
-    AVBufferRef *ret = av_buffer_alloc(size);
+    AVBufferRef *ret = av_buffer_alloc(size);//分配指定大小
     if (!ret)
         return NULL;
 
-    memset(ret->data, 0, size);
+    memset(ret->data, 0, size);//清零
     return ret;
 }
 
@@ -237,15 +237,15 @@ AVBufferPool *av_buffer_pool_init2(int size, void *opaque,
 
 AVBufferPool *av_buffer_pool_init(int size, AVBufferRef* (*alloc)(int size))
 {
-    AVBufferPool *pool = av_mallocz(sizeof(*pool));
+    AVBufferPool *pool = av_mallocz(sizeof(*pool));//分配   tiger improve av_mallocz 换成 alloc
     if (!pool)
         return NULL;
 
     ff_mutex_init(&pool->mutex, NULL);
-
+    //将初始化信息写入pool
     pool->size     = size;
     pool->alloc    = alloc ? alloc : av_buffer_alloc;
-
+    //以计数方式存在
     atomic_init(&pool->refcount, 1);
 
     return pool;

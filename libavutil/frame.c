@@ -334,7 +334,7 @@ int av_frame_get_buffer(AVFrame *frame, int align)
     return AVERROR(EINVAL);
 }
 
-static int frame_copy_props(AVFrame *dst, const AVFrame *src, int force_copy)
+static int frame_copy_props(AVFrame *dst, const AVFrame *src, int force_copy)//需要复制这么多参数啊？//TIGER FILTER IMPORTANT
 {
     int i;
 
