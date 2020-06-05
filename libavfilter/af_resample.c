@@ -215,7 +215,7 @@ static int request_frame(AVFilterLink *outlink)//输出主函数是request_frame ：1.f
         //02.04
         frame->nb_samples = ret;
         frame->pts = s->next_pts;
-        return ff_filter_frame(outlink, frame);//02.05 link 加入一帧
+        return ff_filter_frame(outlink, frame);//02.05 outlink->fifo 加入一帧
     }
     return ret;
 }

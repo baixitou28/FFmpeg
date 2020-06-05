@@ -337,7 +337,7 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
     AudioData output_buffer;
     AudioData *current_buffer;
     int ret, direct_output;
-
+    //01.重置
     /* reset internal buffers */
     if (avr->in_buffer) {
         avr->in_buffer->nb_samples = 0;
@@ -356,7 +356,7 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
     }
 
     av_log(avr, AV_LOG_TRACE, "[start conversion]\n");
-
+    //02. 没有fifo就是直接输出
     /* initialize output_buffer with output data */
     direct_output = output && av_audio_fifo_size(avr->out_fifo) == 0;
     if (output) {
@@ -367,8 +367,8 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
             return ret;
         output_buffer.nb_samples = 0;
     }
-
-    if (input) {
+    //03.是否有输入input
+    if (input) {//03.01
         /* initialize input_buffer with input data */
         ret = ff_audio_data_init(&input_buffer, input, in_plane_size,
                                  avr->in_channels, in_samples,
@@ -429,14 +429,14 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
             }
             current_buffer = avr->in_buffer;
         }
-    } else {
+    } else {//03.02
         /* flush resampling buffer and/or output FIFO if input is NULL */
         if (!avr->resample_needed)
-            return handle_buffered_output(avr, output ? &output_buffer : NULL,
+            return handle_buffered_output(avr, output ? &output_buffer : NULL,//
                                           NULL);
         current_buffer = NULL;
     }
-
+    //04.
     if (avr->resample_needed) {
         AudioData *resample_out;
 
@@ -447,7 +447,7 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
         av_log(avr, AV_LOG_TRACE, "[resample] %s to %s\n",
                 current_buffer ? current_buffer->name : "null",
                 resample_out->name);
-        ret = ff_audio_resample(avr->resample, resample_out,
+        ret = ff_audio_resample(avr->resample, resample_out,//tiger 主函数 //tiger important
                                 current_buffer);
         if (ret < 0)
             return ret;
@@ -460,20 +460,20 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
 
         current_buffer = resample_out;
     }
-
+    //05.
     if (avr->upmix_needed) {
         av_log(avr, AV_LOG_TRACE, "[upmix] %s\n", current_buffer->name);
-        ret = ff_audio_mix(avr->am, current_buffer);
+        ret = ff_audio_mix(avr->am, current_buffer);//tiger 主函数 //tiger important
         if (ret < 0)
             return ret;
     }
-
+    //06.
     /* if we resampled or upmixed directly to output, return here */
     if (current_buffer == &output_buffer) {
         av_log(avr, AV_LOG_TRACE, "[end conversion]\n");
         return current_buffer->nb_samples;
     }
-
+    //07.
     if (avr->out_convert_needed) {
         if (direct_output && out_samples >= current_buffer->nb_samples) {
             /* convert directly to output */
@@ -497,7 +497,7 @@ int attribute_align_arg avresample_convert(AVAudioResampleContext *avr,
             current_buffer = avr->out_buffer;
         }
     }
-
+    //08.
     return handle_buffered_output(avr, output ? &output_buffer : NULL,
                                   current_buffer);
 }
