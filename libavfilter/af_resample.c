@@ -183,7 +183,7 @@ static int config_output(AVFilterLink *outlink)
     return 0;
 }
 
-static int request_frame(AVFilterLink *outlink)//输出是request_frame
+static int request_frame(AVFilterLink *outlink)//输出主函数是request_frame ：1.ff_request_frame 设置状态， 2.avresample_convert 转换 3. ff_filter_frame link->fifo
 {
     AVFilterContext *ctx = outlink->src;
     ResampleContext   *s = ctx->priv;
@@ -191,7 +191,7 @@ static int request_frame(AVFilterLink *outlink)//输出是request_frame
     //01.
     s->got_output = 0;
     while (ret >= 0 && !s->got_output)
-        ret = ff_request_frame(ctx->inputs[0]);
+        ret = ff_request_frame(ctx->inputs[0]);//设置AVFilterLink* link状态， 如果没有异常或没有数据，不停循环
 
     /* flush the lavr delay buffer */
     if (ret == AVERROR_EOF && s->avr) {//02.
@@ -201,11 +201,11 @@ static int request_frame(AVFilterLink *outlink)//输出是request_frame
         if (!nb_samples)
             return ret;
 
-        frame = ff_get_audio_buffer(outlink, nb_samples);//02.02
+        frame = ff_get_audio_buffer(outlink, nb_samples);//02.02 分配一个实例
         if (!frame)
             return AVERROR(ENOMEM);
 
-        ret = avresample_convert(s->avr, frame->extended_data,//02.03
+        ret = avresample_convert(s->avr, frame->extended_data,//02.03 重采样
                                  frame->linesize[0], nb_samples,
                                  NULL, 0, 0);
         if (ret <= 0) {
@@ -215,12 +215,12 @@ static int request_frame(AVFilterLink *outlink)//输出是request_frame
         //02.04
         frame->nb_samples = ret;
         frame->pts = s->next_pts;
-        return ff_filter_frame(outlink, frame);//02.05
+        return ff_filter_frame(outlink, frame);//02.05 link 加入一帧
     }
     return ret;
 }
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *in)//输入是filter_frame
+static int filter_frame(AVFilterLink *inlink, AVFrame *in)//输入主函数是filter_frame
 {
     AVFilterContext  *ctx = inlink->dst;
     ResampleContext    *s = ctx->priv;

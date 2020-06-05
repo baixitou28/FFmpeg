@@ -404,27 +404,27 @@ void ff_tlog_link(void *ctx, AVFilterLink *link, int end)
     }
 }
 
-int ff_request_frame(AVFilterLink *link)
+int ff_request_frame(AVFilterLink *link)//设置link状态
 {
     FF_TPRINTF_START(NULL, request_frame); ff_tlog_link(NULL, link, 1);
 
     av_assert1(!link->dst->filter->activate);
-    if (link->status_out)
-        return link->status_out;
-    if (link->status_in) {
+    if (link->status_out)//看link->status_out注释，非零说明异常
+        return link->status_out;//如果输出异常，直接返回
+    if (link->status_in) {//如果输入异常
         if (ff_framequeue_queued_frames(&link->fifo)) {
             av_assert1(!link->frame_wanted_out);
             av_assert1(link->dst->ready >= 300);
-            return 0;
+            return 0;//如果link->fifo没有数据，直接返回0，相当于等待数据...
         } else {
             /* Acknowledge status change. Filters using ff_request_frame() will
                handle the change automatically. Filters can also check the
                status directly but none do yet. */
-            ff_avfilter_link_set_out_status(link, link->status_in, link->status_in_pts);
+            ff_avfilter_link_set_out_status(link, link->status_in, link->status_in_pts);//如果link->fifo有数据，得重设输入状态
             return link->status_out;
         }
     }
-    link->frame_wanted_out = 1;
+    link->frame_wanted_out = 1;//设置有数据要输出
     ff_filter_set_ready(link->src, 100);
     return 0;
 }
