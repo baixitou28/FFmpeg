@@ -2286,19 +2286,19 @@ static int decode_audio(InputStream *ist, AVPacket *pkt, int *got_output,
     AVCodecContext *avctx = ist->dec_ctx;
     int ret, err = 0;
     AVRational decoded_frame_tb;
-
+    //01.
     if (!ist->decoded_frame && !(ist->decoded_frame = av_frame_alloc()))
         return AVERROR(ENOMEM);
     if (!ist->filter_frame && !(ist->filter_frame = av_frame_alloc()))
         return AVERROR(ENOMEM);
     decoded_frame = ist->decoded_frame;
-
+    //02. 解帧
     update_benchmark(NULL);
     ret = decode(avctx, decoded_frame, got_output, pkt);
     update_benchmark("decode_audio %d.%d", ist->file_index, ist->st->index);
     if (ret < 0)
         *decode_failed = 1;
-
+    //03.
     if (ret >= 0 && avctx->sample_rate <= 0) {
         av_log(avctx, AV_LOG_ERROR, "Sample rate %d invalid\n", avctx->sample_rate);
         ret = AVERROR_INVALIDDATA;
@@ -2309,10 +2309,10 @@ static int decode_audio(InputStream *ist, AVPacket *pkt, int *got_output,
 
     if (!*got_output || ret < 0)
         return ret;
-
+    //04.统计
     ist->samples_decoded += decoded_frame->nb_samples;
     ist->frames_decoded++;
-
+    //05.时间戳
     /* increment next_dts to use for the case where the input stream does not
        have timestamps or there are multiple frames in the packet */
     ist->next_pts += ((int64_t)AV_TIME_BASE * decoded_frame->nb_samples) /
@@ -2330,11 +2330,11 @@ static int decode_audio(InputStream *ist, AVPacket *pkt, int *got_output,
         decoded_frame_tb   = AV_TIME_BASE_Q;
     }
     if (decoded_frame->pts != AV_NOPTS_VALUE)
-        decoded_frame->pts = av_rescale_delta(decoded_frame_tb, decoded_frame->pts,
+        decoded_frame->pts = av_rescale_delta(decoded_frame_tb, decoded_frame->pts,//时间
                                               (AVRational){1, avctx->sample_rate}, decoded_frame->nb_samples, &ist->filter_in_rescale_delta_last,
                                               (AVRational){1, avctx->sample_rate});
     ist->nb_samples = decoded_frame->nb_samples;
-    err = send_frame_to_filters(ist, decoded_frame);
+    err = send_frame_to_filters(ist, decoded_frame);//06. 调用过程参看视频
 
     av_frame_unref(ist->filter_frame);
     av_frame_unref(decoded_frame);
