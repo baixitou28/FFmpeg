@@ -403,7 +403,7 @@ void ff_tlog_link(void *ctx, AVFilterLink *link, int end)
                 end ? "\n" : "");
     }
 }
-
+//push_frame-->ff_filter_graph_run_once-->ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
 int ff_request_frame(AVFilterLink *link)//设置link状态,TIGER 名字有点歧义
 {
     FF_TPRINTF_START(NULL, request_frame); ff_tlog_link(NULL, link, 1);
