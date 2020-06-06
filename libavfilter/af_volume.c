@@ -63,7 +63,7 @@ static const char *const var_names[] = {
 #define A AV_OPT_FLAG_AUDIO_PARAM
 #define F AV_OPT_FLAG_FILTERING_PARAM
 
-static const AVOption volume_options[] = {
+static const AVOption volume_options[] = {//TIGER  volume: "volume" 动态可选项， once 意味只只能设置一次
     { "volume", "set volume adjustment expression",
             OFFSET(volume_expr), AV_OPT_TYPE_STRING, { .str = "1.0" }, .flags = A|F },
     { "precision", "select mathematical precision",
@@ -113,7 +113,7 @@ static av_cold int init(AVFilterContext *ctx)
 {
     VolumeContext *vol = ctx->priv;
 
-    vol->fdsp = avpriv_float_dsp_alloc(0);
+    vol->fdsp = avpriv_float_dsp_alloc(0);//浮点运算单元
     if (!vol->fdsp)
         return AVERROR(ENOMEM);
 
@@ -128,7 +128,7 @@ static av_cold void uninit(AVFilterContext *ctx)
     av_freep(&vol->fdsp);
 }
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//格式
 {
     VolumeContext *vol = ctx->priv;
     AVFilterFormats *formats = NULL;
@@ -181,7 +181,7 @@ static inline void scale_samples_u8(uint8_t *dst, const uint8_t *src,
 {
     int i;
     for (i = 0; i < nb_samples; i++)
-        dst[i] = av_clip_uint8(((((int64_t)src[i] - 128) * volume + 128) >> 8) + 128);
+        dst[i] = av_clip_uint8(((((int64_t)src[i] - 128) * volume + 128) >> 8) + 128);//tiger 换算成256
 }
 
 static inline void scale_samples_u8_small(uint8_t *dst, const uint8_t *src,
@@ -222,7 +222,7 @@ static inline void scale_samples_s32(uint8_t *dst, const uint8_t *src,
         smp_dst[i] = av_clipl_int32((((int64_t)smp_src[i] * volume + 128) >> 8));
 }
 
-static av_cold void volume_init(VolumeContext *vol)
+static av_cold void volume_init(VolumeContext *vol)//初始化，最主要是函数指针
 {
     vol->samples_align = 1;
 
@@ -256,10 +256,10 @@ static av_cold void volume_init(VolumeContext *vol)
 
 static int set_volume(AVFilterContext *ctx)
 {
-    VolumeContext *vol = ctx->priv;
+    VolumeContext *vol = ctx->priv;//结构放priv里，便于保持和获取
 
-    vol->volume = av_expr_eval(vol->volume_pexpr, vol->var_values, NULL);
-    if (isnan(vol->volume)) {
+    vol->volume = av_expr_eval(vol->volume_pexpr, vol->var_values, NULL);//01.
+    if (isnan(vol->volume)) {//02.零
         if (vol->eval_mode == EVAL_MODE_ONCE) {
             av_log(ctx, AV_LOG_ERROR, "Invalid value NaN for volume\n");
             return AVERROR(EINVAL);
@@ -268,21 +268,21 @@ static int set_volume(AVFilterContext *ctx)
             vol->volume = 0;
         }
     }
-    vol->var_values[VAR_VOLUME] = vol->volume;
+    vol->var_values[VAR_VOLUME] = vol->volume;//
 
     av_log(ctx, AV_LOG_VERBOSE, "n:%f t:%f pts:%f precision:%s ",
            vol->var_values[VAR_N], vol->var_values[VAR_T], vol->var_values[VAR_PTS],
            precision_str[vol->precision]);
 
     if (vol->precision == PRECISION_FIXED) {
-        vol->volume_i = (int)(vol->volume * 256 + 0.5);
+        vol->volume_i = (int)(vol->volume * 256 + 0.5);//精度以256为准，四舍五入
         vol->volume   = vol->volume_i / 256.0;
         av_log(ctx, AV_LOG_VERBOSE, "volume_i:%d/255 ", vol->volume_i);
     }
     av_log(ctx, AV_LOG_VERBOSE, "volume:%f volume_dB:%f\n",
            vol->volume, 20.0*log10(vol->volume));
 
-    volume_init(vol);
+    volume_init(vol);//初始化函数指针
     return 0;
 }
 
@@ -291,11 +291,11 @@ static int config_output(AVFilterLink *outlink)
     AVFilterContext *ctx = outlink->src;
     VolumeContext *vol   = ctx->priv;
     AVFilterLink *inlink = ctx->inputs[0];
-
+    //初始化
     vol->sample_fmt = inlink->format;
     vol->channels   = inlink->channels;
     vol->planes     = av_sample_fmt_is_planar(inlink->format) ? vol->channels : 1;
-
+    //设置为 0
     vol->var_values[VAR_N] =
     vol->var_values[VAR_NB_CONSUMED_SAMPLES] =
     vol->var_values[VAR_NB_SAMPLES] =
@@ -305,7 +305,7 @@ static int config_output(AVFilterLink *outlink)
     vol->var_values[VAR_STARTT] =
     vol->var_values[VAR_T] =
     vol->var_values[VAR_VOLUME] = NAN;
-
+    //
     vol->var_values[VAR_NB_CHANNELS] = inlink->channels;
     vol->var_values[VAR_TB]          = av_q2d(inlink->time_base);
     vol->var_values[VAR_SAMPLE_RATE] = inlink->sample_rate;
@@ -315,7 +315,7 @@ static int config_output(AVFilterLink *outlink)
            vol->var_values[VAR_SAMPLE_RATE],
            vol->var_values[VAR_NB_CHANNELS]);
 
-    return set_volume(ctx);
+    return set_volume(ctx);//设置
 }
 
 static int process_command(AVFilterContext *ctx, const char *cmd, const char *args,
@@ -324,7 +324,7 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
     VolumeContext *vol = ctx->priv;
     int ret = AVERROR(ENOSYS);
 
-    if (!strcmp(cmd, "volume")) {
+    if (!strcmp(cmd, "volume")) {//动态解析命令
         if ((ret = set_expr(&vol->volume_pexpr, args, ctx)) < 0)
             return ret;
         if (vol->eval_mode == EVAL_MODE_ONCE)
@@ -338,7 +338,7 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
 #define TS2D(ts) ((ts) == AV_NOPTS_VALUE ? NAN : (double)(ts))
 #define TS2T(ts, tb) ((ts) == AV_NOPTS_VALUE ? NAN : (double)(ts)*av_q2d(tb))
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
+static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写得看得晕了
 {
     AVFilterContext *ctx = inlink->dst;
     VolumeContext *vol    = inlink->dst->priv;
@@ -346,47 +346,47 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
     int nb_samples        = buf->nb_samples;
     AVFrame *out_buf;
     int64_t pos;
-    AVFrameSideData *sd = av_frame_get_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);
+    AVFrameSideData *sd = av_frame_get_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);//01.
     int ret;
-
+    //02.
     if (sd && vol->replaygain != REPLAYGAIN_IGNORE) {
-        if (vol->replaygain != REPLAYGAIN_DROP) {
+        if (vol->replaygain != REPLAYGAIN_DROP) {//02.01
             AVReplayGain *replaygain = (AVReplayGain*)sd->data;
             int32_t gain  = 100000;
             uint32_t peak = 100000;
             float g, p;
-
+            //02.01.01
             if (vol->replaygain == REPLAYGAIN_TRACK &&
-                replaygain->track_gain != INT32_MIN) {
-                gain = replaygain->track_gain;
+                replaygain->track_gain != INT32_MIN) {//02.01.01.01
+                gain = replaygain->track_gain;//
 
                 if (replaygain->track_peak != 0)
-                    peak = replaygain->track_peak;
-            } else if (replaygain->album_gain != INT32_MIN) {
-                gain = replaygain->album_gain;
+                    peak = replaygain->track_peak;//
+            } else if (replaygain->album_gain != INT32_MIN) {//02.01.01.02
+                gain = replaygain->album_gain;//
 
                 if (replaygain->album_peak != 0)
-                    peak = replaygain->album_peak;
-            } else {
+                    peak = replaygain->album_peak;//
+            } else {//02.01.01.03
                 av_log(inlink->dst, AV_LOG_WARNING, "Both ReplayGain gain "
                        "values are unknown.\n");
             }
-            g = gain / 100000.0f;
+            g = gain / 100000.0f;//02.01.02
             p = peak / 100000.0f;
 
             av_log(inlink->dst, AV_LOG_VERBOSE,
                    "Using gain %f dB from replaygain side data.\n", g);
-
+            //02.01.03
             vol->volume   = ff_exp10((g + vol->replaygain_preamp) / 20);
             if (vol->replaygain_noclip)
                 vol->volume = FFMIN(vol->volume, 1.0 / p);
             vol->volume_i = (int)(vol->volume * 256 + 0.5);
-
+            //02.01.04
             volume_init(vol);
         }
-        av_frame_remove_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);
+        av_frame_remove_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);//02.02
     }
-
+    //03.
     if (isnan(vol->var_values[VAR_STARTPTS])) {
         vol->var_values[VAR_STARTPTS] = TS2D(buf->pts);
         vol->var_values[VAR_STARTT  ] = TS2T(buf->pts, inlink->time_base);
@@ -394,17 +394,17 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
     vol->var_values[VAR_PTS] = TS2D(buf->pts);
     vol->var_values[VAR_T  ] = TS2T(buf->pts, inlink->time_base);
     vol->var_values[VAR_N  ] = inlink->frame_count_out;
-
+    //04.
     pos = buf->pkt_pos;
     vol->var_values[VAR_POS] = pos == -1 ? NAN : pos;
     if (vol->eval_mode == EVAL_MODE_FRAME)
         set_volume(ctx);
-
+    //05.
     if (vol->volume == 1.0 || vol->volume_i == 256) {
         out_buf = buf;
         goto end;
     }
-
+    //06.
     /* do volume scaling in-place if input buffer is writable */
     if (av_frame_is_writable(buf)
             && (vol->precision != PRECISION_FIXED || vol->volume_i > 0)) {
@@ -422,7 +422,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
             return ret;
         }
     }
-
+    //07.
     if (vol->precision != PRECISION_FIXED || vol->volume_i > 0) {
         int p, plane_samples;
 
@@ -451,13 +451,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)
             }
         }
     }
-
+    //08.
     emms_c();
-
+    //09.
     if (buf != out_buf)
         av_frame_free(&buf);
 
-end:
+end://10.
     vol->var_values[VAR_NB_CONSUMED_SAMPLES] += out_buf->nb_samples;
     return ff_filter_frame(outlink, out_buf);
 }
@@ -480,7 +480,7 @@ static const AVFilterPad avfilter_af_volume_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_af_volume = {
+AVFilter ff_af_volume = {//TIGER volume
     .name           = "volume",
     .description    = NULL_IF_CONFIG_SMALL("Change input volume."),
     .query_formats  = query_formats,
@@ -491,5 +491,5 @@ AVFilter ff_af_volume = {
     .inputs         = avfilter_af_volume_inputs,
     .outputs        = avfilter_af_volume_outputs,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
-    .process_command = process_command,
+    .process_command = process_command,//允许中途修改音量
 };
