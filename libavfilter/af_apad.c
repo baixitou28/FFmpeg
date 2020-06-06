@@ -47,7 +47,7 @@ typedef struct APadContext {
 
 #define OFFSET(x) offsetof(APadContext, x)
 #define A AV_OPT_FLAG_AUDIO_PARAM|AV_OPT_FLAG_FILTERING_PARAM
-
+//tiger 参数
 static const AVOption apad_options[] = {
     { "packet_size", "set silence packet size",                                  OFFSET(packet_size), AV_OPT_TYPE_INT,   { .i64 = 4096 }, 0, INT_MAX, A },
     { "pad_len",     "set number of samples of silence to add",                  OFFSET(pad_len),     AV_OPT_TYPE_INT64, { .i64 = -1 }, -1, INT64_MAX, A },
@@ -72,19 +72,19 @@ static av_cold int init(AVFilterContext *ctx)
     return 0;
 }
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
+static int filter_frame(AVFilterLink *inlink, AVFrame *frame)//不停记录长度，最后的长度和pts就是request_frame需要用到的变量
 {
     AVFilterContext *ctx = inlink->dst;
-    APadContext *s = ctx->priv;
-
+    APadContext *s = ctx->priv;//每个filter都有自己的结构体
+    //01.还有多少留下
     if (s->whole_len >= 0) {
         s->whole_len_left = FFMAX(s->whole_len_left - frame->nb_samples, 0);
         av_log(ctx, AV_LOG_DEBUG,
                "n_out:%d whole_len_left:%"PRId64"\n", frame->nb_samples, s->whole_len_left);
     }
-
+    //02.下个时间
     s->next_pts = frame->pts + av_rescale_q(frame->nb_samples, (AVRational){1, inlink->sample_rate}, inlink->time_base);
-    return ff_filter_frame(ctx->outputs[0], frame);
+    return ff_filter_frame(ctx->outputs[0], frame);//03. 传递到下一个AVFilterLink
 }
 
 static int request_frame(AVFilterLink *outlink)
@@ -92,13 +92,13 @@ static int request_frame(AVFilterLink *outlink)
     AVFilterContext *ctx = outlink->src;
     APadContext *s = ctx->priv;
     int ret;
-
+    //01.调整状态
     ret = ff_request_frame(ctx->inputs[0]);
-
+    //02.流结束，pad开始工作
     if (ret == AVERROR_EOF && !ctx->is_disabled) {
         int n_out = s->packet_size;
         AVFrame *outsamplesref;
-
+        //01.计算校验长度
         if (s->whole_len >= 0 && s->pad_len < 0) {
             s->pad_len = s->pad_len_left = s->whole_len_left;
         }
@@ -111,23 +111,23 @@ static int request_frame(AVFilterLink *outlink)
 
         if (!n_out)
             return AVERROR_EOF;
-
+        //02. 取长度为n_out的AVFrame
         outsamplesref = ff_get_audio_buffer(outlink, n_out);
         if (!outsamplesref)
             return AVERROR(ENOMEM);
 
         av_assert0(outsamplesref->sample_rate == outlink->sample_rate);
         av_assert0(outsamplesref->nb_samples  == n_out);
-
+        //03.直接清零
         av_samples_set_silence(outsamplesref->extended_data, 0,
                                n_out,
                                outsamplesref->channels,
                                outsamplesref->format);
-
+        //04.最后的pts
         outsamplesref->pts = s->next_pts;
         if (s->next_pts != AV_NOPTS_VALUE)
             s->next_pts += av_rescale_q(n_out, (AVRational){1, outlink->sample_rate}, outlink->time_base);
-
+        //05.放进末尾
         return ff_filter_frame(outlink, outsamplesref);
     }
     return ret;
@@ -168,7 +168,7 @@ static const AVFilterPad apad_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_af_apad = {
+AVFilter ff_af_apad = {//tiger pad 在流的末尾加入静音包
     .name          = "apad",
     .description   = NULL_IF_CONFIG_SMALL("Pad audio with silence."),
     .init          = init,

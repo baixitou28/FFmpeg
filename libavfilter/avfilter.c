@@ -404,7 +404,7 @@ void ff_tlog_link(void *ctx, AVFilterLink *link, int end)
     }
 }
 
-int ff_request_frame(AVFilterLink *link)//设置link状态
+int ff_request_frame(AVFilterLink *link)//设置link状态,TIGER 名字有点歧义
 {
     FF_TPRINTF_START(NULL, request_frame); ff_tlog_link(NULL, link, 1);
 

@@ -234,21 +234,21 @@ int av_samples_copy(uint8_t **dst, uint8_t * const *src, int dst_offset,
     return 0;
 }
 
-int av_samples_set_silence(uint8_t **audio_data, int offset, int nb_samples,//tiger 不是特别理解
+int av_samples_set_silence(uint8_t **audio_data, int offset, int nb_samples,//tiger 设置静音
                            int nb_channels, enum AVSampleFormat sample_fmt)
 {
     int planar      = av_sample_fmt_is_planar(sample_fmt);
     int planes      = planar ? nb_channels : 1;
     int block_align = av_get_bytes_per_sample(sample_fmt) * (planar ? 1 : nb_channels);
-    int data_size   = nb_samples * block_align;
+    int data_size   = nb_samples * block_align;//长度
     int fill_char   = (sample_fmt == AV_SAMPLE_FMT_U8 ||
                      sample_fmt == AV_SAMPLE_FMT_U8P) ? 0x80 : 0x00;
     int i;
 
-    offset *= block_align;
+    offset *= block_align;//起点
 
     for (i = 0; i < planes; i++)
-        memset(audio_data[i] + offset, fill_char, data_size);
+        memset(audio_data[i] + offset, fill_char, data_size);//直接清零即可
 
     return 0;
 }

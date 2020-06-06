@@ -142,7 +142,7 @@ static const AVFilterPad avfilter_af_aformat_outputs[] = {
     { NULL }
 };
 //TIGER Set output format constraints for the input audio. The framework will negotiate the most appropriate format to minimize conversions.
-AVFilter ff_af_aformat = {//TIGER ff_af_aformat   //tiger aformat=sample_fmts=u8|s16:channel_layouts=stereo
+AVFilter ff_af_aformat = {//TIGER aformat   //tiger aformat=sample_fmts=u8|s16:channel_layouts=stereo
     .name          = "aformat",
     .description   = NULL_IF_CONFIG_SMALL("Convert the input audio to one of the specified formats."),
     .init          = init,
