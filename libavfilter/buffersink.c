@@ -83,7 +83,7 @@ static int return_or_keep_frame(BufferSinkContext *buf, AVFrame *out, AVFrame *i
     }
 }
 //
-static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, int samples)
+static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, int samples)//tiger TODO:
 {
     BufferSinkContext *buf = ctx->priv;
     AVFilterLink *inlink = ctx->inputs[0];
@@ -155,12 +155,12 @@ static av_cold int common_init(AVFilterContext *ctx)
     return 0;
 }
 
-static int activate(AVFilterContext *ctx)
+static int activate(AVFilterContext *ctx)//TIGER 只提示告警
 {
     BufferSinkContext *buf = ctx->priv;
 
     if (buf->warning_limit &&
-        ff_framequeue_queued_frames(&ctx->inputs[0]->fifo) >= buf->warning_limit) {
+        ff_framequeue_queued_frames(&ctx->inputs[0]->fifo) >= buf->warning_limit) {//超限告警
         av_log(ctx, AV_LOG_WARNING,
                "%d buffers queued in %s, something may be wrong.\n",
                buf->warning_limit,
@@ -342,7 +342,7 @@ static const AVFilterPad avfilter_vsink_buffer_inputs[] = {
     { NULL }
 };
 
-AVFilter ff_vsink_buffer = {
+AVFilter ff_vsink_buffer = {//tiger sink
     .name        = "buffersink",
     .description = NULL_IF_CONFIG_SMALL("Buffer video frames, and make them available to the end of the filter graph."),
     .priv_size   = sizeof(BufferSinkContext),
@@ -363,7 +363,7 @@ static const AVFilterPad avfilter_asink_abuffer_inputs[] = {
     { NULL }
 };
 
-AVFilter ff_asink_abuffer = {
+AVFilter ff_asink_abuffer = {//tiger sink
     .name        = "abuffersink",
     .description = NULL_IF_CONFIG_SMALL("Buffer audio frames, and make them available to the end of the filter graph."),
     .priv_class  = &abuffersink_class,

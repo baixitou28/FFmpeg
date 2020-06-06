@@ -440,7 +440,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     return 0;
 }
 
-int av_frame_ref(AVFrame *dst, const AVFrame *src)
+int av_frame_ref(AVFrame *dst, const AVFrame *src)//tiger …Ó∂»øΩ±¥
 {
     int i, ret = 0;
 

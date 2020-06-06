@@ -155,20 +155,20 @@ int attribute_align_arg av_buffersrc_add_frame(AVFilterContext *ctx, AVFrame *fr
 static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
                                            AVFrame *frame, int flags);
 
-int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)
+int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)//TIGER 
 {
     AVFrame *copy = NULL;
     int ret = 0;
-
+    //01.
     if (frame && frame->channel_layout &&
         av_get_channel_layout_nb_channels(frame->channel_layout) != frame->channels) {
         av_log(ctx, AV_LOG_ERROR, "Layout indicates a different number of channels than actually present\n");
         return AVERROR(EINVAL);
     }
-
+    //02.如果不需要深度copy，直接copy
     if (!(flags & AV_BUFFERSRC_FLAG_KEEP_REF) || !frame)
-        return av_buffersrc_add_frame_internal(ctx, frame, flags);
-
+        return av_buffersrc_add_frame_internal(ctx, frame, flags);//调用 request_frame + ff_filter_activate
+    //03.深度copy，add
     if (!(copy = av_frame_alloc()))
         return AVERROR(ENOMEM);
     ret = av_frame_ref(copy, frame);
@@ -184,7 +184,7 @@ static int push_frame(AVFilterGraph *graph)
     int ret;
 
     while (1) {
-        ret = ff_filter_graph_run_once(graph);
+        ret = ff_filter_graph_run_once(graph);//调用ff_filter_activate
         if (ret == AVERROR(EAGAIN))
             break;
         if (ret < 0)
@@ -194,12 +194,12 @@ static int push_frame(AVFilterGraph *graph)
 }
 
 static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
-                                           AVFrame *frame, int flags)
+                                           AVFrame *frame, int flags)//调用request_frame + ff_filter_activate
 {
     BufferSourceContext *s = ctx->priv;
     AVFrame *copy;
     int refcounted, ret;
-
+    //01.
     s->nb_failed_requests = 0;
 
     if (!frame)
@@ -208,7 +208,7 @@ static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
         return AVERROR(EINVAL);
 
     refcounted = !!frame->buf[0];
-
+    //02.
     if (!(flags & AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT)) {
 
         switch (ctx->outputs[0]->type) {
@@ -228,15 +228,15 @@ static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
         }
 
     }
-
+    //03.是否要扩展fifo
     if (!av_fifo_space(s->fifo) &&
         (ret = av_fifo_realloc2(s->fifo, av_fifo_size(s->fifo) +
                                          sizeof(copy))) < 0)
         return ret;
-
+    //04.复制
     if (!(copy = av_frame_alloc()))
         return AVERROR(ENOMEM);
-
+    //05.
     if (refcounted) {
         av_frame_move_ref(copy, frame);
     } else {
@@ -246,17 +246,17 @@ static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
             return ret;
         }
     }
-
+    //06.插入s->fifo
     if ((ret = av_fifo_generic_write(s->fifo, &copy, sizeof(copy), NULL)) < 0) {
         if (refcounted)
             av_frame_move_ref(frame, copy);
         av_frame_free(&copy);
         return ret;
     }
-
+    //07.调用request_frame函数指针，不同的filter不同
     if ((ret = ctx->output_pads[0].request_frame(ctx->outputs[0])) < 0)
         return ret;
-
+    //08.调用ff_filter_activate
     if ((flags & AV_BUFFERSRC_FLAG_PUSH)) {
         ret = push_frame(ctx->graph);
         if (ret < 0)

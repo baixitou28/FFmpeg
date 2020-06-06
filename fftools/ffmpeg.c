@@ -2115,7 +2115,7 @@ static void check_decode_result(InputStream *ist, int *got_output, int ret)
 }
 
 // Filters can be configured only if the formats of all inputs are known.
-static int ifilter_has_all_input_formats(FilterGraph *fg)
+static int ifilter_has_all_input_formats(FilterGraph *fg)//如果是音视频的类型，才有filter的可能
 {
     int i;
     for (i = 0; i < fg->nb_inputs; i++) {
@@ -2125,74 +2125,74 @@ static int ifilter_has_all_input_formats(FilterGraph *fg)
     }
     return 1;
 }
-//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
-static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)
+//配置graph transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
+static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)//发送数据 transcode_step--> prcess_input--> prcess_input_packet--> decode_video--> send_frame_to_filter--> ifilter_send_frame-->av_buffersrc_add_frame_flags-->av_buffersrc_add_frame_internal-->request_frame + ff_filter_activate
 {
     FilterGraph *fg = ifilter->graph;
     int need_reinit, ret, i;
-
+    
     /* determine if the parameters for this input changed */
     need_reinit = ifilter->format != frame->format;
-
+    //01.音视频判断标准不同
     switch (ifilter->ist->st->codecpar->codec_type) {
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://音频判断三要素
         need_reinit |= ifilter->sample_rate    != frame->sample_rate ||
                        ifilter->channels       != frame->channels ||
                        ifilter->channel_layout != frame->channel_layout;
         break;
-    case AVMEDIA_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO://视频判断高和宽
         need_reinit |= ifilter->width  != frame->width ||
                        ifilter->height != frame->height;
         break;
     }
-
+    //如果根本没有filter或graph
     if (!ifilter->ist->reinit_filters && fg->graph)
         need_reinit = 0;
-
+    //如果硬件变了
     if (!!ifilter->hw_frames_ctx != !!frame->hw_frames_ctx ||
         (ifilter->hw_frames_ctx && ifilter->hw_frames_ctx->data != frame->hw_frames_ctx->data))
         need_reinit = 1;
-
+    //02.从frame 里取帧
     if (need_reinit) {
         ret = ifilter_parameters_from_frame(ifilter, frame);
         if (ret < 0)
             return ret;
     }
-
+    //03.需要初始化，进行以下步骤
     /* (re)init the graph if possible, otherwise buffer the frame and return */
     if (need_reinit || !fg->graph) {
         for (i = 0; i < fg->nb_inputs; i++) {
-            if (!ifilter_has_all_input_formats(fg)) {
+            if (!ifilter_has_all_input_formats(fg)) {//03.01 没有音视频的类型，主机释放clone 这个frame放入ifilter->frame_queue
                 AVFrame *tmp = av_frame_clone(frame);
                 if (!tmp)
                     return AVERROR(ENOMEM);
                 av_frame_unref(frame);
 
-                if (!av_fifo_space(ifilter->frame_queue)) {
-                    ret = av_fifo_realloc2(ifilter->frame_queue, 2 * av_fifo_size(ifilter->frame_queue));
+                if (!av_fifo_space(ifilter->frame_queue)) {//如果没有空间
+                    ret = av_fifo_realloc2(ifilter->frame_queue, 2 * av_fifo_size(ifilter->frame_queue));//扩展空间
                     if (ret < 0) {
                         av_frame_free(&tmp);
                         return ret;
                     }
                 }
-                av_fifo_generic_write(ifilter->frame_queue, &tmp, sizeof(tmp), NULL);
+                av_fifo_generic_write(ifilter->frame_queue, &tmp, sizeof(tmp), NULL);//放入ifilter->frame_queue队列
                 return 0;
             }
         }
-
+        //03.02 尝试filter 刷新，和输出
         ret = reap_filters(1);
         if (ret < 0 && ret != AVERROR_EOF) {
             av_log(NULL, AV_LOG_ERROR, "Error while filtering: %s\n", av_err2str(ret));
             return ret;
         }
-
+        //03.03 配置filtergraph
         ret = configure_filtergraph(fg);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error reinitializing filters!\n");
             return ret;
         }
     }
-
+    //04.加入帧//transcode_step--> prcess_input--> prcess_input_packet--> decode_video--> send_frame_to_filter--> ifilter_send_frame-->av_buffersrc_add_frame_flags-->av_buffersrc_add_frame_internal-->request_frame + ff_filter_activate
     ret = av_buffersrc_add_frame_flags(ifilter->filter, frame, AV_BUFFERSRC_FLAG_PUSH);
     if (ret < 0) {
         if (ret != AVERROR_EOF)
