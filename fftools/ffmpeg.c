@@ -2565,7 +2565,7 @@ static int send_filter_eof(InputStream *ist)
     }
     return 0;
 }
-//数据发送 transcode_step-- > process_input-- > process_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > av_buffersrc_add_frame_flags-- > av_buffersrc_add_frame_internal-- > request_frame + ff_filter_activate
+//数据发送 transcode_step--> process_input--> process_input_packet--> decode_video--> send_frame_to_filter--> ifilter_send_frame--> av_buffersrc_add_frame_flags--> av_buffersrc_add_frame_internal--> request_frame + ff_filter_activate
 /* pkt = NULL means EOF (needed to flush decoder buffers) */
 static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eof)
 {
@@ -2616,11 +2616,11 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
 
         switch (ist->dec_ctx->codec_type) {
         case AVMEDIA_TYPE_AUDIO:
-            ret = decode_audio    (ist, repeating ? NULL : &avpkt, &got_output,
+            ret = decode_audio    (ist, repeating ? NULL : &avpkt, &got_output,//主函数
                                    &decode_failed);
             break;
         case AVMEDIA_TYPE_VIDEO:
-            ret = decode_video    (ist, repeating ? NULL : &avpkt, &got_output, &duration_pts, !pkt,
+            ret = decode_video    (ist, repeating ? NULL : &avpkt, &got_output, &duration_pts, !pkt,//主函数
                                    &decode_failed);
             if (!repeating || !pkt || got_output) {
                 if (pkt && pkt->duration) {

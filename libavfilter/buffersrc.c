@@ -255,7 +255,7 @@ static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
     }
     //07.调用request_frame函数指针，不同的filter不同
     if ((ret = ctx->output_pads[0].request_frame(ctx->outputs[0])) < 0)
-        return ret;
+        return ret;//如果异常返回，但如果filter中间异常呢？
     //08.调用ff_filter_activate
     if ((flags & AV_BUFFERSRC_FLAG_PUSH)) {
         ret = push_frame(ctx->graph);

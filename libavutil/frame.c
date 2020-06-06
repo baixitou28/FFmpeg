@@ -651,7 +651,7 @@ int av_frame_make_writable(AVFrame *frame)
     return 0;
 }
 
-int av_frame_copy_props(AVFrame *dst, const AVFrame *src)
+int av_frame_copy_props(AVFrame *dst, const AVFrame *src)//∏¥÷∆ Ù–‘
 {
     return frame_copy_props(dst, src, 1);
 }

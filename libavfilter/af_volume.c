@@ -338,7 +338,7 @@ static int process_command(AVFilterContext *ctx, const char *cmd, const char *ar
 #define TS2D(ts) ((ts) == AV_NOPTS_VALUE ? NAN : (double)(ts))
 #define TS2T(ts, tb) ((ts) == AV_NOPTS_VALUE ? NAN : (double)(ts)*av_q2d(tb))
 
-static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写得看得晕了
+static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理inlink输入，一般vol->scale_samples来做乘法，处理完成后加入outlink //TIGER 写得看得晕了
 {
     AVFilterContext *ctx = inlink->dst;
     VolumeContext *vol    = inlink->dst->priv;
@@ -348,7 +348,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写
     int64_t pos;
     AVFrameSideData *sd = av_frame_get_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);//01.
     int ret;
-    //02.
+    //02. 不是特别理解
     if (sd && vol->replaygain != REPLAYGAIN_IGNORE) {
         if (vol->replaygain != REPLAYGAIN_DROP) {//02.01
             AVReplayGain *replaygain = (AVReplayGain*)sd->data;
@@ -386,7 +386,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写
         }
         av_frame_remove_side_data(buf, AV_FRAME_DATA_REPLAYGAIN);//02.02
     }
-    //03.
+    //03. volume context的设置
     if (isnan(vol->var_values[VAR_STARTPTS])) {
         vol->var_values[VAR_STARTPTS] = TS2D(buf->pts);
         vol->var_values[VAR_STARTT  ] = TS2T(buf->pts, inlink->time_base);
@@ -401,7 +401,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写
         set_volume(ctx);
     //05.
     if (vol->volume == 1.0 || vol->volume_i == 256) {
-        out_buf = buf;
+        out_buf = buf;//如果是1，就不用调整了，直接结束
         goto end;
     }
     //06.
@@ -415,29 +415,29 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写
             av_frame_free(&buf);
             return AVERROR(ENOMEM);
         }
-        ret = av_frame_copy_props(out_buf, buf);
+        ret = av_frame_copy_props(out_buf, buf);//复制属性
         if (ret < 0) {
             av_frame_free(&out_buf);
             av_frame_free(&buf);
             return ret;
         }
     }
-    //07.
+    //07. 采用dsp单元计算
     if (vol->precision != PRECISION_FIXED || vol->volume_i > 0) {
         int p, plane_samples;
-
+        //01. 点状间隔保持，还是块状间隔保持
         if (av_sample_fmt_is_planar(buf->format))
             plane_samples = FFALIGN(nb_samples, vol->samples_align);
         else
             plane_samples = FFALIGN(nb_samples * vol->channels, vol->samples_align);
-
-        if (vol->precision == PRECISION_FIXED) {
+        //02.
+        if (vol->precision == PRECISION_FIXED) {//如果原先是整数，
             for (p = 0; p < vol->planes; p++) {
-                vol->scale_samples(out_buf->extended_data[p],
+                vol->scale_samples(out_buf->extended_data[p],//用汇编指令计算就可以了，参见ff_scale_samples_s32_avx,查找ff_scale_samples_s32即可
                                    buf->extended_data[p], plane_samples,
                                    vol->volume_i);
             }
-        } else if (av_get_packed_sample_fmt(vol->sample_fmt) == AV_SAMPLE_FMT_FLT) {
+        } else if (av_get_packed_sample_fmt(vol->sample_fmt) == AV_SAMPLE_FMT_FLT) {//如果原先是float 浮点值，用dsp
             for (p = 0; p < vol->planes; p++) {
                 vol->fdsp->vector_fmul_scalar((float *)out_buf->extended_data[p],
                                              (const float *)buf->extended_data[p],
@@ -445,21 +445,21 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *buf)//处理输入 //TIGER 写
             }
         } else {
             for (p = 0; p < vol->planes; p++) {
-                vol->fdsp->vector_dmul_scalar((double *)out_buf->extended_data[p],
+                vol->fdsp->vector_dmul_scalar((double *)out_buf->extended_data[p],//double 类型
                                              (const double *)buf->extended_data[p],
                                              vol->volume, plane_samples);
             }
         }
     }
-    //08.
+    //08.浮点结束 可能需要额外操作
     emms_c();
     //09.
     if (buf != out_buf)
         av_frame_free(&buf);
 
-end://10.
+end://10.传递给下一个
     vol->var_values[VAR_NB_CONSUMED_SAMPLES] += out_buf->nb_samples;
-    return ff_filter_frame(outlink, out_buf);
+    return ff_filter_frame(outlink, out_buf);//将数据写到outlink的fifo里面
 }
 
 static const AVFilterPad avfilter_af_volume_inputs[] = {
