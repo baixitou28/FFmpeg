@@ -686,7 +686,7 @@ static void close_all_output_streams(OutputStream *ost, OSTFinished this_stream,
     }
 }
 
-static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int unqueue)
+static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int unqueue)//output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->s->oformat->write_packet
 {
     AVFormatContext *s = of->ctx;
     AVStream *st = ost->st;
@@ -844,7 +844,7 @@ static void close_output_stream(OutputStream *ost)
  * must be supplied in this case.
  */
 static void output_packet(OutputFile *of, AVPacket *pkt,
-                          OutputStream *ost, int eof)
+                          OutputStream *ost, int eof)//output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->s->oformat->write_packet
 {
     int ret = 0;
 
@@ -883,7 +883,7 @@ static void output_packet(OutputFile *of, AVPacket *pkt,
                 write_packet(of, pkt, ost, 0);
         }
     } else if (!eof)
-        write_packet(of, pkt, ost, 0);
+        write_packet(of, pkt, ost, 0);//主函数
 
 finish:
     if (ret < 0 && ret != AVERROR_EOF) {
@@ -2073,7 +2073,7 @@ static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *p
 
     av_copy_packet_side_data(&opkt, pkt);
 
-    output_packet(of, &opkt, ost, 0);
+    output_packet(of, &opkt, ost, 0);//主output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->s->oformat->write_packet
 }
 
 int guess_input_channel_layout(InputStream *ist)
@@ -2152,7 +2152,7 @@ static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)//发送数据 tr
     if (!!ifilter->hw_frames_ctx != !!frame->hw_frames_ctx ||
         (ifilter->hw_frames_ctx && ifilter->hw_frames_ctx->data != frame->hw_frames_ctx->data))
         need_reinit = 1;
-    //02.从frame 里取帧
+    //02.从frame 里取参数
     if (need_reinit) {
         ret = ifilter_parameters_from_frame(ifilter, frame);
         if (ret < 0)
@@ -2565,14 +2565,14 @@ static int send_filter_eof(InputStream *ist)
     }
     return 0;
 }
-
+//数据发送 transcode_step-- > process_input-- > process_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > av_buffersrc_add_frame_flags-- > av_buffersrc_add_frame_internal-- > request_frame + ff_filter_activate
 /* pkt = NULL means EOF (needed to flush decoder buffers) */
 static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eof)
 {
     int ret = 0, i;
     int repeating = 0;
     int eof_reached = 0;
-
+    //01.
     AVPacket avpkt;
     if (!ist->saw_first_ts) {
         ist->dts = ist->st->avg_frame_rate.num ? - ist->dec_ctx->has_b_frames * AV_TIME_BASE / av_q2d(ist->st->avg_frame_rate) : 0;
@@ -2588,7 +2588,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         ist->next_dts = ist->dts;
     if (ist->next_pts == AV_NOPTS_VALUE)
         ist->next_pts = ist->pts;
-
+    //02.
     if (!pkt) {
         /* EOF handling */
         av_init_packet(&avpkt);
@@ -2603,14 +2603,14 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         if (ist->dec_ctx->codec_type != AVMEDIA_TYPE_VIDEO || !ist->decoding_needed)
             ist->next_pts = ist->pts = ist->dts;
     }
-
+    //03.
     // while we have more to decode or while the decoder did output something on EOF
     while (ist->decoding_needed) {
         int64_t duration_dts = 0;
         int64_t duration_pts = 0;
         int got_output = 0;
         int decode_failed = 0;
-
+        //0
         ist->pts = ist->next_pts;
         ist->dts = ist->next_dts;
 
@@ -2694,7 +2694,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
 
         repeating = 1;
     }
-
+    //04. 是否该结束
     /* after flushing, send an EOF on all the filter inputs attached to the stream */
     /* except when looping we need to flush but not to send an EOF */
     if (!pkt && ist->decoding_needed && eof_reached && !no_eof) {
@@ -2704,7 +2704,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
             exit_program(1);
         }
     }
-
+    //05. 仅复制模式，处理时间错
     /* handle stream copy */
     if (!ist->decoding_needed && pkt) {
         ist->dts = ist->next_dts;
@@ -2742,8 +2742,8 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
 
         if (!check_output_constraints(ist, ost) || ost->encoding_needed)
             continue;
-
-        do_streamcopy(ist, ost, pkt);
+        //06.复制
+        do_streamcopy(ist, ost, pkt);//output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->s->oformat->write_packet
     }
 
     return !eof_reached;

@@ -671,7 +671,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
  * Those additional safety checks should be dropped once the correct checks
  * are set in the callers.
  */
-static int write_packet(AVFormatContext *s, AVPacket *pkt)
+static int write_packet(AVFormatContext *s, AVPacket *pkt)//output_packet-->write_packet-->av_interleaved_write_frame-->write_packet-->s->oformat->write_packet
 {
     int ret;
     int64_t pts_backup, dts_backup;
@@ -1189,7 +1189,7 @@ static int interleave_packet(AVFormatContext *s, AVPacket *out, AVPacket *in, in
         return ff_interleave_packet_per_dts(s, out, in, flush);//采用通用的
 }
 //tiger 功能看定义里面的注释
-int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
+int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)//output_packet-- > write_packet-- > av_interleaved_write_frame-- > write_packet-- > s->oformat->write_packet
 {
     int ret, flush = 0;
     //校验数据合法性
