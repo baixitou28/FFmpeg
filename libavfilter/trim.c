@@ -175,7 +175,7 @@ drop:
     av_frame_free(&frame);
     return 0;
 }
-
+//tiger 可选项 从哪一帧开始和结束
 #define FLAGS AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_FILTERING_PARAM
 static const AVOption trim_options[] = {
     COMMON_OPTS
@@ -207,7 +207,7 @@ static const AVFilterPad trim_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_trim = {
+AVFilter ff_vf_trim = {//tiger trim 从哪一帧开始和结束
     .name        = "trim",
     .description = NULL_IF_CONFIG_SMALL("Pick one continuous section from the input, drop the rest."),
     .init        = init,
@@ -361,7 +361,7 @@ static const AVFilterPad atrim_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_af_atrim = {
+AVFilter ff_af_atrim = {//TIGER TRIM
     .name        = "atrim",
     .description = NULL_IF_CONFIG_SMALL("Pick one continuous section from the input, drop the rest."),
     .init        = init,
