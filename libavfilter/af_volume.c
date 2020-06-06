@@ -240,7 +240,7 @@ static av_cold void volume_init(VolumeContext *vol)
             vol->scale_samples = scale_samples_s16;
         break;
     case AV_SAMPLE_FMT_S32:
-        vol->scale_samples = scale_samples_s32;
+        vol->scale_samples = scale_samples_s32;//用普通函数
         break;
     case AV_SAMPLE_FMT_FLT:
         vol->samples_align = 4;
@@ -251,7 +251,7 @@ static av_cold void volume_init(VolumeContext *vol)
     }
 
     if (ARCH_X86)
-        ff_volume_init_x86(vol);
+        ff_volume_init_x86(vol);//如果是x86架构采用特定指令
 }
 
 static int set_volume(AVFilterContext *ctx)

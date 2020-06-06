@@ -27,7 +27,7 @@ static void FUNC_NAME(SCENE_SAD_PARAMS) {                                     \
     uint64_t sad[MMSIZE / 8] = {0};                                           \
     ptrdiff_t awidth = width & ~(MMSIZE - 1);                                 \
     *sum = 0;                                                                 \
-    ASM_FUNC_NAME(src1, stride1, src2, stride2, awidth, height, sad);         \
+    ASM_FUNC_NAME(src1, stride1, src2, stride2, awidth, height, sad);         \//这个函数在哪里？
     for (int i = 0; i < MMSIZE / 8; i++)                                      \
         *sum += sad[i];                                                       \
     ff_scene_sad_c(src1 + awidth, stride1,                                    \
@@ -39,7 +39,7 @@ static void FUNC_NAME(SCENE_SAD_PARAMS) {                                     \
 #if HAVE_X86ASM
 SCENE_SAD_FUNC(scene_sad_sse2, ff_scene_sad_sse2, 16);
 #if HAVE_AVX2_EXTERNAL
-SCENE_SAD_FUNC(scene_sad_avx2, ff_scene_sad_avx2, 32);
+SCENE_SAD_FUNC(scene_sad_avx2, ff_scene_sad_avx2, 32);//ff_scene_sad_avx2 在哪里？ centos8 编译版本不含这个
 #endif
 #endif
 
@@ -50,10 +50,10 @@ ff_scene_sad_fn ff_scene_sad_get_fn_x86(int depth)
     if (depth == 8) {
 #if HAVE_AVX2_EXTERNAL
         if (EXTERNAL_AVX2_FAST(cpu_flags))
-            return scene_sad_avx2;
+            return scene_sad_avx2;//ff_scene_sad_avx2 32位
 #endif
         if (EXTERNAL_SSE2(cpu_flags))
-            return scene_sad_sse2;
+            return scene_sad_sse2;//16位
     }
 #endif
     return NULL;

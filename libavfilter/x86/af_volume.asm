@@ -33,7 +33,7 @@ SECTION .text
 
 ;------------------------------------------------------------------------------
 ; void ff_scale_samples_s16(uint8_t *dst, const uint8_t *src, int len,
-;                           int volume)
+;                           int volume) 
 ;------------------------------------------------------------------------------
 
 INIT_XMM sse2
@@ -60,7 +60,7 @@ cglobal scale_samples_s16, 4,4,4, dst, src, len, volume
 
 ;------------------------------------------------------------------------------
 ; void ff_scale_samples_s32(uint8_t *dst, const uint8_t *src, int len,
-;                           int volume)
+;                           int volume)tiger scale_samples_s16 为什么没有ff_scale_samples_s32_avx
 ;------------------------------------------------------------------------------
 
 %macro SCALE_SAMPLES_S32 0
@@ -95,7 +95,7 @@ cglobal scale_samples_s32, 4,4,4, dst, src, len, volume
     jge .loop
     REP_RET
 %endmacro
-
+;TIGER 定义在x86inc.asm INIT_YMM 0-1+: 举例：INIT_YMM avx: adds ff_ and _avx to function name //ff_scale_samples_s32_avx
 INIT_XMM sse2
 %define CVTDQ2PD cvtdq2pd
 SCALE_SAMPLES_S32
@@ -108,7 +108,7 @@ SCALE_SAMPLES_S32
 
 ; NOTE: This is not bit-identical with the C version because it clips to
 ;       [-INT_MAX, INT_MAX] instead of [INT_MIN, INT_MAX]
-
+;tiger 这里没有用SCALE_SAMPLES_S32
 INIT_XMM ssse3, atom
 cglobal scale_samples_s32, 4,4,8, dst, src, len, volume
     movd        m4, volumem

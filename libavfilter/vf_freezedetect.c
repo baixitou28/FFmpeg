@@ -50,7 +50,7 @@ typedef struct FreezeDetectContext {
 #define OFFSET(x) offsetof(FreezeDetectContext, x)
 #define V AV_OPT_FLAG_VIDEO_PARAM
 #define F AV_OPT_FLAG_FILTERING_PARAM
-
+//参数
 static const AVOption freezedetect_options[] = {
     { "n",                   "set noise tolerance",                       OFFSET(noise),  AV_OPT_TYPE_DOUBLE,   {.dbl=0.001},     0,       1.0, V|F },
     { "noise",               "set noise tolerance",                       OFFSET(noise),  AV_OPT_TYPE_DOUBLE,   {.dbl=0.001},     0,       1.0, V|F },
@@ -62,7 +62,7 @@ static const AVOption freezedetect_options[] = {
 
 AVFILTER_DEFINE_CLASS(freezedetect);
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//允许的格式
 {
     static const enum AVPixelFormat pix_fmts[] = {
         AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUYV422, AV_PIX_FMT_RGB24,
@@ -222,7 +222,7 @@ static const AVFilterPad freezedetect_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_freezedetect = {
+AVFilter ff_vf_freezedetect = {//tiger freeze
     .name          = "freezedetect",
     .description   = NULL_IF_CONFIG_SMALL("Detects frozen video input."),
     .priv_size     = sizeof(FreezeDetectContext),

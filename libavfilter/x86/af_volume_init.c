@@ -30,10 +30,10 @@ void ff_scale_samples_s32_sse2(uint8_t *dst, const uint8_t *src, int len,
                                int volume);
 void ff_scale_samples_s32_ssse3_atom(uint8_t *dst, const uint8_t *src, int len,
                                      int volume);
-void ff_scale_samples_s32_avx(uint8_t *dst, const uint8_t *src, int len,
+void ff_scale_samples_s32_avx(uint8_t *dst, const uint8_t *src, int len,//汇编SCALE_SAMPLES_S32 定义了ff_scale_samples_s32，然后 INIT_YMM avx 再定义新的函数以avx结尾;TIGER 定义在x86inc.asm INIT_YMM 0-1+: INIT_YMM avx: adds ff_ and _avx to function name 
                               int volume);
-
-av_cold void ff_volume_init_x86(VolumeContext *vol)
+//TIGER Writing x86 SIMD using x86inc.asm https://blogs.gnome.org/rbultje/2017/07/14/writing-x86-simd-using-x86inc-asm/  
+av_cold void ff_volume_init_x86(VolumeContext *vol)//TIGER volume x86 的汇编模式  //https://wiki.videolan.org/X264_asm_intro/
 {
     int cpu_flags = av_get_cpu_flags();
     enum AVSampleFormat sample_fmt = av_get_packed_sample_fmt(vol->sample_fmt);
@@ -52,7 +52,7 @@ av_cold void ff_volume_init_x86(VolumeContext *vol)
             vol->scale_samples = ff_scale_samples_s32_ssse3_atom;
             vol->samples_align = 4;
         }
-        if (EXTERNAL_AVX_FAST(cpu_flags)) {
+        if (EXTERNAL_AVX_FAST(cpu_flags)) {//现在基本都是这个类型
             vol->scale_samples = ff_scale_samples_s32_avx;
             vol->samples_align = 8;
         }
