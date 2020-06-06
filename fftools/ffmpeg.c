@@ -3863,7 +3863,7 @@ static int need_output(void)
  *
  * @return  selected output stream, or NULL if none available
  */
-static OutputStream *choose_output(void)
+static OutputStream *choose_output(void)//取最小dts的流
 {
     int i;
     int64_t opts_min = INT64_MAX;
@@ -3872,7 +3872,7 @@ static OutputStream *choose_output(void)
     for (i = 0; i < nb_output_streams; i++) {
         OutputStream *ost = output_streams[i];
         int64_t opts = ost->st->cur_dts == AV_NOPTS_VALUE ? INT64_MIN :
-                       av_rescale_q(ost->st->cur_dts, ost->st->time_base,
+                       av_rescale_q(ost->st->cur_dts, ost->st->time_base,//计算挡墙的dts
                                     AV_TIME_BASE_Q);
         if (ost->st->cur_dts == AV_NOPTS_VALUE)
             av_log(NULL, AV_LOG_DEBUG,
@@ -3882,7 +3882,7 @@ static OutputStream *choose_output(void)
         if (!ost->initialized && !ost->inputs_done)
             return ost;
 
-        if (!ost->finished && opts < opts_min) {
+        if (!ost->finished && opts < opts_min) {//取最小的dts
             opts_min = opts;
             ost_min  = ost->unavailable ? NULL : ost;
         }
@@ -4581,18 +4581,18 @@ static int transcode_step(void)
     OutputStream *ost;
     InputStream  *ist = NULL;
     int ret;
-    //01.挑一个最小index的输出
+    //01.挑一个最小dts的输出
     ost = choose_output();
     if (!ost) {
         if (got_eagain()) {
             reset_eagain();
-            av_usleep(10000);
+            av_usleep(10000);//所有流都未准备好，等待1秒
             return 0;
         }
         av_log(NULL, AV_LOG_VERBOSE, "No more inputs to read from, finishing.\n");
         return AVERROR_EOF;
     }
-    //02. 如果没有graph
+    //02. 如果没有OutputFilter的graph，初始化把
     if (ost->filter && !ost->filter->graph->graph) {
         if (ifilter_has_all_input_formats(ost->filter->graph)) {
             ret = configure_filtergraph(ost->filter->graph);//

@@ -450,8 +450,8 @@ static int insert_filter(AVFilterContext **last_filter, int *pad_idx,
     *pad_idx     = 0;
     return 0;
 }
-
-static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)
+//TIGER TODO
+static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//创建buffersink为第一个？或最后一个filter？的grapch
 {
     char *pix_fmts;
     OutputStream *ost = ofilter->ost;
@@ -673,7 +673,7 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
     return 0;
 }
 
-int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)
+int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//创建buffersink为初始的graph
 {
     if (!ofilter->ost) {
         av_log(NULL, AV_LOG_FATAL, "Filter %s has an unconnected output\n", ofilter->name);
@@ -681,7 +681,7 @@ int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOu
     }
 
     switch (avfilter_pad_get_type(out->filter_ctx->output_pads, out->pad_idx)) {
-    case AVMEDIA_TYPE_VIDEO: return configure_output_video_filter(fg, ofilter, out);
+    case AVMEDIA_TYPE_VIDEO: return configure_output_video_filter(fg, ofilter, out);//创建buffersink为初始的graph
     case AVMEDIA_TYPE_AUDIO: return configure_output_audio_filter(fg, ofilter, out);
     default: av_assert0(0);
     }
@@ -976,7 +976,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
     return 0;
 }
 
-static int configure_input_filter(FilterGraph *fg, InputFilter *ifilter,
+static int configure_input_filter(FilterGraph *fg, InputFilter *ifilter,//视频加入第一个名为“buffer”的filter，后面的filter根据实际配置再添加，串起来；音频则是abuffer
                                   AVFilterInOut *in)
 {
     if (!ifilter->ist->dec) {
@@ -992,14 +992,14 @@ static int configure_input_filter(FilterGraph *fg, InputFilter *ifilter,
     }
 }
 
-static void cleanup_filtergraph(FilterGraph *fg)
+static void cleanup_filtergraph(FilterGraph *fg)//释放输入出filter，再释放graph
 {
     int i;
     for (i = 0; i < fg->nb_outputs; i++)
-        fg->outputs[i]->filter = (AVFilterContext *)NULL;
+        fg->outputs[i]->filter = (AVFilterContext *)NULL;//释放输出filter
     for (i = 0; i < fg->nb_inputs; i++)
-        fg->inputs[i]->filter = (AVFilterContext *)NULL;
-    avfilter_graph_free(&fg->graph);
+        fg->inputs[i]->filter = (AVFilterContext *)NULL//释放输入filter
+    avfilter_graph_free(&fg->graph);//释放filter graph
 }
 
 int configure_filtergraph(FilterGraph *fg)
@@ -1012,7 +1012,7 @@ int configure_filtergraph(FilterGraph *fg)
     cleanup_filtergraph(fg);
     if (!(fg->graph = avfilter_graph_alloc()))//03.分配AVFilterGraph实例
         return AVERROR(ENOMEM);
-    //04.
+    //04. 
     if (simple) {//04.01
         OutputStream *ost = fg->outputs[0]->ost;
         char args[512];
@@ -1052,7 +1052,7 @@ int configure_filtergraph(FilterGraph *fg)
     } else {//04.02 只考虑线程
         fg->graph->nb_threads = filter_complex_nbthreads;
     }
-    //05.
+    //05. 用graph_desc查找对应的graph
     if ((ret = avfilter_graph_parse2(fg->graph, graph_desc, &inputs, &outputs)) < 0)
         goto fail;
     //06. 硬件
@@ -1093,28 +1093,28 @@ int configure_filtergraph(FilterGraph *fg)
         ret = AVERROR(EINVAL);
         goto fail;
     }
-    //08.
+    //08.每个输入，加入相应的filter，一般视频第一个filter是buffer，如果是音频第一个是abuffer
     for (cur = inputs, i = 0; cur; cur = cur->next, i++)
         if ((ret = configure_input_filter(fg, fg->inputs[i], cur)) < 0) {
             avfilter_inout_free(&inputs);
             avfilter_inout_free(&outputs);
             goto fail;
         }
-    avfilter_inout_free(&inputs);
-    //09.
+    avfilter_inout_free(&inputs);//?
+    //09.每个输出，加入相应的filter，一般视频第一个filter是buffersink，如果是音频第一个是buffersink
     for (cur = outputs, i = 0; cur; cur = cur->next, i++)
         configure_output_filter(fg, fg->outputs[i], cur);
-    avfilter_inout_free(&outputs);
-    //10.
+    avfilter_inout_free(&outputs);//?
+    //10. TODO: CONFIG
     if ((ret = avfilter_graph_config(fg->graph, NULL)) < 0)
         goto fail;
-    //11.
+    //11. 调整参数一致   ==>容易忘记？
     /* limit the lists of allowed formats to the ones selected, to
      * make sure they stay the same if the filtergraph is reconfigured later */
     for (i = 0; i < fg->nb_outputs; i++) {
         OutputFilter *ofilter = fg->outputs[i];
         AVFilterContext *sink = ofilter->filter;
-
+        //关键的一些配置， 和sink对齐?
         ofilter->format = av_buffersink_get_format(sink);
 
         ofilter->width  = av_buffersink_get_w(sink);
@@ -1136,23 +1136,23 @@ int configure_filtergraph(FilterGraph *fg)
             ret = AVERROR(EINVAL);
             goto fail;
         }
-        if (ost->enc->type == AVMEDIA_TYPE_AUDIO &&
+        if (ost->enc->type == AVMEDIA_TYPE_AUDIO &&//一般音频的frame size是固定的，所以最好设置一下
             !(ost->enc->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE))
             av_buffersink_set_frame_size(ost->filter->filter,
                                          ost->enc_ctx->frame_size);
     }
-    //13.
+    //13.filter graph 已经有数据了吗？
     for (i = 0; i < fg->nb_inputs; i++) {
-        while (av_fifo_size(fg->inputs[i]->frame_queue)) {
+        while (av_fifo_size(fg->inputs[i]->frame_queue)) {//是否已有数据？
             AVFrame *tmp;
-            av_fifo_generic_read(fg->inputs[i]->frame_queue, &tmp, sizeof(tmp), NULL);
-            ret = av_buffersrc_add_frame(fg->inputs[i]->filter, tmp);
-            av_frame_free(&tmp);
+            av_fifo_generic_read(fg->inputs[i]->frame_queue, &tmp, sizeof(tmp), NULL);//读
+            ret = av_buffersrc_add_frame(fg->inputs[i]->filter, tmp);//加入对应的filter
+            av_frame_free(&tmp);//别忘记释放
             if (ret < 0)
                 goto fail;
         }
     }
-    //14.
+    //14. 如果流结束了
     /* send the EOFs for the finished inputs */
     for (i = 0; i < fg->nb_inputs; i++) {
         if (fg->inputs[i]->eof) {
@@ -1161,7 +1161,7 @@ int configure_filtergraph(FilterGraph *fg)
                 goto fail;
         }
     }
-    //15.
+    //15.字幕先不看
     /* process queued up subtitle packets */
     for (i = 0; i < fg->nb_inputs; i++) {
         InputStream *ist = fg->inputs[i]->ist;
@@ -1177,7 +1177,7 @@ int configure_filtergraph(FilterGraph *fg)
 
     return 0;
 
-fail:
+fail://16.释放filter 再filter graph
     cleanup_filtergraph(fg);
     return ret;
 }
