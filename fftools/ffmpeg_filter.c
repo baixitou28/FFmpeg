@@ -742,7 +742,7 @@ static int sub2video_prepare(InputStream *ist, InputFilter *ifilter)
     ist->sub2video.end_pts  = INT64_MIN;
     return 0;
 }
-//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
+//ÅäÖÃgraph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
 static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
                                         AVFilterInOut *in)
 {
@@ -865,7 +865,7 @@ fail:
 
     return ret;
 }
-//transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_input_audio_filter
+//ÅäÖÃgraph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
 static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
                                         AVFilterInOut *in)
 {

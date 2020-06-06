@@ -2125,8 +2125,8 @@ static int ifilter_has_all_input_formats(FilterGraph *fg)//»Áπ˚ «“Ù ”∆µµƒ¿‡–Õ£¨≤
     }
     return 1;
 }
-//≈‰÷√graph transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter
-static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)//∑¢ÀÕ ˝æ› transcode_step--> prcess_input--> prcess_input_packet--> decode_video--> send_frame_to_filter--> ifilter_send_frame-->av_buffersrc_add_frame_flags-->av_buffersrc_add_frame_internal-->request_frame + ff_filter_activate
+//≈‰÷√graph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
+static int ifilter_send_frame(InputFilter *ifilter, AVFrame *frame)//∑¢ÀÕ ˝æ› transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->av_buffersrc_add_frame_flags-->av_buffersrc_add_frame_internal-->request_frame + ff_filter_activate
 {
     FilterGraph *fg = ifilter->graph;
     int need_reinit, ret, i;
@@ -2230,21 +2230,21 @@ static int ifilter_send_eof(InputFilter *ifilter, int64_t pts)
 // There is the following difference: if you got a frame, you must call
 // it again with pkt=NULL. pkt==NULL is treated differently from pkt->size==0
 // (pkt==NULL means get more output, pkt->size==0 is a flush/drain packet)
-static int decode(AVCodecContext *avctx, AVFrame *frame, int *got_frame, AVPacket *pkt)
+static int decode(AVCodecContext *avctx, AVFrame *frame, int *got_frame, AVPacket *pkt)//tiger ø¥◊¢ Õ
 {
     int ret;
 
     *got_frame = 0;
 
     if (pkt) {
-        ret = avcodec_send_packet(avctx, pkt);
+        ret = avcodec_send_packet(avctx, pkt);//ÀÕ“ª∏ˆAVPacket
         // In particular, we don't expect AVERROR(EAGAIN), because we read all
         // decoded frames with avcodec_receive_frame() until done.
         if (ret < 0 && ret != AVERROR_EOF)
             return ret;
     }
 
-    ret = avcodec_receive_frame(avctx, frame);
+    ret = avcodec_receive_frame(avctx, frame);//»°AVFrame
     if (ret < 0 && ret != AVERROR(EAGAIN))
         return ret;
     if (ret >= 0)
@@ -2340,16 +2340,16 @@ static int decode_audio(InputStream *ist, AVPacket *pkt, int *got_output,
     av_frame_unref(decoded_frame);
     return err < 0 ? err : ret;
 }
-//transcode_step-->prcess_input --> prcess_input_packet-->decode_video-->send_frame_to_filter -->ifilter_send_frame -->configure_filtergraph-->configure_output_video_filter
-static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_t *duration_pts, int eof,
-                        int *decode_failed)
+//≈‰÷√graph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
+static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_t *duration_pts, int eof,//∑¢ÀÕ ˝æ› transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->av_buffersrc_add_frame_flags-->av_buffersrc_add_frame_internal-->request_frame + ff_filter_activate
+                        int *decode_failed)//TIGER DECODE //TIGER IMPORTANT
 {
     AVFrame *decoded_frame;
     int i, ret = 0, err = 0;
     int64_t best_effort_timestamp;
     int64_t dts = AV_NOPTS_VALUE;
     AVPacket avpkt;
-
+    //01.
     // With fate-indeo3-2, we're getting 0-sized packets before EOF for some
     // reason. This seems like a semi-critical bug. Don't trigger EOF, and
     // skip the packet.
@@ -2377,13 +2377,13 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_
         ist->dts_buffer = new;
         ist->dts_buffer[ist->nb_dts_buffer++] = dts;
     }
-
+    //02. TIGER IMPORTANT ’‚¿ÔæÕ «≥£”√¥˙¬Î  //tiger program
     update_benchmark(NULL);
     ret = decode(ist->dec_ctx, decoded_frame, got_output, pkt ? &avpkt : NULL);
-    update_benchmark("decode_video %d.%d", ist->file_index, ist->st->index);
+    update_benchmark("decode_video %d.%d", ist->file_index, ist->st->index);//“≤–ÌŒ“√«ø…“‘ø¥’‚∏ˆ
     if (ret < 0)
         *decode_failed = 1;
-
+    //03.
     // The following line may be required in some cases where there is no parser
     // or the parser does not has_b_frames correctly
     if (ist->st->codecpar->video_delay < ist->dec_ctx->has_b_frames) {
@@ -2398,10 +2398,10 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_
                    ist->dec_ctx->has_b_frames,
                    ist->st->codecpar->video_delay);
     }
-
+    //05.
     if (ret != AVERROR_EOF)
         check_decode_result(ist, got_output, ret);
-
+    //06.
     if (*got_output && ret >= 0) {
         if (ist->dec_ctx->width  != decoded_frame->width ||
             ist->dec_ctx->height != decoded_frame->height ||
@@ -2423,14 +2423,14 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_
         decoded_frame->top_field_first = ist->top_field_first;
 
     ist->frames_decoded++;
-
+    //07. ”≤º˛hwaccel_retrieve_data
     if (ist->hwaccel_retrieve_data && decoded_frame->format == ist->hwaccel_pix_fmt) {
         err = ist->hwaccel_retrieve_data(ist->dec_ctx, decoded_frame);
         if (err < 0)
             goto fail;
     }
     ist->hwaccel_retrieved_pix_fmt = decoded_frame->format;
-
+    //08.
     best_effort_timestamp= decoded_frame->best_effort_timestamp;
     *duration_pts = decoded_frame->pkt_duration;
 
@@ -2465,10 +2465,10 @@ static int decode_video(InputStream *ist, AVPacket *pkt, int *got_output, int64_
 
     if (ist->st->sample_aspect_ratio.num)
         decoded_frame->sample_aspect_ratio = ist->st->sample_aspect_ratio;
+    //09.∑¢ÀÕΩ‚ŒˆÕÍ≥…µƒdecoded_frameµΩfilter  //≈‰÷√ send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
+    err = send_frame_to_filters(ist, decoded_frame); // ˝æ›send_frame_to_filter-->ifilter_send_frame-- > av_buffersrc_add_frame_flags-- > av_buffersrc_add_frame_internal-- > request_frame + ff_filter_activate
 
-    err = send_frame_to_filters(ist, decoded_frame);//
-
-fail:
+fail://10.Ω‚Œˆ ß∞‹
     av_frame_unref(ist->filter_frame);
     av_frame_unref(decoded_frame);
     return err < 0 ? err : ret;
