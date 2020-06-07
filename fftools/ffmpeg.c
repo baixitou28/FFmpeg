@@ -4592,8 +4592,8 @@ static int transcode_step(void)
         av_log(NULL, AV_LOG_VERBOSE, "No more inputs to read from, finishing.\n");
         return AVERROR_EOF;
     }
-    //02. 如果没有OutputFilter的graph，初始化把
-    if (ost->filter && !ost->filter->graph->graph) {
+    //02. 如果没有OutputFilter的graph，初始化filter graph
+    if (ost->filter && !ost->filter->graph->graph) {//有filter ，没有ost->filter->graph->graph 是什么状况？
         if (ifilter_has_all_input_formats(ost->filter->graph)) {
             ret = configure_filtergraph(ost->filter->graph);//
             if (ret < 0) {
@@ -4602,9 +4602,9 @@ static int transcode_step(void)
             }
         }
     }
-    //03. 如果没有初始化
+    //03. 如果filter graph已经初始化
     if (ost->filter && ost->filter->graph->graph) {//03.01 graph存在
-        if (!ost->initialized) {
+        if (!ost->initialized) {//流有没有打开？
             char error[1024] = {0};
             ret = init_output_stream(ost, error, sizeof(error));//初始化
             if (ret < 0) {
@@ -4612,16 +4612,16 @@ static int transcode_step(void)
                        ost->file_index, ost->index, error);
                 exit_program(1);
             }
-        }
+        }//这里要先行一步？为什么？
         if ((ret = transcode_from_filter(ost->filter->graph, &ist)) < 0)//转码
             return ret;
         if (!ist)
             return 0;
-    } else if (ost->filter) {//03.02 graph不存在
+    } else if (ost->filter) {//03.02 graph不存在 ==>
         int i;
         for (i = 0; i < ost->filter->graph->nb_inputs; i++) {
             InputFilter *ifilter = ost->filter->graph->inputs[i];
-            if (!ifilter->ist->got_output && !input_files[ifilter->ist->file_index]->eof_reached) {
+            if (!ifilter->ist->got_output && !input_files[ifilter->ist->file_index]->eof_reached) {//？
                 ist = ifilter->ist;
                 break;
             }
@@ -4668,10 +4668,10 @@ static int transcode(void)
         av_log(NULL, AV_LOG_INFO, "Press [q] to stop, [?] for help\n");//TIGER PROGRAM 交互中使用这个命令
     }
 
-    timer_start = av_gettime_relative();
+    timer_start = av_gettime_relative();//
 
 #if HAVE_THREADS
-    if ((ret = init_input_threads()) < 0)
+    if ((ret = init_input_threads()) < 0)//
         goto fail;
 #endif
     //这个循环好简单
@@ -4696,23 +4696,23 @@ static int transcode(void)
         }
 
         /* dump report by using the output first video and audio streams */
-        print_report(0, timer_start, cur_time);//打印状态
+        print_report(0, timer_start, cur_time);//周期性打印状态
     }
 #if HAVE_THREADS
     free_input_threads();
 #endif
-
+    //准备结束
     /* at the end of stream, we must flush the decoder buffers */
     for (i = 0; i < nb_input_streams; i++) {
         ist = input_streams[i];
         if (!input_files[ist->file_index]->eof_reached) {
             process_input_packet(ist, NULL, 0);
         }
-    }
+    }//有很多特例吗？
     flush_encoders();
-
+    //恢复终端设置
     term_exit();
-
+    //是否要写trailer
     /* write the trailer if needed and close file */
     for (i = 0; i < nb_output_files; i++) {
         os = output_files[i]->ctx;
@@ -4729,10 +4729,10 @@ static int transcode(void)
                 exit_program(1);
         }
     }
-
+    //打印最后的报告
     /* dump report by using the first video and audio streams */
     print_report(1, timer_start, av_gettime_relative());
-
+    //关闭编码
     /* close each encoder */
     for (i = 0; i < nb_output_streams; i++) {
         ost = output_streams[i];
@@ -4741,12 +4741,12 @@ static int transcode(void)
         }
         total_packets_written += ost->packets_written;
     }
-
+    //
     if (!total_packets_written && (abort_on_flags & ABORT_ON_FLAG_EMPTY_OUTPUT)) {
         av_log(NULL, AV_LOG_FATAL, "Empty output\n");
         exit_program(1);
     }
-
+    //关闭解码
     /* close each decoder */
     for (i = 0; i < nb_input_streams; i++) {
         ist = input_streams[i];
@@ -4756,7 +4756,7 @@ static int transcode(void)
                 ist->hwaccel_uninit(ist->dec_ctx);
         }
     }
-
+    //关闭硬件编解码设备
     av_buffer_unref(&hw_device_ctx);
     hw_device_free_all();
 
@@ -4765,9 +4765,9 @@ static int transcode(void)
 
  fail:
 #if HAVE_THREADS
-    free_input_threads();
+    free_input_threads();//释放线程
 #endif
-
+    //释放流相关的资源
     if (output_streams) {
         for (i = 0; i < nb_output_streams; i++) {
             ost = output_streams[i];
