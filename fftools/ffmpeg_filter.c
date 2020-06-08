@@ -193,9 +193,9 @@ DEF_CHOOSE_FORMAT(sample_rates, int, sample_rate, sample_rates, 0,
 
 DEF_CHOOSE_FORMAT(channel_layouts, uint64_t, channel_layout, channel_layouts, 0,
                   GET_CH_LAYOUT_NAME)
-//tiger program gdb watch filtergraphs 才找到这
+//tiger program gdb watch filtergraphs //通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
 int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph 理解filtergraph和输入出流的关联 //TIGER IMPORTANT
-{
+{//这里都是创建FilterGraph，创建和初始化第一个OutputFilter，所以用fg->outputs[0]表示，创建和初始化第一个InputFilter，所以用fg->inputs[0]表示
     FilterGraph *fg = av_mallocz(sizeof(*fg));//01.创建FilterGraph实例
 
     if (!fg)
@@ -206,28 +206,28 @@ int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_sim
     if (!(fg->outputs[0] = av_mallocz(sizeof(*fg->outputs[0]))))//创建OutputFilter实例
         exit_program(1);
     fg->outputs[0]->ost   = ost;//初始化OutputFilter，且OutputFilter和OutputStream相互关联
-    fg->outputs[0]->graph = fg;//OutputFilter和FilterGraph关联
+    fg->outputs[0]->graph = fg;//OutputFilter和FilterGraph关联，相互指向   //注：OutputFilter和InputFilter都有graph
     fg->outputs[0]->format = -1;//格式无
 
     ost->filter = fg->outputs[0];//OutputStream和OutputFilter相互关联
     //03.创建并初始化FilterGraph的InputFilter，使得和InputStream，FilterGraph关联
     GROW_ARRAY(fg->inputs, fg->nb_inputs);//扩展输入 fg->inputs，并nb_inputs自增
-    if (!(fg->inputs[0] = av_mallocz(sizeof(*fg->inputs[0]))))
+    if (!(fg->inputs[0] = av_mallocz(sizeof(*fg->inputs[0]))))//创建InputFilter实例
         exit_program(1);
     fg->inputs[0]->ist   = ist;//初始化InputFilter，且InputFilter和InputStream相互关联
-    fg->inputs[0]->graph = fg;//InputFilter和FilterGraph关联
+    fg->inputs[0]->graph = fg;//InputFilter和FilterGraph关联，相互指向   //注：OutputFilter和InputFilter都有graph
     fg->inputs[0]->format = -1;
     //04.创建FilterGraph的InputFilter的输入队列
-    fg->inputs[0]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));//输入的队列，默认8个：超过了呢？==>
+    fg->inputs[0]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));//输入的队列，默认8个，只有输入需要缓存
     if (!fg->inputs[0]->frame_queue)
         exit_program(1);
     //05.输入流的filter里面绑定FilterGraph的InputFilter
     GROW_ARRAY(ist->filters, ist->nb_filters);//扩展ist->filters，并nb_filters自增，如果失败，直接退出程序
-    ist->filters[ist->nb_filters - 1] = fg->inputs[0];//
+    ist->filters[ist->nb_filters - 1] = fg->inputs[0];//ist->filters加入一个InputFilter，但不一定是ist的第一个
     //06.放到全局数组中
     GROW_ARRAY(filtergraphs, nb_filtergraphs);//扩展filtergraphs，并nb_filtergraphs自增，如果失败，直接退出程序
     filtergraphs[nb_filtergraphs - 1] = fg;
-
+    
     return 0;
 }
 

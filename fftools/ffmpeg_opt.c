@@ -919,7 +919,7 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)//创建流Inp
     }
 }
 
-static void assert_file_overwrite(const char *filename)
+static void assert_file_overwrite(const char *filename)//是否需要覆盖文件
 {
     const char *proto_name = avio_find_protocol_name(filename);
 
@@ -935,7 +935,7 @@ static void assert_file_overwrite(const char *filename)
                 fflush(stderr);
                 term_exit();
                 signal(SIGINT, SIG_DFL);
-                if (!read_yesno()) {
+                if (!read_yesno()) {//读yes 或no
                     av_log(NULL, AV_LOG_FATAL, "Not overwriting - exiting\n");
                     exit_program(1);
                 }
@@ -1347,7 +1347,7 @@ static int choose_encoder(OptionsContext *o, AVFormatContext *s, OutputStream *o
 
     return 0;
 }
-//TIGER new_output_stream ，// 不仅分配OutputStream o，同时还有o->st(AVStream) o->enc o->enc_ctx 还有很多可选项    
+//TIGER new_output_stream ，// 不仅分配OutputStream o，同时还有o->st(AVStream) o->enc o->enc_ctx 还有很多可选项 ,创建好的ost放在全局数组output_streams里   
 static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, enum AVMediaType type, int source_index)//分配OutputStream和AVStream,设置ost->enc和ost->st->codecpar->codec_id，ost->stream_copy设置ost->enc和enc_ctx 的可选项
 {
     OutputStream *ost;
@@ -1649,14 +1649,14 @@ static void check_streamcopy_filters(OptionsContext *o, AVFormatContext *oc,
     }
 }
 //公共部分用new_output_stream创建，设置其他可选项
-static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, int source_index)
+static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, int source_index)//创建好的ost放在全局数组output_streams里  
 {
     AVStream *st;
     OutputStream *ost;
     AVCodecContext *video_enc;
     char *frame_rate = NULL, *frame_aspect_ratio = NULL;
     //01. 创建
-    ost = new_output_stream(o, oc, AVMEDIA_TYPE_VIDEO, source_index);
+    ost = new_output_stream(o, oc, AVMEDIA_TYPE_VIDEO, source_index);//不仅分配OutputStream o，同时还有o->st(AVStream) o->enc o->enc_ctx 还有很多可选项 ,创建好的ost放在全局数组output_streams里  
     st  = ost->st;
     video_enc = ost->enc_ctx;
     //02. 可选项
@@ -1849,7 +1849,7 @@ static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, in
     return ost;
 }
 //公共部分用new_output_stream创建，设置其他可选项
-static OutputStream *new_audio_stream(OptionsContext *o, AVFormatContext *oc, int source_index)//TIGER new_audio_stream
+static OutputStream *new_audio_stream(OptionsContext *o, AVFormatContext *oc, int source_index)//TIGER new_audio_stream //创建好的ost放在全局数组output_streams里
 {
     int n;
     AVStream *st;
@@ -2213,7 +2213,7 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
                 }
             }
             if (idx >= 0)
-                new_video_stream(o, oc, idx);//tiger important 重要 创建视频流才是之后的init_simple_filtergraph
+                new_video_stream(o, oc, idx);//tiger important 重要 创建视频流,创建好的ost放在全局数组output_streams里, new_video_stream和new_audio_stream才是之后的init_simple_filtergraph
         }
         //07.01.02 创建音频流
         /* audio: most channels */
@@ -2233,7 +2233,7 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
                 }
             }
             if (idx >= 0)
-                new_audio_stream(o, oc, idx);//tiger important 重要 创建音频流才是之后的init_simple_filtergraph
+                new_audio_stream(o, oc, idx);//tiger important 重要 创建视频流,创建好的ost放在全局数组output_streams里, new_video_stream和new_audio_stream才是之后的init_simple_filtergraph
         }
         //07.01.03 字幕
         /* subtitles: pick first */
@@ -2453,16 +2453,16 @@ loop_end:
     //13. 为什么一定要创建filtergraph：==> 
     /* set the decoding_needed flags and create simple filtergraphs */
     for (i = of->ost_index; i < nb_output_streams; i++) {//几个输出流逐一处理
-        OutputStream *ost = output_streams[i];
-        //13.01
+        OutputStream *ost = output_streams[i];//前面new_audio_stream/new_video_stream创建:ffmpeg_parse_options-->open_files-->open_output_file-->new_video_stream-->new_output_stream 行创建
+        //13.01 如果需要编码
         if (ost->encoding_needed && ost->source_index >= 0) {
-            InputStream *ist = input_streams[ost->source_index];//获取对应的输入流
+            InputStream *ist = input_streams[ost->source_index];//用watch input_streams 查询到ffmpeg_parse_options-->open_files-->open_input_file-->add_input_streams 731行创建
             ist->decoding_needed |= DECODING_FOR_OST;//有啥区别？==>
-
+            
             if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||//如果是音视频编码
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
                 err = init_simple_filtergraph(ist, ost);//tiger init_simple_filtergraph重要 创建filtergraph （gdb可用watch filtergraphs ），同时和输入出关联
-                if (err < 0) {
+                if (err < 0) {//创建 simple filter graph: 通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
                     av_log(NULL, AV_LOG_ERROR,
                            "Error initializing a simple filtergraph between streams "
                            "%d:%d->%d:%d\n", ist->file_index, ost->source_index,
@@ -2471,9 +2471,9 @@ loop_end:
                 }
             }
         }
-        //13.02 设置OutputFilter  不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
+        //13.02 设置OutputFilter 复制了ost里面的参数，不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
         /* set the filter output constraints */
-        if (ost->filter) {//如果输出流Outfilter不为空
+        if (ost->filter) {//如果输出流Outfilter不为空：init_simple_filtergraph 就创建：ost->filter = fg->outputs[0]
             OutputFilter *f = ost->filter;
             int count;
             switch (ost->enc_ctx->codec_type) {//根据codec_type来选择
@@ -2550,10 +2550,10 @@ loop_end:
     //16.如果是文件，打开文件
     if (!(oc->oformat->flags & AVFMT_NOFILE)) {
         /* test if it already exists to avoid losing precious files */
-        assert_file_overwrite(filename);
+        assert_file_overwrite(filename);//是否覆盖文件
 
         /* open the file */
-        if ((err = avio_open2(&oc->pb, filename, AVIO_FLAG_WRITE,
+        if ((err = avio_open2(&oc->pb, filename, AVIO_FLAG_WRITE,//打开文件
                               &oc->interrupt_callback,
                               &of->opts)) < 0) {
             print_error(filename, err);
