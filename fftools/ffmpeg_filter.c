@@ -379,7 +379,7 @@ fail://06.释放graph和inputs，但保留了fg
 }
 
 static int insert_trim(int64_t start_time, int64_t duration,
-                       AVFilterContext **last_filter, int *pad_idx,
+                       AVFilterContext **last_filter, int *pad_idx,//是否要跳过某个时间,如果是插入一个trim 的AVFilter，
                        const char *filter_name)
 {
     AVFilterGraph *graph = (*last_filter)->graph;
@@ -462,14 +462,14 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
     char name[255];
     //01. 用buffersink创建一个filter，和相关的AVFilterContext，插入 fg->graph->filters
     snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);
-    ret = avfilter_graph_create_filter(&ofilter->filter,//tiger avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
+    ret = avfilter_graph_create_filter(&ofilter->filter,//tiger ifilter_send_frame-->configure_filtergraph->configure_output_video_filter-->avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
                                        avfilter_get_by_name("buffersink"),//先创建"buffersink" 的filter
                                        name, NULL, NULL, fg->graph);
 
     if (ret < 0)
         return ret;
     //02. 如果有视频参数， 如果是simple graph 是在open_output_file中的init_simple_graph 之后的函数设置，filter的值是从ost获取的
-    if (ofilter->width || ofilter->height) {
+    if (ofilter->width || ofilter->height) {//未指定，就不一定有
         char args[255];
         AVFilterContext *filter;
         AVDictionaryEntry *e = NULL;
@@ -484,10 +484,10 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
 
         snprintf(name, sizeof(name), "scaler_out_%d_%d",
                  ost->file_index, ost->index);
-        if ((ret = avfilter_graph_create_filter(&filter, avfilter_get_by_name("scale"),
+        if ((ret = avfilter_graph_create_filter(&filter, avfilter_get_by_name("scale"),//查找scale的AVfilter，并创建Context，插入fg->graph
                                                 name, args, NULL, fg->graph)) < 0)
             return ret;
-        if ((ret = avfilter_link(last_filter, pad_idx, filter, 0)) < 0)
+        if ((ret = avfilter_link(last_filter, pad_idx, filter, 0)) < 0)////将last_filter做为src， filter作为dst，串起来
             return ret;
 
         last_filter = filter;
@@ -500,7 +500,7 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
                  ost->file_index, ost->index);
         ret = avfilter_graph_create_filter(&filter,
                                            avfilter_get_by_name("format"),
-                                           "format", pix_fmts, NULL, fg->graph);
+                                           "format", pix_fmts, NULL, fg->graph);//插入 filter format
         av_freep(&pix_fmts);
         if (ret < 0)
             return ret;
@@ -519,7 +519,7 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
                  ost->frame_rate.den);
         snprintf(name, sizeof(name), "fps_out_%d_%d",
                  ost->file_index, ost->index);
-        ret = avfilter_graph_create_filter(&fps, avfilter_get_by_name("fps"),
+        ret = avfilter_graph_create_filter(&fps, avfilter_get_by_name("fps"),//插入 filter fps
                                            name, args, NULL, fg->graph);
         if (ret < 0)
             return ret;
@@ -533,13 +533,13 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
 
     snprintf(name, sizeof(name), "trim_out_%d_%d",
              ost->file_index, ost->index);
-    ret = insert_trim(of->start_time, of->recording_time,//05.从哪帧开始和结束
+    ret = insert_trim(of->start_time, of->recording_time,//05.从哪帧开始和结束， 插入 filter trim
                       &last_filter, &pad_idx, name);
     if (ret < 0)
         return ret;
 
     //06.
-    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)
+    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)//连接
         return ret;
 
     return 0;
@@ -555,7 +555,7 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
     char *sample_fmts, *sample_rates, *channel_layouts;
     char name[255];
     int ret;
-    //01.
+    //01. 创建abuffersink 的一个filterContext，插入fg->graph->filters里
     snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);
     ret = avfilter_graph_create_filter(&ofilter->filter,
                                        avfilter_get_by_name("abuffersink"),
@@ -584,7 +584,7 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
     last_filter = filt_ctx;                                                 \
     pad_idx = 0;                                                            \
 } while (0)
-    if (ost->audio_channels_mapped) {
+    if (ost->audio_channels_mapped) {//02.map_channel 参数
         int i;
         AVBPrint pan_buf;
         av_bprint_init(&pan_buf, 256, 8192);
@@ -594,17 +594,17 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
             if (ost->audio_channels_map[i] != -1)
                 av_bprintf(&pan_buf, "|c%d=c%d", i, ost->audio_channels_map[i]);
 
-        AUTO_INSERT_FILTER("-map_channel", "pan", pan_buf.str);
+        AUTO_INSERT_FILTER("-map_channel", "pan", pan_buf.str);//插入filter pan
         av_bprint_finalize(&pan_buf, NULL);
     }
-
+    //03.
     if (codec->channels && !codec->channel_layout)
         codec->channel_layout = av_get_default_channel_layout(codec->channels);
 
     sample_fmts     = choose_sample_fmts(ofilter);
     sample_rates    = choose_sample_rates(ofilter);
     channel_layouts = choose_channel_layouts(ofilter);
-    if (sample_fmts || sample_rates || channel_layouts) {
+    if (sample_fmts || sample_rates || channel_layouts) {//04. 如果有音频参数
         AVFilterContext *format;
         char args[256];
         args[0] = 0;
@@ -623,30 +623,30 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
         av_freep(&sample_rates);
         av_freep(&channel_layouts);
 
-        snprintf(name, sizeof(name), "format_out_%d_%d",
+        snprintf(name, sizeof(name), "format_out_%d_%d",//打印成类似:"sample_fmts=fltp:sample_rate=96000|88200|....|8000|7350"
                  ost->file_index, ost->index);
         ret = avfilter_graph_create_filter(&format,
-                                           avfilter_get_by_name("aformat"),
+                                           avfilter_get_by_name("aformat"),//用"aformat"的AVFilter 创建一个FilterContext，并插入fg->graph
                                            name, args, NULL, fg->graph);
         if (ret < 0)
             return ret;
 
-        ret = avfilter_link(last_filter, pad_idx, format, 0);
+        ret = avfilter_link(last_filter, pad_idx, format, 0);//将last_filter做为src， format作为dst，串起来
         if (ret < 0)
             return ret;
 
-        last_filter = format;
+        last_filter = format;//最后一个filterContext
         pad_idx = 0;
     }
 
-    if (audio_volume != 256 && 0) {
+    if (audio_volume != 256 && 0) {//05.
         char args[256];
 
         snprintf(args, sizeof(args), "%f", audio_volume / 256.);
-        AUTO_INSERT_FILTER("-vol", "volume", args);
+        AUTO_INSERT_FILTER("-vol", "volume", args);//插入filter volume
     }
 
-    if (ost->apad && of->shortest) {
+    if (ost->apad && of->shortest) {//06.
         char args[256];
         int i;
 
@@ -656,18 +656,18 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
 
         if (i<of->ctx->nb_streams) {
             snprintf(args, sizeof(args), "%s", ost->apad);
-            AUTO_INSERT_FILTER("-apad", "apad", args);
+            AUTO_INSERT_FILTER("-apad", "apad", args);//插入filter apad
         }
     }
 
     snprintf(name, sizeof(name), "trim for output stream %d:%d",
              ost->file_index, ost->index);
-    ret = insert_trim(of->start_time, of->recording_time,
+    ret = insert_trim(of->start_time, of->recording_time,//07.插入trim 的filter
                       &last_filter, &pad_idx, name);
     if (ret < 0)
         return ret;
 
-    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)
+    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)//将last_filter做为src， ofilter->filter作为dst，串起来
         return ret;
 
     return 0;

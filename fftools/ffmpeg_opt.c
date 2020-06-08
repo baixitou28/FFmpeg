@@ -2471,13 +2471,13 @@ loop_end:
                 }
             }
         }//如果这个不理解，不知道filter里面的参数如frame_rate是哪里来的
-        //13.02 TIGER 重要：复制了ost里面的参数来设置OutputFilter ，不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
+        //13.02 TIGER 重要：复制了ost里面的参数来设置OutputFilter ，不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc(但是这些都其实都是额外的设置，如果不重新编码，不需要设置ost， ost->enc_ctx )
         /* set the filter output constraints */
         if (ost->filter) {//如果输出流Outfilter不为空：init_simple_filtergraph 就创建：ost->filter = fg->outputs[0]
             OutputFilter *f = ost->filter;
             int count;
             switch (ost->enc_ctx->codec_type) {//根据codec_type来选择
-            case AVMEDIA_TYPE_VIDEO://13.02.01  不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
+            case AVMEDIA_TYPE_VIDEO://13.02.01  不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc(但是这些都其实都是额外的设置，如果不重新编码，不需要设置ost， ost->enc_ctx )
                 f->frame_rate = ost->frame_rate;//帧率是由输出流定的？
                 f->width      = ost->enc_ctx->width;
                 f->height     = ost->enc_ctx->height;
