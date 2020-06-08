@@ -2106,7 +2106,7 @@ static int init_complex_filters(void)//初始化命令行的filter_complex
 }
 //TIGER 创建OutputFile of，放入全局output_files中，并创建AVFormatContext oc，从OptionsContext o中获取可选项
 static int open_output_file(OptionsContext *o, const char *filename)//重要：
-{//没有complex filter和nb_stream_maps的主要过程: 1.创建并初始化OutputFile 2.new_video_stream ，new_audio_stream， 3. init_simple_filtergraph
+{//没有complex filter和nb_stream_maps的主要过程: 1.创建并初始化OutputFile 2.new_video_stream ，new_audio_stream， 3. init_simple_filtergraph 4. filter的关键参数 从ost中获取
     AVFormatContext *oc;
     int i, j, err;
     OutputFile *of;
@@ -2470,8 +2470,8 @@ loop_end:
                     exit_program(1);
                 }
             }
-        }
-        //13.02 设置OutputFilter 复制了ost里面的参数，不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
+        }//如果这个不理解，不知道filter里面的参数如frame_rate是哪里来的
+        //13.02 TIGER 重要：复制了ost里面的参数来设置OutputFilter ，不同场景里赋值的优先级 ost > ost->enc_ctx > ost->enc
         /* set the filter output constraints */
         if (ost->filter) {//如果输出流Outfilter不为空：init_simple_filtergraph 就创建：ost->filter = fg->outputs[0]
             OutputFilter *f = ost->filter;

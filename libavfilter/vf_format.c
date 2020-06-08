@@ -205,7 +205,7 @@ static const AVFilterPad avfilter_vf_noformat_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_noformat = {
+AVFilter ff_vf_noformat = {//TIGER FORMAT
     .name          = "noformat",
     .description   = NULL_IF_CONFIG_SMALL("Force libavfilter not to use any of the specified pixel formats for the input to the next filter."),
 
