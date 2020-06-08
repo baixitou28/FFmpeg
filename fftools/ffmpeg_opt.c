@@ -311,7 +311,7 @@ static int opt_map(void *optctx, const char *opt, const char *arg)
     }
 
 
-    if (map[0] == '[') {
+    if (map[0] == '[') {//TIGER ffmpeg -f lavfi -i color=c=black:s=1280x720 -i video.mp4 -shortest -filter_complex "[1:v]chromakey=0x70de77:0.1:0.2[ckout];[0:v][ckout]overlay[out]" -map "[out]" output.mkv
         /* this mapping refers to lavfi output */
         const char *c = map + 1;
         GROW_ARRAY(o->stream_maps, o->nb_stream_maps);
@@ -2097,7 +2097,7 @@ static int init_complex_filters(void)//初始化命令行的filter_complex
 {
     int i, ret = 0;
 
-    for (i = 0; i < nb_filtergraphs; i++) {
+    for (i = 0; i < nb_filtergraphs; i++) {//nb_filtergraphs在opt_filter_complex增加
         ret = init_complex_filtergraph(filtergraphs[i]);//初始化filtergraphs里的对象
         if (ret < 0)
             return ret;
@@ -2106,7 +2106,7 @@ static int init_complex_filters(void)//初始化命令行的filter_complex
 }
 //TIGER 创建OutputFile of，放入全局output_files中，并创建AVFormatContext oc，从OptionsContext o中获取可选项
 static int open_output_file(OptionsContext *o, const char *filename)//重要：
-{
+{//没有complex filter和nb_stream_maps的主要过程: 1.创建并初始化OutputFile 2.new_video_stream ，new_audio_stream， 3. init_simple_filtergraph
     AVFormatContext *oc;
     int i, j, err;
     OutputFile *of;
@@ -2168,10 +2168,10 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
         format_flags |= AVFMT_FLAG_BITEXACT;
         oc->flags    |= AVFMT_FLAG_BITEXACT;
     }
-    //06.如果有filter graph，比如在命令行的complex_filter定义
+    //06.如果有filter graph，比如在命令行的complex_filter定义，
     /* create streams for all unlabeled output pads */  //看注释
-    for (i = 0; i < nb_filtergraphs; i++) {
-        FilterGraph *fg = filtergraphs[i];//从全局数组中取 ==>什么时候初始化的？
+    for (i = 0; i < nb_filtergraphs; i++) {//nb_filtergraphs在opt_filter_complex增加
+        FilterGraph *fg = filtergraphs[i];//从全局数组中取 ==>什么时候初始化的？init_complex_filtergraph 
         for (j = 0; j < fg->nb_outputs; j++) {
             OutputFilter *ofilter = fg->outputs[j];//06.01
 
@@ -2182,24 +2182,24 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
             case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;//禁止则直接跳出第一层循环
             case AVMEDIA_TYPE_AUDIO:    o->audio_disable    = 1; break;
             case AVMEDIA_TYPE_SUBTITLE: o->subtitle_disable = 1; break;
-            }//注:初始化fitler有多处，还要simple graph的初始化。
+            }//注:初始化fitler有多处，还有simple graph的初始化。
             init_output_filter(ofilter, o, oc);//06.04 tiger important 重要入口：初始化filter，并隐含创建和初始化对应的输出的音视频流！并和filter绑定
         }
     }
-    //07.
-    if (!o->nb_stream_maps) {//07.01
+    //07.例如帮助文档：ffmpeg -f lavfi -i color=c=black:s=1280x720 -i video.mp4 -shortest -filter_complex "[1:v]chromakey=0x70de77:0.1:0.2[ckout];[0:v][ckout]overlay[out]" -map "[out]" output.mkv
+    if (!o->nb_stream_maps) {//07.01 如果没有map，相对比较简单
         char *subtitle_codec_name = NULL;
         /* pick the "best" stream of each type */
-        //07.01.01 视频
+        //07.01.01 创建视频流
         /* video: highest resolution */
         if (!o->video_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_VIDEO) != AV_CODEC_ID_NONE) {
             int area = 0, idx = -1;
-            int qcr = avformat_query_codec(oc->oformat, oc->oformat->video_codec, 0);
+            int qcr = avformat_query_codec(oc->oformat, oc->oformat->video_codec, 0);//编码
             for (i = 0; i < nb_input_streams; i++) {
                 int new_area;
                 ist = input_streams[i];
                 new_area = ist->st->codecpar->width * ist->st->codecpar->height + 100000000*!!ist->st->codec_info_nb_frames
-                           + 5000000*!!(ist->st->disposition & AV_DISPOSITION_DEFAULT);
+                           + 5000000*!!(ist->st->disposition & AV_DISPOSITION_DEFAULT);//
                 if (ist->user_set_discard == AVDISCARD_ALL)
                     continue;
                 if((qcr!=MKTAG('A', 'P', 'I', 'C')) && (ist->st->disposition & AV_DISPOSITION_ATTACHED_PIC))
@@ -2208,14 +2208,14 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
                     new_area > area) {
                     if((qcr==MKTAG('A', 'P', 'I', 'C')) && !(ist->st->disposition & AV_DISPOSITION_ATTACHED_PIC))
                         continue;
-                    area = new_area;
+                    area = new_area;//
                     idx = i;
                 }
             }
             if (idx >= 0)
-                new_video_stream(o, oc, idx);
+                new_video_stream(o, oc, idx);//tiger important 重要 创建视频流才是之后的init_simple_filtergraph
         }
-        //07.01.02 音频
+        //07.01.02 创建音频流
         /* audio: most channels */
         if (!o->audio_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_AUDIO) != AV_CODEC_ID_NONE) {
             int best_score = 0, idx = -1;
@@ -2233,7 +2233,7 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
                 }
             }
             if (idx >= 0)
-                new_audio_stream(o, oc, idx);
+                new_audio_stream(o, oc, idx);//tiger important 重要 创建音频流才是之后的init_simple_filtergraph
         }
         //07.01.03 字幕
         /* subtitles: pick first */
@@ -2277,7 +2277,7 @@ static int open_output_file(OptionsContext *o, const char *filename)//重要：
                     new_data_stream(o, oc, i);
             }
         }
-    } else {//07.02
+    } else {//07.02 如果命令包含map，相对不同
         for (i = 0; i < o->nb_stream_maps; i++) {
             StreamMap *map = &o->stream_maps[i];
 
