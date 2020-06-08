@@ -236,8 +236,8 @@ static void insert_inout(AVFilterInOut **inouts, AVFilterInOut *element)
 static void append_inout(AVFilterInOut **inouts, AVFilterInOut **element)
 {
     while (*inouts && (*inouts)->next)
-        inouts = &((*inouts)->next);
-
+        inouts = &((*inouts)->next);//找到末尾为止
+    //将element 加在末尾
     if (!*inouts)
         *inouts = *element;
     else
@@ -404,7 +404,7 @@ static int parse_sws_flags(const char **buf, AVFilterGraph *graph)
     return 0;
 }
 
-int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,//解析
+int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,//解析并创建
                           AVFilterInOut **inputs,
                           AVFilterInOut **outputs)
 {
@@ -412,37 +412,37 @@ int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,//解析
     char chr = 0;
 
     AVFilterInOut *curr_inputs = NULL, *open_inputs = NULL, *open_outputs = NULL;
-
+    //01.
     filters += strspn(filters, WHITESPACES);
-
+    //02. "sws_flags="参数
     if ((ret = parse_sws_flags(&filters, graph)) < 0)
         goto fail;
-
+    //03.
     do {
         AVFilterContext *filter;
-        filters += strspn(filters, WHITESPACES);
-
+        filters += strspn(filters, WHITESPACES);//01.
+        //02.
         if ((ret = parse_inputs(&filters, &curr_inputs, &open_outputs, graph)) < 0)
             goto end;
-        if ((ret = parse_filter(&filter, &filters, graph, index, graph)) < 0)
+        if ((ret = parse_filter(&filter, &filters, graph, index, graph)) < 0)//03. 解析并创建filter
             goto end;
 
-
+        //04.
         if ((ret = link_filter_inouts(filter, &curr_inputs, &open_inputs, graph)) < 0)
             goto end;
-
+        //05. 关联
         if ((ret = parse_outputs(&filters, &curr_inputs, &open_inputs, &open_outputs,
                                  graph)) < 0)
             goto end;
-
+        //06.
         filters += strspn(filters, WHITESPACES);
         chr = *filters++;
-
+        //07.
         if (chr == ';' && curr_inputs)
             append_inout(&open_outputs, &curr_inputs);
         index++;
     } while (chr == ',' || chr == ';');
-
+    //不能识别的字符
     if (chr) {
         av_log(graph, AV_LOG_ERROR,
                "Unable to parse graph description substring: \"%s\"\n",
@@ -450,10 +450,10 @@ int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,//解析
         ret = AVERROR(EINVAL);
         goto end;
     }
-
+    //04. curr_inputs加在open_outputs的末尾  ==>不是特别理解
     append_inout(&open_outputs, &curr_inputs);
 
-
+    //05.
     *inputs  = open_inputs;
     *outputs = open_outputs;
     return 0;

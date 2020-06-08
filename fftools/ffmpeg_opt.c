@@ -2098,7 +2098,7 @@ static int init_complex_filters(void)//初始化命令行的filter_complex
     int i, ret = 0;
 
     for (i = 0; i < nb_filtergraphs; i++) {
-        ret = init_complex_filtergraph(filtergraphs[i]);//
+        ret = init_complex_filtergraph(filtergraphs[i]);//初始化filtergraphs里的对象
         if (ret < 0)
             return ret;
     }

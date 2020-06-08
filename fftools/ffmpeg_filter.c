@@ -250,7 +250,7 @@ static char *describe_filter_link(FilterGraph *fg, AVFilterInOut *inout, int in)
     return res;
 }
 
-static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)//³õÊ¼»¯filter£¬·ÅÈëÊäÈë³öµÄÁ÷
+static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)//³õÊ¼»¯FilterGraph fg£¬·ÅÈëÊäÈë³öµÄÁ÷
 {
     InputStream *ist = NULL;
     enum AVMediaType type = avfilter_pad_get_type(in->filter_ctx->input_pads, in->pad_idx);
@@ -337,7 +337,7 @@ static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)//³õÊ¼»¯filter£
     ist->filters[ist->nb_filters - 1] = fg->inputs[fg->nb_inputs - 1];
 }
 //complex filtergraph µÄËµÃ÷¿´ffmpeg.texi
-int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµÄÀàĞÍ£¬ÔÚÍË³öµÄÊ±ºò¶ªÆú
+int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬FilterGraphµÄ³õÊ¼»¯£¬±ÈÈçÓĞ¶à¸öÊäÈë£¬Ò»¸öÊä³ö
 {
     AVFilterInOut *inputs, *outputs, *cur;
     AVFilterGraph *graph;
@@ -348,7 +348,7 @@ int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµ
     graph = avfilter_graph_alloc();//01.·ÖÅäAVFilterGraphÄÚ´æ£¬²¢³õÊ¼»¯£º·ÖÅäinternalÄÚ´æ£¬ÉèÖÃav_class£¬ option£¬internal->frame_queues
     if (!graph)
         return AVERROR(ENOMEM);
-    graph->nb_threads = 1;//02.Ö»ÔÊĞíÒ»¸öÏß³Ì
+    graph->nb_threads = 1;//02.avfilter_graph_parse2Ê±ºòÖ»ÔÊĞíÒ»¸öÏß³Ì
     //03.¸ù¾İÃû³Æfg->graph_desc½âÎö£¬µÃµ½AVFilterInOutµÄÊäÈëºÍÊä³ö
     ret = avfilter_graph_parse2(graph, fg->graph_desc, &inputs, &outputs);
     if (ret < 0)
@@ -364,7 +364,7 @@ int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµ
             exit_program(1);
 
         fg->outputs[fg->nb_outputs - 1]->graph   = fg;
-        fg->outputs[fg->nb_outputs - 1]->out_tmp = cur;
+        fg->outputs[fg->nb_outputs - 1]->out_tmp = cur;//ÎªÊ²Ã´ÔİÊ±·ÅÕâÀï?
         fg->outputs[fg->nb_outputs - 1]->type    = avfilter_pad_get_type(cur->filter_ctx->output_pads,
                                                                          cur->pad_idx);
         fg->outputs[fg->nb_outputs - 1]->name = describe_filter_link(fg, cur, 0);
@@ -372,8 +372,8 @@ int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµ
         fg->outputs[fg->nb_outputs - 1]->out_tmp->next = NULL;
     }
 
-fail://06.×îºó»¹²»ÊÇ¶¼ÊÍ·Åµô
-    avfilter_inout_free(&inputs);
+fail://06.ÊÍ·ÅgraphºÍinputs£¬µ«±£ÁôÁËfg
+    avfilter_inout_free(&inputs);//ÎªÊ²Ã´ÊÇÊÍ·Åfilter£¿ ==>
     avfilter_graph_free(&graph);
     return ret;
 }
