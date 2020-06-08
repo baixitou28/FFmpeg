@@ -995,7 +995,7 @@ static void dump_attachment(AVStream *st, const char *filename)
 }
 //TIGER ±»open_files×÷Îªº¯ÊıÖ¸Õëµ÷ÓÃ //µÚÒ»²ÎÊıÊÇ½âÎöºóµÄ¿ÉÑ¡Ïî£¬µÚ¶ş²ÎÊıÊÇÔ­Ê¼µÄ×éĞÅÏ¢
 static int open_input_file(OptionsContext *o, const char *filename)//ÖØµãº¯Êı£º´´½¨AVFormatContext£¬avformat_open_input ´ò¿ª£¬add_input_streams,×îºó´´½¨InputFile f ·ÅÔÚÈ«¾Öinput_files
-{//¿ÉÄÜÊ¹ÓÃavforamt_find_stream_infoÔÙÊ¹ÓÃ 
+{//¿ÉÄÜÊ¹ÓÃavforamt_find_stream_infoÔÙÊ¹ÓÃ //open_input_fileÖ÷Òª¾Û½¹£º±àÂë¸ñÊ½£¬ÒôÊÓÆµµÄÖ÷Òª²ÎÊı£¬Èçframe rateµÈ²éÕÒºÍÉèÖÃ vs  open_output_file ¹Ø×¢filterµÈ
     InputFile *f;
     AVFormatContext *ic;
     AVInputFormat *file_iformat = NULL;
@@ -2105,7 +2105,7 @@ static int init_complex_filters(void)//³õÊ¼»¯ÃüÁîĞĞµÄfilter_complex
     return 0;
 }
 //TIGER ´´½¨OutputFile of£¬·ÅÈëÈ«¾Öoutput_filesÖĞ£¬²¢´´½¨AVFormatContext oc£¬´ÓOptionsContext oÖĞ»ñÈ¡¿ÉÑ¡Ïî
-static int open_output_file(OptionsContext *o, const char *filename)
+static int open_output_file(OptionsContext *o, const char *filename)//ÖØÒª£º
 {
     AVFormatContext *oc;
     int i, j, err;
@@ -2168,10 +2168,10 @@ static int open_output_file(OptionsContext *o, const char *filename)
         format_flags |= AVFMT_FLAG_BITEXACT;
         oc->flags    |= AVFMT_FLAG_BITEXACT;
     }
-    //06.
+    //06.Èç¹ûÓĞfilter graph£¬±ÈÈçÔÚÃüÁîĞĞµÄcomplex_filter¶¨Òå
     /* create streams for all unlabeled output pads */  //¿´×¢ÊÍ
     for (i = 0; i < nb_filtergraphs; i++) {
-        FilterGraph *fg = filtergraphs[i];//´ÓÈ«¾ÖÊı×éÖĞÈ¡
+        FilterGraph *fg = filtergraphs[i];//´ÓÈ«¾ÖÊı×éÖĞÈ¡ ==>Ê²Ã´Ê±ºò³õÊ¼»¯µÄ£¿
         for (j = 0; j < fg->nb_outputs; j++) {
             OutputFilter *ofilter = fg->outputs[j];//06.01
 
@@ -2182,8 +2182,8 @@ static int open_output_file(OptionsContext *o, const char *filename)
             case AVMEDIA_TYPE_VIDEO:    o->video_disable    = 1; break;//½ûÖ¹ÔòÖ±½ÓÌø³öµÚÒ»²ãÑ­»·
             case AVMEDIA_TYPE_AUDIO:    o->audio_disable    = 1; break;
             case AVMEDIA_TYPE_SUBTITLE: o->subtitle_disable = 1; break;
-            }
-            init_output_filter(ofilter, o, oc);//06.04 ³õÊ¼»¯filter£¬²¢Òşº¬´´½¨ºÍ³õÊ¼»¯¶ÔÓ¦µÄÊä³öµÄÒôÊÓÆµÁ÷£¡²¢ºÍfilter°ó¶¨
+            }//×¢:³õÊ¼»¯fitlerÓĞ¶à´¦£¬»¹Òªsimple graphµÄ³õÊ¼»¯¡£
+            init_output_filter(ofilter, o, oc);//06.04 tiger important ÖØÒªÈë¿Ú£º³õÊ¼»¯filter£¬²¢Òşº¬´´½¨ºÍ³õÊ¼»¯¶ÔÓ¦µÄÊä³öµÄÒôÊÓÆµÁ÷£¡²¢ºÍfilter°ó¶¨
         }
     }
     //07.
@@ -2450,7 +2450,7 @@ loop_end:
                option->help ? option->help : "", nb_output_files - 1, filename);
     }
     av_dict_free(&unused_opts);
-    //13. ÎªÊ²Ã´Ò»¶¨Òª´´½¨filtergraph£º==>
+    //13. ÎªÊ²Ã´Ò»¶¨Òª´´½¨filtergraph£º==> 
     /* set the decoding_needed flags and create simple filtergraphs */
     for (i = of->ost_index; i < nb_output_streams; i++) {//¼¸¸öÊä³öÁ÷ÖğÒ»´¦Àí
         OutputStream *ost = output_streams[i];
@@ -2461,7 +2461,7 @@ loop_end:
 
             if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||//Èç¹ûÊÇÒôÊÓÆµ±àÂë
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                err = init_simple_filtergraph(ist, ost);//tiger init_simple_filtergraphÖØÒª ´´½¨filtergraph £¨¿ÉÓÃwatch filtergraphs £©£¬Í¬Ê±ºÍÊäÈë³ö¹ØÁª
+                err = init_simple_filtergraph(ist, ost);//tiger init_simple_filtergraphÖØÒª ´´½¨filtergraph £¨gdb¿ÉÓÃwatch filtergraphs £©£¬Í¬Ê±ºÍÊäÈë³ö¹ØÁª
                 if (err < 0) {
                     av_log(NULL, AV_LOG_ERROR,
                            "Error initializing a simple filtergraph between streams "
@@ -2693,7 +2693,7 @@ loop_end:
         char type, *val;
         const char *stream_spec;
         int index = 0, j, ret = 0;
-        //01.ÓĞ"="Âğ
+        //22.01.ÓĞ"="Âğ
         val = strchr(o->metadata[i].u.str, '=');
         if (!val) {
             av_log(NULL, AV_LOG_FATAL, "No '=' character in metadata string %s.\n",
@@ -2701,9 +2701,9 @@ loop_end:
             exit_program(1);
         }
         *val++ = 0;
-        //02.½âÎö
+        //22.02.½âÎö
         parse_meta_type(o->metadata[i].specifier, &type, &index, &stream_spec);
-        if (type == 's') {//03. ½«ÔªÊı¾İ·Ö±ğ±£´æÔÚoc->metadata£¬&oc->streams[j]->metadata£¬ oc->chapters[index]->metadata£¬oc->programs[index]->metadata
+        if (type == 's') {//22.03. ½«ÔªÊı¾İ·Ö±ğ±£´æÔÚoc->metadata£¬&oc->streams[j]->metadata£¬ oc->chapters[index]->metadata£¬oc->programs[index]->metadata
             for (j = 0; j < oc->nb_streams; j++) {//Èç¹ûÊÇ's'
                 ost = output_streams[nb_output_streams - oc->nb_streams + j];
                 if ((ret = check_stream_specifier(oc, oc->streams[j], stream_spec)) > 0) {
@@ -2721,7 +2721,7 @@ loop_end:
                     exit_program(1);
             }
         }
-        else {//ÆäËû·Ç's'
+        else {//22.04ÆäËû·Ç's'
             switch (type) {
             case 'g'://global È«¾Ö
                 m = &oc->metadata;
@@ -3252,7 +3252,7 @@ static const OptionGroupDef groups[] = {
     [GROUP_INFILE]  = { "input url",   "i",  OPT_INPUT },
 };
 
-static int open_files(OptionGroupList *l, const char *inout,//ÓÃopen_file´ò¿ª¶à¸öÎÄ¼ş
+static int open_files(OptionGroupList *l, const char *inout,//ÓÃopen_file´ò¿ª¶à¸öÎÄ¼ş£º½âÎö×éµÄ¿ÉÑ¡Ïî£¬ÔÙÓÃÎ¯ÍĞopen_file´ò¿ªÎÄ¼ş
                       int (*open_file)(OptionsContext*, const char*))
 {
     int i, ret;
@@ -3260,10 +3260,10 @@ static int open_files(OptionGroupList *l, const char *inout,//ÓÃopen_file´ò¿ª¶à¸
     for (i = 0; i < l->nb_groups; i++) {//ÖğÒ»´ò¿ªÎÄ¼ş
         OptionGroup *g = &l->groups[i];
         OptionsContext o;
-        //01.
+        //01.³õÊ¼»¯½á¹¹
         init_options(&o);
         o.g = g;
-        //02.
+        //02.½âÎö×éµÄ¿ÉÑ¡Ïî
         ret = parse_optgroup(&o, g);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error parsing options for %s file "
@@ -3273,7 +3273,7 @@ static int open_files(OptionGroupList *l, const char *inout,//ÓÃopen_file´ò¿ª¶à¸
         //03.ÓÃº¯ÊıÖ¸Õëopen_file´ò¿ª
         av_log(NULL, AV_LOG_DEBUG, "Opening an %s file: %s.\n", inout, g->arg);
         ret = open_file(&o, g->arg);//µÚÒ»²ÎÊıÊÇ½âÎöºóµÄ¿ÉÑ¡Ïî£¬µÚ¶ş²ÎÊıÊÇÔ­Ê¼µÄ×éĞÅÏ¢
-        uninit_options(&o);//04.
+        uninit_options(&o);//04.ÊÍ·Å¿ÉÑ¡Ïî
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Error opening %s file %s.\n",
                    inout, g->arg);
@@ -3285,7 +3285,7 @@ static int open_files(OptionGroupList *l, const char *inout,//ÓÃopen_file´ò¿ª¶à¸
     return 0;
 }
 //ffmpegµÄÃüÁîĞĞ²ÎÊı£¬·ÖÎªÈıÀà1.È«¾ÖµÄ£¬2.ÊäÈëÎÄ¼şµÄ²ÎÊı£¬3.Êä³öÎÄ¼şµÄ²ÎÊı¡£
-int ffmpeg_parse_options(int argc, char **argv)
+int ffmpeg_parse_options(int argc, char **argv)//ÖØÒªº¯Êı£¬ÒòÎªÕâÀï°üº¬ÁËÎÄ¼ş´ò¿ª£¬ËùÒÔÏà¶Ô¸´ÔÓ
 {
     OptionParseContext octx;
     uint8_t error[128];
@@ -3302,7 +3302,7 @@ int ffmpeg_parse_options(int argc, char **argv)
     }
 
     /* apply global options */
-    ret = parse_optgroup(NULL, &octx.global_opts);//02.Ñ¡Ïî»¹·Ö×é£º
+    ret = parse_optgroup(NULL, &octx.global_opts);//02.Ğ£Ñé·Ö×éµÄÑ¡Ïî£º
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error parsing global options: ");
         goto fail;
@@ -3312,21 +3312,21 @@ int ffmpeg_parse_options(int argc, char **argv)
     term_init();//03.ÖÕ¶ËÉèÖÃºÍĞÅºÅ´¦Àí£¬·ÅµÄµØ·½....²»ºÃÕÒ
     
     /* open input files */
-    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//04.½âÎö²ÎÊı£¬²¢ÓÃopen_input_file´ò¿ª¶à¸öÊäÈëÎÄ¼ş£¬ open_input_fileÊÇº¯Êı£¡¶øÇÒÊÇºÜ³¤µÄº¯Êı
+    ret = open_files(&octx.groups[GROUP_INFILE], "input", open_input_file);//04.ÖØÒª£º´ò¿ªËùÓĞÊäÈëÎÄ¼ş£º½âÎö²ÎÊı£¬²¢ÓÃopen_input_file´ò¿ª¶à¸öÊäÈëÎÄ¼ş£¬ open_input_fileÊÇº¯Êı£¡¶øÇÒÊÇºÜ³¤µÄº¯Êı
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening input files: ");
         goto fail;
     }
     //ÃüÁîĞĞÀï filter_complex £ºcreate a complex filtergraph lavfi£ºcreate a complex filtergraph
     /* create the complex filtergraphs */
-    ret = init_complex_filters();//05.filter_complexÑ¡ÏîÃ»ÓĞÓÃµ½ ==>ºóÃæºÃÏñ»¹ÊÇÓÃµ½ÁËfilter?
+    ret = init_complex_filters();//05.³õÊ¼»¯filter_complexÑ¡Ïî£º(ºóÃæºÃÏñ»¹ÊÇÓÃµ½ÁËfilter? ==>  ÕæÕı³õÊ¼»¯filterÔÚ * //transcode_step-- > prcess_input-- > prcess_input_packet-- > decode_video-- > send_frame_to_filter-- > ifilter_send_frame-- > configure_filtergraph-- > configure_output_video_filter)
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error initializing complex filters.\n");
         goto fail;
     }
 
     /* open output files */
-    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//06.½âÎö²ÎÊı£¬²¢ÓÃopen_output_file´ò¿ª¶à¸öÊä³öÎÄ¼ş£¬ open_output_fileÊÇº¯Êı£¡¶øÇÒÊÇºÜ³¤µÄº¯Êı
+    ret = open_files(&octx.groups[GROUP_OUTFILE], "output", open_output_file);//06.ÖØÒª£º´ò¿ªËùÓĞÊä³öÎÄ¼ş£º½âÎö²ÎÊı£¬²¢ÓÃopen_output_file´ò¿ª¶à¸öÊä³öÎÄ¼ş£¬ open_output_fileÊÇº¯Êı£¡¶øÇÒÊÇºÜ³¤µÄº¯Êı
     if (ret < 0) {
         av_log(NULL, AV_LOG_FATAL, "Error opening output files: ");
         goto fail;

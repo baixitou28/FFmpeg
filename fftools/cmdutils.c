@@ -421,8 +421,8 @@ int parse_optgroup(void *optctx, OptionGroup *g)
     for (i = 0; i < g->nb_opts; i++) {
         Option *o = &g->opts[i];
 
-        if (g->group_def->flags &&
-            !(g->group_def->flags & o->opt->flags)) {
+        if (g->group_def->flags &&//每个group是音频还是视频，都有分类
+            !(g->group_def->flags & o->opt->flags)) {//验证是否是输入出
             av_log(NULL, AV_LOG_ERROR, "Option %s (%s) cannot be applied to "
                    "%s %s -- you are trying to apply an input option to an "
                    "output file or vice versa. Move this option before the "
@@ -752,7 +752,7 @@ void uninit_parse_context(OptionParseContext *octx)
 
 int split_commandline(OptionParseContext *octx, int argc, char *argv[],
                       const OptionDef *options,
-                      const OptionGroupDef *groups, int nb_groups)
+                      const OptionGroupDef *groups, int nb_groups)//解析命令
 {
     int optindex = 1;
     int dashdash = -2;

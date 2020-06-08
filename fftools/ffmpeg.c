@@ -4664,7 +4664,7 @@ static int transcode(void)
     if (ret < 0)
         goto fail;
 
-    if (stdin_interaction) {//输入出交互
+    if (stdin_interaction) {//允许输入出交互
         av_log(NULL, AV_LOG_INFO, "Press [q] to stop, [?] for help\n");//TIGER PROGRAM 交互中使用这个命令
     }
 
@@ -4847,10 +4847,10 @@ int main(int argc, char **argv)
     
     init_dynload();//01.windows的动态加载目录设置
 
-    register_exit(ffmpeg_cleanup);//02.这个大概以前是at_exist吧 //tiger program
+    register_exit(ffmpeg_cleanup);//02.相当于 at_exist吧 //tiger program
     //03.输出处理 
     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this *///这个不是一直这样的吗？
-    //04.处理日志界别和后台命令
+    //04.处理日志级别和是否后台运行
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     parse_loglevel(argc, argv, options);//解析日志级别，是否将报告写入文件
 
@@ -4861,15 +4861,15 @@ int main(int argc, char **argv)
         argv++;
     }
     //05.初始化
-#if CONFIG_AVDEVICE//这个不大理解，有什么用==> 都是可配置的模块
-    avdevice_register_all();//注册所有设备
+#if CONFIG_AVDEVICE//这个不大理解，有什么用==> 可配置的播放或者采集模块
+    avdevice_register_all();//注册所有播放采集设备
 #endif
     avformat_network_init();//是否初始化网络，是否初始化ssl
 
     show_banner(argc, argv, options);//打印banner相关信息
-    //06.解析参数
+    //06.解析参数，打开输入出文件
     /* parse options and open all input/output files */
-    ret = ffmpeg_parse_options(argc, argv);//解析参数，如果数输入出文件，直接打开
+    ret = ffmpeg_parse_options(argc, argv);//tiger important重要  解析参数，如果是输入出文件，直接打开
     if (ret < 0)
         exit_program(1);
     //07.输入出文件校验

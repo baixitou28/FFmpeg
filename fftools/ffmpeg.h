@@ -643,7 +643,7 @@ int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOu
 void check_filter_outputs(void);
 int ist_in_filtergraph(FilterGraph *fg, InputStream *ist);
 int filtergraph_is_simple(FilterGraph *fg);
-int init_simple_filtergraph(InputStream *ist, OutputStream *ost);//参看ffmpeg.texi中的描述：subsection Simple filtergraphs
+int init_simple_filtergraph(InputStream *ist, OutputStream *ost);//创建一个filtergraph，绑定input和output //参看ffmpeg.texi中的描述：subsection Simple filtergraphs
 int init_complex_filtergraph(FilterGraph *fg);
 
 void sub2video_update(InputStream *ist, AVSubtitle *sub);

@@ -194,7 +194,7 @@ DEF_CHOOSE_FORMAT(sample_rates, int, sample_rate, sample_rates, 0,
 DEF_CHOOSE_FORMAT(channel_layouts, uint64_t, channel_layout, channel_layouts, 0,
                   GET_CH_LAYOUT_NAME)
 //tiger program gdb watch filtergraphs ²ÅÕÒµ½Õâ
-int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph Àí½âfiltergraphºÍÊäÈë³öÁ÷µÄ¹ØÁª
+int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph Àí½âfiltergraphºÍÊäÈë³öÁ÷µÄ¹ØÁª //TIGER IMPORTANT
 {
     FilterGraph *fg = av_mallocz(sizeof(*fg));//01.´´½¨FilterGraphÊµÀı
 
@@ -250,7 +250,7 @@ static char *describe_filter_link(FilterGraph *fg, AVFilterInOut *inout, int in)
     return res;
 }
 
-static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)
+static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)//³õÊ¼»¯filter£¬·ÅÈëÊäÈë³öµÄÁ÷
 {
     InputStream *ist = NULL;
     enum AVMediaType type = avfilter_pad_get_type(in->filter_ctx->input_pads, in->pad_idx);
@@ -332,7 +332,7 @@ static void init_input_filter(FilterGraph *fg, AVFilterInOut *in)
     fg->inputs[fg->nb_inputs - 1]->frame_queue = av_fifo_alloc(8 * sizeof(AVFrame*));
     if (!fg->inputs[fg->nb_inputs - 1]->frame_queue)
         exit_program(1);
-
+    //·ÅÈëÊäÈëÁ÷Àï
     GROW_ARRAY(ist->filters, ist->nb_filters);
     ist->filters[ist->nb_filters - 1] = fg->inputs[fg->nb_inputs - 1];
 }
@@ -349,14 +349,14 @@ int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµ
     if (!graph)
         return AVERROR(ENOMEM);
     graph->nb_threads = 1;//02.Ö»ÔÊĞíÒ»¸öÏß³Ì
-    //03.
+    //03.¸ù¾İÃû³Æfg->graph_desc½âÎö£¬µÃµ½AVFilterInOutµÄÊäÈëºÍÊä³ö
     ret = avfilter_graph_parse2(graph, fg->graph_desc, &inputs, &outputs);
     if (ret < 0)
         goto fail;
-    //04.
+    //04.´¦ÀíInputputFilter
     for (cur = inputs; cur; cur = cur->next)
-        init_input_filter(fg, cur);
-    //05.
+        init_input_filter(fg, cur);//³¢ÊÔ³õÊ¼»¯Ò»ÏÂ£¬ÅĞ¶ÏÊÇ·ñÕı³£
+    //05.´¦ÀíOutputFilter
     for (cur = outputs; cur;) {
         GROW_ARRAY(fg->outputs, fg->nb_outputs);
         fg->outputs[fg->nb_outputs - 1] = av_mallocz(sizeof(*fg->outputs[0]));
@@ -372,7 +372,7 @@ int init_complex_filtergraph(FilterGraph *fg)//TIGER ¿´×¢ÊÍ£¬½ö½öÓÃÀ´ÅĞ¶ÏÊäÈë³öµ
         fg->outputs[fg->nb_outputs - 1]->out_tmp->next = NULL;
     }
 
-fail:
+fail://06.×îºó»¹²»ÊÇ¶¼ÊÍ·Åµô
     avfilter_inout_free(&inputs);
     avfilter_graph_free(&graph);
     return ret;

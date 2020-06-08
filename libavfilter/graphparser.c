@@ -404,7 +404,7 @@ static int parse_sws_flags(const char **buf, AVFilterGraph *graph)
     return 0;
 }
 
-int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,
+int avfilter_graph_parse2(AVFilterGraph *graph, const char *filters,//½âÎö
                           AVFilterInOut **inputs,
                           AVFilterInOut **outputs)
 {
