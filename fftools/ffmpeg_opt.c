@@ -2461,9 +2461,9 @@ loop_end:
             
             if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||//如果是音视频编码
                 ost->st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                err = init_simple_filtergraph(ist, ost);//tiger init_simple_filtergraph重要 创建filtergraph （gdb可用watch filtergraphs ），同时和输入出关联
-                if (err < 0) {//创建 simple filter graph: 通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
-                    av_log(NULL, AV_LOG_ERROR,
+                err = init_simple_filtergraph(ist, ost);//TIGER 01 init_simple_filtergraph重要 创建filtergraph （gdb可用watch filtergraphs ），同时和输入出关联
+                if (err < 0) {//TIGER 02 创建 simple filter graph: 通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
+                    av_log(NULL, AV_LOG_ERROR,//TIGER 03 init_simple_filtergraph 里只是创建，建立相互指向， vs 实际配置 filter： transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
                            "Error initializing a simple filtergraph between streams "
                            "%d:%d->%d:%d\n", ist->file_index, ost->source_index,
                            nb_output_files - 1, ost->st->index);

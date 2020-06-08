@@ -138,17 +138,17 @@ void avfilter_graph_free(AVFilterGraph **graph)
     av_freep(&(*graph)->internal);
     av_freep(graph);
 }
-
-int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,
+//ifilter_send_frame-->configure_filtergraph->configure_output_video_filter-->avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
+int avfilter_graph_create_filter(AVFilterContext **filt_ctx, const AVFilter *filt,//用filter做为第一个，创建相关的AVFilterContext，并初始化
                                  const char *name, const char *args, void *opaque,
                                  AVFilterGraph *graph_ctx)
 {
     int ret;
-
+    //01.为AVFilter *filt分配AVFilterContext实例，并插入graph_ctx->filters中
     *filt_ctx = avfilter_graph_alloc_filter(graph_ctx, filt, name);
     if (!*filt_ctx)
         return AVERROR(ENOMEM);
-
+    //02.AVFilterContext参数初始化和验证
     ret = avfilter_init_str(*filt_ctx, args);
     if (ret < 0)
         goto fail;
@@ -166,16 +166,16 @@ void avfilter_graph_set_auto_convert(AVFilterGraph *graph, unsigned flags)
 {
     graph->disable_auto_convert = flags;
 }
-
-AVFilterContext *avfilter_graph_alloc_filter(AVFilterGraph *graph,
-                                             const AVFilter *filter,
+//ifilter_send_frame-->configure_filtergraph->configure_output_video_filter-->avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
+AVFilterContext *avfilter_graph_alloc_filter(AVFilterGraph *graph,//tiger 为filter创建AVFilterContext，并插入 graph->filters 
+                                             const AVFilter *filter,//filter //TIGER 
                                              const char *name)
 {
     AVFilterContext **filters, *s;
-
+    //01. 线程
     if (graph->thread_type && !graph->internal->thread_execute) {
         if (graph->execute) {
-            graph->internal->thread_execute = graph->execute;
+            graph->internal->thread_execute = graph->execute;//TIGER program filter 可以有自己的线程
         } else {
             int ret = ff_graph_thread_init(graph);
             if (ret < 0) {
@@ -184,21 +184,21 @@ AVFilterContext *avfilter_graph_alloc_filter(AVFilterGraph *graph,
             }
         }
     }
-
+    //02. 创建AVFilterContext
     s = ff_filter_alloc(filter, name);
     if (!s)
         return NULL;
-
+    //03. 扩大内存
     filters = av_realloc(graph->filters, sizeof(*filters) * (graph->nb_filters + 1));
     if (!filters) {
         avfilter_free(s);
         return NULL;
     }
-
+    //04. 插入
     graph->filters = filters;
     graph->filters[graph->nb_filters++] = s;
-
-    s->graph = graph;
+    //05.相互指向
+    s->graph = graph;//AVFilterContext和AVFilterGraph相互指向
 
     return s;
 }

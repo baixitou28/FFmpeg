@@ -192,11 +192,11 @@ DEF_CHOOSE_FORMAT(sample_rates, int, sample_rate, sample_rates, 0,
                   GET_SAMPLE_RATE_NAME)
 
 DEF_CHOOSE_FORMAT(channel_layouts, uint64_t, channel_layout, channel_layouts, 0,
-                  GET_CH_LAYOUT_NAME)
-//tiger program gdb watch filtergraphs //通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
-int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER init_simple_filtergraph 理解filtergraph和输入出流的关联 //TIGER IMPORTANT
-{//这里都是创建FilterGraph，创建和初始化第一个OutputFilter，所以用fg->outputs[0]表示，创建和初始化第一个InputFilter，所以用fg->inputs[0]表示
-    FilterGraph *fg = av_mallocz(sizeof(*fg));//01.创建FilterGraph实例
+                  GET_CH_LAYOUT_NAME)//TIGER 01 调用分析：open_output_file --> init_simple_filtergraph
+//TIGER 02 //tiger program gdb watch filtergraphs //通过ist 可以找InputFilter：ist->filters[ist->nb_filters - 1] ; InputFilter 可以直接找到fg, ist; 通过fg,可以查找 fg->outputs[0]->ost, fg->inputs[0]->ist 
+int init_simple_filtergraph(InputStream *ist, OutputStream *ost)//TIGER 03 init_simple_filtergraph 理解filtergraph和输入出流的关联 //TIGER IMPORTANT
+{//TIGER 03.创建FilterGraph，创建第一个OutputFilter，所以用fg->outputs[0]表示，创建第一个InputFilter，所以用fg->inputs[0]表示 ,真正初始化在 decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
+    FilterGraph *fg = av_mallocz(sizeof(*fg));//01.创建FilterGraph实例 ,这里隐含graph_desc为空，通过这个来判断是不是simple graph， 反之就是complex graph
 
     if (!fg)
         exit_program(1);
@@ -450,7 +450,7 @@ static int insert_filter(AVFilterContext **last_filter, int *pad_idx,
     *pad_idx     = 0;
     return 0;
 }
-//TIGER TODO
+//TIGER transcode_step--> prcess_input-->prcess_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
 static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//创建buffersink为第一个？或最后一个filter？的grapch
 {
     char *pix_fmts;
@@ -460,15 +460,15 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
     int pad_idx = out->pad_idx;
     int ret;
     char name[255];
-    //01. 用buffersink创建一个filter graph
+    //01. 用buffersink创建一个filter，和相关的AVFilterContext，插入 fg->graph->filters
     snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);
-    ret = avfilter_graph_create_filter(&ofilter->filter,
-                                       avfilter_get_by_name("buffersink"),//
+    ret = avfilter_graph_create_filter(&ofilter->filter,//tiger avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
+                                       avfilter_get_by_name("buffersink"),//先创建"buffersink" 的filter
                                        name, NULL, NULL, fg->graph);
 
     if (ret < 0)
         return ret;
-    //02.
+    //02. 如果有视频参数， 如果是simple graph 是在open_output_file中的init_simple_graph 之后的函数设置，filter的值是从ost获取的
     if (ofilter->width || ofilter->height) {
         char args[255];
         AVFilterContext *filter;
@@ -743,7 +743,7 @@ static int sub2video_prepare(InputStream *ist, InputFilter *ifilter)
     return 0;
 }
 //配置graph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
-static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,
+static int configure_input_video_filter(FilterGraph *fg, InputFilter *ifilter,//先创建一个buffer的filter
                                         AVFilterInOut *in)
 {
     AVFilterContext *last_filter;//01.
@@ -975,7 +975,7 @@ static int configure_input_audio_filter(FilterGraph *fg, InputFilter *ifilter,
 
     return 0;
 }
-
+//tiger send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_input_filter-->configure_input_video_filter
 static int configure_input_filter(FilterGraph *fg, InputFilter *ifilter,//视频加入第一个名为“buffer”的filter，后面的filter根据实际配置再添加，串起来；音频则是abuffer
                                   AVFilterInOut *in)
 {
@@ -1001,8 +1001,8 @@ static void cleanup_filtergraph(FilterGraph *fg)//释放输入出filter，再释放graph
         fg->inputs[i]->filter = (AVFilterContext *)NULL//释放输入filter
     avfilter_graph_free(&fg->graph);//释放filter graph
 }
-
-int configure_filtergraph(FilterGraph *fg)
+//配置graph transcode_step-->process_input-->process_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
+int configure_filtergraph(FilterGraph *fg)//vs init_simple_filtergraph 只分配实例，并初始化相互指向
 {
     AVFilterInOut *inputs, *outputs, *cur;
     int ret, i, simple = filtergraph_is_simple(fg);//01.是否是simple
@@ -1095,7 +1095,7 @@ int configure_filtergraph(FilterGraph *fg)
     }
     //08.每个输入，加入相应的filter，一般视频第一个filter是buffer，如果是音频第一个是abuffer
     for (cur = inputs, i = 0; cur; cur = cur->next, i++)
-        if ((ret = configure_input_filter(fg, fg->inputs[i], cur)) < 0) {
+        if ((ret = configure_input_filter(fg, fg->inputs[i], cur)) < 0) {//tiger 主要函数
             avfilter_inout_free(&inputs);
             avfilter_inout_free(&outputs);
             goto fail;
@@ -1103,7 +1103,7 @@ int configure_filtergraph(FilterGraph *fg)
     avfilter_inout_free(&inputs);//?
     //09.每个输出，加入相应的filter，一般视频第一个filter是buffersink，如果是音频第一个是buffersink
     for (cur = outputs, i = 0; cur; cur = cur->next, i++)
-        configure_output_filter(fg, fg->outputs[i], cur);
+        configure_output_filter(fg, fg->outputs[i], cur);//tiger 主要函数
     avfilter_inout_free(&outputs);//?
     //10. TODO: CONFIG
     if ((ret = avfilter_graph_config(fg->graph, NULL)) < 0)
