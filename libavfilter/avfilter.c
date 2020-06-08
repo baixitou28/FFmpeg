@@ -133,14 +133,14 @@ int ff_insert_pad(unsigned idx, unsigned *count, size_t padidx_off,
 }
 
 int avfilter_link(AVFilterContext *src, unsigned srcpad,
-                  AVFilterContext *dst, unsigned dstpad)
+                  AVFilterContext *dst, unsigned dstpad)//创建AVFilterLink，这样才能将filter连接起来
 {
     AVFilterLink *link;
-
+    
     av_assert0(src->graph);
     av_assert0(dst->graph);
     av_assert0(src->graph == dst->graph);
-
+    //01. 校验
     if (src->nb_outputs <= srcpad || dst->nb_inputs <= dstpad ||
         src->outputs[srcpad]      || dst->inputs[dstpad])
         return AVERROR(EINVAL);
@@ -152,21 +152,21 @@ int avfilter_link(AVFilterContext *src, unsigned srcpad,
                dst->name, dstpad, (char *)av_x_if_null(av_get_media_type_string(dst-> input_pads[dstpad].type), "?"));
         return AVERROR(EINVAL);
     }
-
+    //02. 分配AVFilterLink实例
     link = av_mallocz(sizeof(*link));
     if (!link)
         return AVERROR(ENOMEM);
-
-    src->outputs[srcpad] = dst->inputs[dstpad] = link;
-
-    link->src     = src;
-    link->dst     = dst;
-    link->srcpad  = &src->output_pads[srcpad];
-    link->dstpad  = &dst->input_pads[dstpad];
-    link->type    = src->output_pads[srcpad].type;
+    //03. 初始化
+    src->outputs[srcpad] = dst->inputs[dstpad] = link; //相互指向
+    
+    link->src     = src;//相互指向
+    link->dst     = dst;//相互指向
+    link->srcpad  = &src->output_pads[srcpad];//用源地址的output_pads出口
+    link->dstpad  = &dst->input_pads[dstpad];//用目标地址的input_pads 入口
+    link->type    = src->output_pads[srcpad].type;//音视频类型由源决定
     av_assert0(AV_PIX_FMT_NONE == -1 && AV_SAMPLE_FMT_NONE == -1);
     link->format  = -1;
-    ff_framequeue_init(&link->fifo, &src->graph->internal->frame_queues);
+    ff_framequeue_init(&link->fifo, &src->graph->internal->frame_queues);//定义队列
 
     return 0;
 }
