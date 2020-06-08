@@ -1620,7 +1620,7 @@ static char *get_ost_filters(OptionsContext *o, AVFormatContext *oc,
 {
     AVStream *st = ost->st;
 
-    if (ost->filters_script && ost->filters) {//都没有，返回错误
+    if (ost->filters_script && ost->filters) {//都有，返回错误
         av_log(NULL, AV_LOG_ERROR, "Both -filter and -filter_script set for "
                "output stream #%d:%d.\n", nb_output_files, st->index);
         exit_program(1);
@@ -1631,8 +1631,8 @@ static char *get_ost_filters(OptionsContext *o, AVFormatContext *oc,
     else if (ost->filters)
         return av_strdup(ost->filters);//直接复制
 
-    return av_strdup(st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ?
-                     "null" : "anull");//实在不行返回null或者anull
+    return av_strdup(st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ?//TIGER ffmpeg_parse_options->open_files-->open_output_file-->new_video_stream->get_ost_filters
+                     "null" : "anull");//实在不行返回null或者anull  ff_vf_null ff_af_anull  
 }
 
 static void check_streamcopy_filters(OptionsContext *o, AVFormatContext *oc,
@@ -1835,9 +1835,9 @@ static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, in
         ost->top_field_first = -1;
         MATCH_PER_STREAM_OPT(top_field_first, i, ost->top_field_first, oc, st);
 
-        //03.14.
-        ost->avfilter = get_ost_filters(o, oc, ost);
-        if (!ost->avfilter)
+        //03.14. ffmpeg_parse_options->open_files-->open_output_file-->new_video_stream->get_ost_filters
+        ost->avfilter = get_ost_filters(o, oc, ost);//这里可能得到一个anull或者null
+        if (!ost->avfilter)//因为有null，好像不会出现 ==>内存失败
             exit_program(1);
     } else {//03.15.
         MATCH_PER_STREAM_OPT(copy_initial_nonkeyframes, i, ost->copy_initial_nonkeyframes, oc ,st);//如果是copy模式，是否要复制一开始不是i帧？

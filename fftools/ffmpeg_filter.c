@@ -451,20 +451,20 @@ static int insert_filter(AVFilterContext **last_filter, int *pad_idx,
     return 0;
 }
 //TIGER transcode_step--> prcess_input-->prcess_input_packet-->decode_video-->send_frame_to_filter-->ifilter_send_frame-->configure_filtergraph-->configure_output_video_filter
-static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//´´½¨buffersinkÎªµÚÒ»¸ö£¿»ò×îºóÒ»¸öfilter£¿µÄgrapch
-{
+static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//Ò»°ãµÚÒ»¸öÊÇff_vf_null£¬ ´´½¨buffersinkÎª×îºóÒ»¸öfilter
+{//ff_vf_null: ÔÚÕâÀïÉú³É ffmpeg_parse_options->open_files-->open_output_file-->new_video_stream->get_ost_filters
     char *pix_fmts;
     OutputStream *ost = ofilter->ost;
     OutputFile    *of = output_files[ost->file_index];
-    AVFilterContext *last_filter = out->filter_ctx;
+    AVFilterContext *last_filter = out->filter_ctx;//null¼´ff_vf_nullÊÇµÚÒ»¸ö
     int pad_idx = out->pad_idx;
     int ret;
     char name[255];
     //01. ÓÃbuffersink´´½¨Ò»¸öfilter£¬ºÍÏà¹ØµÄAVFilterContext£¬²åÈë fg->graph->filters
     snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);
-    ret = avfilter_graph_create_filter(&ofilter->filter,//tiger ifilter_send_frame-->configure_filtergraph->configure_output_video_filter-->avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
-                                       avfilter_get_by_name("buffersink"),//ÏÈ´´½¨"buffersink" µÄfilter
-                                       name, NULL, NULL, fg->graph);
+    ret = avfilter_graph_create_filter(&ofilter->filter,////µÚÒ»¸öÖ±½Ó´´½¨ÔÚofilter->filterÉÏ£¬ËùÓÐÃ»ÓÐÊ¹ÓÃavfilter_link //tiger 01 ifilter_send_frame-->configure_filtergraph->configure_output_video_filter-->avfilter_graph_create_filter-->avfilter_graph_alloc_filter-->avfilter_graph_alloc_filter
+                                       avfilter_get_by_name("buffersink"),//tiger 02 ÏÈ´´½¨"buffersink" µÄfilter
+                                       name, NULL, NULL, fg->graph);//tiger 03. 
 
     if (ret < 0)
         return ret;
@@ -487,7 +487,7 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
         if ((ret = avfilter_graph_create_filter(&filter, avfilter_get_by_name("scale"),//²éÕÒscaleµÄAVfilter£¬²¢´´½¨Context£¬²åÈëfg->graph
                                                 name, args, NULL, fg->graph)) < 0)
             return ret;
-        if ((ret = avfilter_link(last_filter, pad_idx, filter, 0)) < 0)////½«last_filter×öÎªsrc£¬ filter×÷Îªdst£¬´®ÆðÀ´
+        if ((ret = avfilter_link(last_filter, pad_idx, filter, 0)) < 0)////½«last_filter×öÎªsrc£¬ filter×÷Îªdst£¬´®ÆðÀ´£¬ÕâÑùbuffersrc·ÅÇ°Ãæ£¬scale·ÅºóÃæ
             return ret;
 
         last_filter = filter;
@@ -524,7 +524,7 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
         if (ret < 0)
             return ret;
 
-        ret = avfilter_link(last_filter, pad_idx, fps, 0);
+        ret = avfilter_link(last_filter, pad_idx, fps, 0);//fpsÊÇ·ÅºóÃæµÄ
         if (ret < 0)
             return ret;
         last_filter = fps;
@@ -538,26 +538,26 @@ static int configure_output_video_filter(FilterGraph *fg, OutputFilter *ofilter,
     if (ret < 0)
         return ret;
 
-    //06.
-    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)//Á¬½Ó
+    //06. ÌØ±ð×¢Òâ£ºÇ°Ãæ¶¼ÊÇÒÔff_vf_nullÎªÍ·£¬Ïà»¥´®ÆðÀ´µÄ£¬×îºó²ÅÊÇ½«ofilter->filter¼´buffersink ·ÅÔÚÄ©Î²
+    if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)//trim ÊÇ·ÅÔÚÆäËûÇ°ÃæµÄ
         return ret;
 
     return 0;
 }
 
-static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)
+static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//Ò»°ãµÚÒ»¸öÊÇff_af_anull£¬ ´´½¨abuffersinkÎª×îºóÒ»¸öfilter
 {
     OutputStream *ost = ofilter->ost;
     OutputFile    *of = output_files[ost->file_index];
     AVCodecContext *codec  = ost->enc_ctx;
-    AVFilterContext *last_filter = out->filter_ctx;
+    AVFilterContext *last_filter = out->filter_ctx;//ff_af_anull
     int pad_idx = out->pad_idx;
     char *sample_fmts, *sample_rates, *channel_layouts;
     char name[255];
     int ret;
     //01. ´´½¨abuffersink µÄÒ»¸öfilterContext£¬²åÈëfg->graph->filtersÀï
-    snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);
-    ret = avfilter_graph_create_filter(&ofilter->filter,
+    snprintf(name, sizeof(name), "out_%d_%d", ost->file_index, ost->index);//×Ô¶¨ÒåµÄÃû³Æout_xxxxx
+    ret = avfilter_graph_create_filter(&ofilter->filter,//µÚÒ»¸öÖ±½Ó´´½¨ÔÚofilter->filterÉÏ£¬ËùÓÐÃ»ÓÐÊ¹ÓÃavfilter_link
                                        avfilter_get_by_name("abuffersink"),
                                        name, NULL, NULL, fg->graph);
     if (ret < 0)
@@ -594,7 +594,7 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
             if (ost->audio_channels_map[i] != -1)
                 av_bprintf(&pan_buf, "|c%d=c%d", i, ost->audio_channels_map[i]);
 
-        AUTO_INSERT_FILTER("-map_channel", "pan", pan_buf.str);//²åÈëfilter pan
+        AUTO_INSERT_FILTER("-map_channel", "pan", pan_buf.str);//²åÈëfilter pan£¬ ff_af_anull->pan
         av_bprint_finalize(&pan_buf, NULL);
     }
     //03.
@@ -631,12 +631,12 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
         if (ret < 0)
             return ret;
 
-        ret = avfilter_link(last_filter, pad_idx, format, 0);//½«last_filter×öÎªsrc£¬ format×÷Îªdst£¬´®ÆðÀ´
+        ret = avfilter_link(last_filter, pad_idx, format, 0);//½«last_filter×öÎªsrc£¬ format×÷Îªdst£¬´®ÆðÀ´ src-->dst
         if (ret < 0)
             return ret;
 
-        last_filter = format;//×îºóÒ»¸öfilterContext
-        pad_idx = 0;
+        last_filter = format;//×îºóÒ»¸öfilterContext, 
+        pad_idx = 0;//¾ÙÀý£ºÖ´ÐÐ½á¹û ofilter->filter£ºff_asink_abuffer, last_filterºÍformat:ff_af_anull
     }
 
     if (audio_volume != 256 && 0) {//05.
@@ -666,14 +666,14 @@ static int configure_output_audio_filter(FilterGraph *fg, OutputFilter *ofilter,
                       &last_filter, &pad_idx, name);
     if (ret < 0)
         return ret;
-
+    //ÌØ±ð×¢Òâ£ºÇ°Ãæ¶¼ÊÇÒÔff_af_anullÎªÍ·£¬Ïà»¥´®ÆðÀ´µÄ£¬²ÅÊÇ½«ofilter->filter¼´abuffersink ·ÅÔÚÄ©Î²
     if ((ret = avfilter_link(last_filter, pad_idx, ofilter->filter, 0)) < 0)//½«last_filter×öÎªsrc£¬ ofilter->filter×÷Îªdst£¬´®ÆðÀ´
-        return ret;
+        return ret;//¾ÙÀýff_af_anull->ff_af_aformat ºÍ abuffersink ==>  ff_af_anull->ff_af_aformat->abuffersink 
 
     return 0;
 }
 
-int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//´´½¨buffersinkÎª³õÊ¼µÄgraph
+int configure_output_filter(FilterGraph *fg, OutputFilter *ofilter, AVFilterInOut *out)//´´½¨buffersinkµÄAVFilterContext£¬ÓÃavfilter_link´®ÆðÀ´£¬Ò»°ãÊÇnull¿ªÊ¼buffersink½áÊø
 {
     if (!ofilter->ost) {
         av_log(NULL, AV_LOG_FATAL, "Filter %s has an unconnected output\n", ofilter->name);
@@ -1103,7 +1103,7 @@ int configure_filtergraph(FilterGraph *fg)//vs init_simple_filtergraph Ö»·ÖÅäÊµÀ
     avfilter_inout_free(&inputs);//?
     //09.Ã¿¸öÊä³ö£¬¼ÓÈëÏàÓ¦µÄfilter£¬Ò»°ãÊÓÆµµÚÒ»¸öfilterÊÇbuffersink£¬Èç¹ûÊÇÒôÆµµÚÒ»¸öÊÇbuffersink
     for (cur = outputs, i = 0; cur; cur = cur->next, i++)
-        configure_output_filter(fg, fg->outputs[i], cur);//tiger Ö÷Òªº¯Êý
+        configure_output_filter(fg, fg->outputs[i], cur);//tiger Ö÷Òªº¯Êý  ´´½¨buffersinkµÄAVFilterContext£¬ÓÃavfilter_link´®ÆðÀ´£¬Ò»°ãÊÇnull¿ªÊ¼buffersink½áÊø
     avfilter_inout_free(&outputs);//?
     //10. TODO: CONFIG
     if ((ret = avfilter_graph_config(fg->graph, NULL)) < 0)

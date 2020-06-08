@@ -42,7 +42,7 @@ static const AVFilterPad avfilter_vf_null_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_null = {
+AVFilter ff_vf_null = {//TIGER NULL 找不到filter时候返回这个
     .name        = "null",
     .description = NULL_IF_CONFIG_SMALL("Pass the source unchanged to the output."),
     .inputs      = avfilter_vf_null_inputs,
