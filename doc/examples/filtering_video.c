@@ -213,38 +213,38 @@ int main(int argc, char **argv)
     AVPacket packet;
     AVFrame *frame;
     AVFrame *filt_frame;
-
+    //01.参数
     if (argc != 2) {
         fprintf(stderr, "Usage: %s file\n", argv[0]);
         exit(1);
     }
-
+    //02. 初始化
     frame = av_frame_alloc();
     filt_frame = av_frame_alloc();
     if (!frame || !filt_frame) {
         perror("Could not allocate frame");
         exit(1);
     }
-
+    //03.打开文件
     if ((ret = open_input_file(argv[1])) < 0)
         goto end;
-    if ((ret = init_filters(filter_descr)) < 0)
+    if ((ret = init_filters(filter_descr)) < 0)//04.初始化
         goto end;
 
     /* read all packets */
     while (1) {
-        if ((ret = av_read_frame(fmt_ctx, &packet)) < 0)
+        if ((ret = av_read_frame(fmt_ctx, &packet)) < 0)//05. 读一个AVPacket
             break;
 
         if (packet.stream_index == video_stream_index) {
-            ret = avcodec_send_packet(dec_ctx, &packet);
+            ret = avcodec_send_packet(dec_ctx, &packet);//06.放入解码
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Error while sending a packet to the decoder\n");
                 break;
             }
 
             while (ret >= 0) {
-                ret = avcodec_receive_frame(dec_ctx, frame);
+                ret = avcodec_receive_frame(dec_ctx, frame);//07.取解码后的一帧AVFrame
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                     break;
                 } else if (ret < 0) {
@@ -255,19 +255,19 @@ int main(int argc, char **argv)
                 frame->pts = frame->best_effort_timestamp;
 
                 /* push the decoded frame into the filtergraph */
-                if (av_buffersrc_add_frame_flags(buffersrc_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {
+                if (av_buffersrc_add_frame_flags(buffersrc_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF) < 0) {//08.放入buffersrc_ctx->priv里
                     av_log(NULL, AV_LOG_ERROR, "Error while feeding the filtergraph\n");
                     break;
                 }
 
                 /* pull filtered frames from the filtergraph */
                 while (1) {
-                    ret = av_buffersink_get_frame(buffersink_ctx, filt_frame);
+                    ret = av_buffersink_get_frame(buffersink_ctx, filt_frame);//09.最后数据在sink
                     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
                         break;
                     if (ret < 0)
                         goto end;
-                    display_frame(filt_frame, buffersink_ctx->inputs[0]->time_base);
+                    display_frame(filt_frame, buffersink_ctx->inputs[0]->time_base);//显示一帧
                     av_frame_unref(filt_frame);
                 }
                 av_frame_unref(frame);
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
         }
         av_packet_unref(&packet);
     }
-end:
+end://10.解析
     avfilter_graph_free(&filter_graph);
     avcodec_free_context(&dec_ctx);
     avformat_close_input(&fmt_ctx);

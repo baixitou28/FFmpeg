@@ -239,7 +239,7 @@ static int process_output(struct AVMD5 *md5, AVFrame *frame)
 //构建一个frame
 /* Construct a frame of audio data to be filtered;
  * this simple example just synthesizes a sine wave. */
-static int get_input(AVFrame *frame, int frame_num)
+static int get_input(AVFrame *frame, int frame_num)//产生模拟数据
 {
     int err, i, j;
 
@@ -312,20 +312,20 @@ int main(int argc, char *argv[])
     /* the main filtering loop */
     for (i = 0; i < nb_frames; i++) {
         /* get an input frame to be filtered */
-        err = get_input(frame, i);//04.自动构建一个frame，不读数据
+        err = get_input(frame, i);//04.自动构建一个frame，产生模拟数据
         if (err < 0) {
             fprintf(stderr, "Error generating input frame:");
             goto fail;
         }
-		//05.加入
+		//05.加入第一个AVFilterContext，不停推到下一个filter
         /* Send the frame to the input of the filtergraph. */
-        err = av_buffersrc_add_frame(src, frame);
+        err = av_buffersrc_add_frame(src, frame);//最终加入BufferSourceContext *s = ctx->priv 中，push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
         if (err < 0) {
             av_frame_unref(frame);
             fprintf(stderr, "Error submitting the frame to the filtergraph:");
             goto fail;
         }
-		//06. 
+		//06. 数据到达末尾的sink，已经经过各种处理了。
         /* Get all the filtered output that is available. */
         while ((err = av_buffersink_get_frame(sink, frame)) >= 0) {
             /* now do something with our filtered frame */
