@@ -162,7 +162,7 @@ static int open_output_file(const char *filename,//打开输出文件八步曲
     }
 
     /* Associate the output file (pointer) with the container format context. */
-    (*output_format_context)->pb = output_io_context;
+    (*output_format_context)->pb = output_io_context;//tiger program 自定义文件打开
 
     /* Guess the desired container format based on the file extension. */
     if (!((*output_format_context)->oformat = av_guess_format(NULL, filename,//03.猜测文件容器格式
@@ -184,7 +184,7 @@ static int open_output_file(const char *filename,//打开输出文件八步曲
     }
 
     /* Create a new audio stream in the output file container. */
-    if (!(stream = avformat_new_stream(*output_format_context, NULL))) {//05. 创建一个流
+    if (!(stream = avformat_new_stream(*output_format_context, NULL))) {//05. 在context中创建一个流
         fprintf(stderr, "Could not create new stream\n");
         error = AVERROR(ENOMEM);
         goto cleanup;
@@ -218,7 +218,7 @@ static int open_output_file(const char *filename,//打开输出文件八步曲
         avctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     /* Open the encoder for the audio stream to use it later. */
-    if ((error = avcodec_open2(avctx, output_codec, NULL)) < 0) {//07.打开编码
+    if ((error = avcodec_open2(avctx, output_codec, NULL)) < 0) {//07.打开编码，(编码和上下文关联起来)
         fprintf(stderr, "Could not open output codec (error '%s')\n",
                 av_err2str(error));
         goto cleanup;
@@ -783,18 +783,26 @@ int main(int argc, char **argv)
     SwrContext *resample_context = NULL;
     AVAudioFifo *fifo = NULL;
     int ret = AVERROR_EXIT;
+    char* input_file;
+    char* output_file;
     //01.参数
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
-        exit(1);
+        //exit(1);
+        input_file = "out.al";
+        output_file = "out.wav";
+    }
+    else {
+        input_file = argv[1];
+        output_file = argv[2];
     }
     
     /* Open the input file for reading. */
-    if (open_input_file(argv[1], &input_format_context,//02.多步骤打开输入文件，并创建输入的AVFormatContext和解码的AVCodecContext
+    if (open_input_file(input_file, &input_format_context,//02.多步骤打开输入文件，并创建输入的AVFormatContext和解码的AVCodecContext
                         &input_codec_context))
         goto cleanup;
     /* Open the output file for writing. */
-    if (open_output_file(argv[2], input_codec_context,//03.多步骤打开输出文件，并创建输出的AVFormatContext和编码的AVCodecContext
+    if (open_output_file(output_file, input_codec_context,//03.多步骤打开输出文件，并创建输出的AVFormatContext和编码的AVCodecContext
                          &output_format_context, &output_codec_context))
         goto cleanup;
     /* Initialize the resampler to be able to convert audio sample formats. */

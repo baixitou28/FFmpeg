@@ -54,36 +54,36 @@ static int open_input_file(const char *filename)
 {
     int ret;
     unsigned int i;
-	//打开文件
+	//01.打开文件
     ifmt_ctx = NULL;
     if ((ret = avformat_open_input(&ifmt_ctx, filename, NULL, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot open input file\n");
         return ret;
     }
-	//启发式猜测
+	//02.启发式猜测
     if ((ret = avformat_find_stream_info(ifmt_ctx, NULL)) < 0) {
         av_log(NULL, AV_LOG_ERROR, "Cannot find stream information\n");
         return ret;
     }
-	//创建stream 上下文的数组
+	//03. 创建stream 上下文的数组
     stream_ctx = av_mallocz_array(ifmt_ctx->nb_streams, sizeof(*stream_ctx));
     if (!stream_ctx)
         return AVERROR(ENOMEM);
-
+    //04. 为所有输入的流执行：获取解码器，创建解码上下文，并赋值参数从解码到上下文中。
     for (i = 0; i < ifmt_ctx->nb_streams; i++) {
         AVStream *stream = ifmt_ctx->streams[i];
-        AVCodec *dec = avcodec_find_decoder(stream->codecpar->codec_id);//获取解码器
+        AVCodec *dec = avcodec_find_decoder(stream->codecpar->codec_id);//04.01获取解码器
         AVCodecContext *codec_ctx;
         if (!dec) {
             av_log(NULL, AV_LOG_ERROR, "Failed to find decoder for stream #%u\n", i);
             return AVERROR_DECODER_NOT_FOUND;
         }
-        codec_ctx = avcodec_alloc_context3(dec);//创建context
+        codec_ctx = avcodec_alloc_context3(dec);//04.02 创建context
         if (!codec_ctx) {
             av_log(NULL, AV_LOG_ERROR, "Failed to allocate the decoder context for stream #%u\n", i);
             return AVERROR(ENOMEM);
         }
-        ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);//从流里面获取格式信息，//TIGER 也可以自己赋值
+        ret = avcodec_parameters_to_context(codec_ctx, stream->codecpar);//04.03 从流里面获取格式信息，//TIGER 也可以自己赋值
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR, "Failed to copy decoder parameters to input decoder context "
                    "for stream #%u\n", i);
@@ -93,15 +93,15 @@ static int open_input_file(const char *filename)
         if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO
                 || codec_ctx->codec_type == AVMEDIA_TYPE_AUDIO) {
             if (codec_ctx->codec_type == AVMEDIA_TYPE_VIDEO)
-                codec_ctx->framerate = av_guess_frame_rate(ifmt_ctx, stream, NULL);//如果是视频还要猜测帧率
+                codec_ctx->framerate = av_guess_frame_rate(ifmt_ctx, stream, NULL);//04.04如果是视频还要猜测帧率
             /* Open decoder */
-            ret = avcodec_open2(codec_ctx, dec, NULL);//打开解码的上下文
+            ret = avcodec_open2(codec_ctx, dec, NULL);//04.05 打开解码的上下文
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR, "Failed to open decoder for stream #%u\n", i);
                 return ret;
             }
         }
-        stream_ctx[i].dec_ctx = codec_ctx;//放在流的dec_ctx结构中
+        stream_ctx[i].dec_ctx = codec_ctx;//04.06 放在流的dec_ctx结构中
     }
 
     av_dump_format(ifmt_ctx, 0, filename, 0);
@@ -512,10 +512,18 @@ int main(int argc, char **argv)
     unsigned int i;
     int got_frame;
     int (*dec_func)(AVCodecContext *, AVFrame *, int *, const AVPacket *);
+    char* input_file;
+    char* output_file;
 	//转码参数，只有输入和输出文件
     if (argc != 3) {
         av_log(NULL, AV_LOG_ERROR, "Usage: %s <input file> <output file>\n", argv[0]);
-        return 1;
+        //return 1;
+        input_file = "test2.flv";
+        output_file = "test2.mp4";
+    }
+    else {
+        input_file = argv[1];
+        output_file = argv[2];
     }
 	//打开输入，猜测解码，创建并开启每个流的上下文解码context，赋值在stream_ctx[i].dec_ctx 中
     if ((ret = open_input_file(argv[1])) < 0)

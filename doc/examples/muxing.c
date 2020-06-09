@@ -572,10 +572,13 @@ int main(int argc, char **argv)
                "The output format is automatically guessed according to the file extension.\n"
                "Raw images can also be output by using '%%d' in the filename.\n"
                "\n", argv[0]);
-        return 1;
+        //return 1;
+        filename = "mux.wav";
+    }
+    else {
+        filename = argv[1];
     }
     //¿ÉÑ¡Ïî
-    filename = argv[1];
     for (i = 2; i+1 < argc; i+=2) {
         if (!strcmp(argv[i], "-flags") || !strcmp(argv[i], "-fflags"))
             av_dict_set(&opt, argv[i]+1, argv[i+1], 0);
