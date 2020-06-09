@@ -281,23 +281,23 @@ static AVFrame *get_audio_frame(OutputStream *ost)
 {
     AVFrame *frame = ost->tmp_frame;
     int j, i, v;
-    int16_t *q = (int16_t*)frame->data[0];
-    //01.
+    int16_t *q = (int16_t*)frame->data[0];//实际的地址
+    //01.时间戳是否已经领先10秒以上了，停止处理
     /* check if we want to generate more frames */
     if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) >= 0)//10秒？
+                      STREAM_DURATION, (AVRational){ 1, 1 }) >= 0)//tiger program 实际使用中超过10秒？是否要断开呢？是否要上报
         return NULL;
     //02.
     for (j = 0; j <frame->nb_samples; j++) {
-        v = (int)(sin(ost->t) * 10000);
+        v = (int)(sin(ost->t) * 10000);//
         for (i = 0; i < ost->enc->channels; i++)
-            *q++ = v;
-        ost->t     += ost->tincr;
-        ost->tincr += ost->tincr2;
+            *q++ = v;//可能有多个声道，简单的都弄成一样的sin函数
+        ost->t     += ost->tincr;//累加，1，2，4，8，
+        ost->tincr += ost->tincr2;//累加， 1，2，3，4
     }
     //03.
-    frame->pts = ost->next_pts;
-    ost->next_pts  += frame->nb_samples;
+    frame->pts = ost->next_pts;//下一帧
+    ost->next_pts  += frame->nb_samples;//下一个时间，直接加sample，实际的时候还要转化
 
     return frame;
 }
@@ -314,27 +314,27 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
     int ret;
     int got_packet;
     int dst_nb_samples;
-
+    //01.
     av_init_packet(&pkt);
     c = ost->enc;
-
+    //02. 取一帧
     frame = get_audio_frame(ost);
 
     if (frame) {
         /* convert samples from native format to destination codec format, using the resampler */
             /* compute destination number of samples */
             dst_nb_samples = av_rescale_rnd(swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples,
-                                            c->sample_rate, c->sample_rate, AV_ROUND_UP);
+                                            c->sample_rate, c->sample_rate, AV_ROUND_UP);//03.
             av_assert0(dst_nb_samples == frame->nb_samples);
 
         /* when we pass a frame to the encoder, it may keep a reference to it
          * internally;
          * make sure we do not overwrite it here
          */
-        ret = av_frame_make_writable(ost->frame);
+        ret = av_frame_make_writable(ost->frame);//04.
         if (ret < 0)
             exit(1);
-
+        //05.
         /* convert to destination format */
         ret = swr_convert(ost->swr_ctx,
                           ost->frame->data, dst_nb_samples,
@@ -344,19 +344,19 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             exit(1);
         }
         frame = ost->frame;
-
+        //06.
         frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
         ost->samples_count += dst_nb_samples;
     }
-
+    //07.
     ret = avcodec_encode_audio2(c, &pkt, frame, &got_packet);
     if (ret < 0) {
         fprintf(stderr, "Error encoding audio frame: %s\n", av_err2str(ret));
         exit(1);
     }
-
+    //08.
     if (got_packet) {
-        ret = write_frame(oc, &c->time_base, ost->st, &pkt);
+        ret = write_frame(oc, &c->time_base, ost->st, &pkt);//时间转化
         if (ret < 0) {
             fprintf(stderr, "Error while writing audio frame: %s\n",
                     av_err2str(ret));
@@ -463,20 +463,20 @@ static AVFrame *get_video_frame(OutputStream *ost)
     AVCodecContext *c = ost->enc;
 
     /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, c->time_base,
+    if (av_compare_ts(ost->next_pts, c->time_base,//10秒以上
                       STREAM_DURATION, (AVRational){ 1, 1 }) >= 0)
         return NULL;
 
     /* when we pass a frame to the encoder, it may keep a reference to it
      * internally; make sure we do not overwrite it here */
-    if (av_frame_make_writable(ost->frame) < 0)
+    if (av_frame_make_writable(ost->frame) < 0)//要变成可写模式
         exit(1);
 
     if (c->pix_fmt != AV_PIX_FMT_YUV420P) {
         /* as we only generate a YUV420P picture, we must convert it
          * to the codec pixel format if needed */
         if (!ost->sws_ctx) {
-            ost->sws_ctx = sws_getContext(c->width, c->height,
+            ost->sws_ctx = sws_getContext(c->width, c->height,//初始化
                                           AV_PIX_FMT_YUV420P,
                                           c->width, c->height,
                                           c->pix_fmt,
@@ -488,14 +488,14 @@ static AVFrame *get_video_frame(OutputStream *ost)
             }
         }
         fill_yuv_image(ost->tmp_frame, ost->next_pts, c->width, c->height);
-        sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,
+        sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,//按比例缩放
                   ost->tmp_frame->linesize, 0, c->height, ost->frame->data,
                   ost->frame->linesize);
     } else {
         fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);
     }
 
-    ost->frame->pts = ost->next_pts++;
+    ost->frame->pts = ost->next_pts++;//这里只要加1即可
 
     return ost->frame;
 }
@@ -513,20 +513,20 @@ static int write_video_frame(AVFormatContext *oc, OutputStream *ost)
     AVPacket pkt = { 0 };
 
     c = ost->enc;
-
+    //01.取一帧
     frame = get_video_frame(ost);
-
+    //02.初始化
     av_init_packet(&pkt);
-
+    //03.编码
     /* encode the image */
     ret = avcodec_encode_video2(c, &pkt, frame, &got_packet);
     if (ret < 0) {
         fprintf(stderr, "Error encoding video frame: %s\n", av_err2str(ret));
         exit(1);
     }
-
+    //04. 写入
     if (got_packet) {
-        ret = write_frame(oc, &c->time_base, ost->st, &pkt);
+        ret = write_frame(oc, &c->time_base, ost->st, &pkt);//时间转换
     } else {
         ret = 0;
     }
@@ -638,9 +638,9 @@ int main(int argc, char **argv)
         if (encode_video &&
             (!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
                                             audio_st.next_pts, audio_st.enc->time_base) <= 0)) {
-            encode_video = !write_video_frame(oc, &video_st);
+            encode_video = !write_video_frame(oc, &video_st);//
         } else {
-            encode_audio = !write_audio_frame(oc, &audio_st);
+            encode_audio = !write_audio_frame(oc, &audio_st);//如果成功返回1
         }
     }
 
