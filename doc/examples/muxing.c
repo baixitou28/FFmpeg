@@ -42,7 +42,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
-
+//不使用常规的文件输入，模拟音频数据open_audio 模拟视频fill_yuv_image数据，写入文件
 #define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt */
@@ -96,7 +96,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
 {
     AVCodecContext *c;
     int i;
-
+    //01.
     /* find the encoder */
     *codec = avcodec_find_encoder(codec_id);
     if (!(*codec)) {
@@ -104,23 +104,23 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
                 avcodec_get_name(codec_id));
         exit(1);
     }
-
-    ost->st = avformat_new_stream(oc, NULL);
+    //02.
+    ost->st = avformat_new_stream(oc, NULL);//TIGER PROGRAM avcodec_find_encoder/avformat_new_stream/avcodec_alloc_context3
     if (!ost->st) {
         fprintf(stderr, "Could not allocate stream\n");
         exit(1);
     }
-    ost->st->id = oc->nb_streams-1;
-    c = avcodec_alloc_context3(*codec);
+    ost->st->id = oc->nb_streams-1;//02. 01 流的id，是stream和ost相互指向
+    c = avcodec_alloc_context3(*codec);//用编码器创建context
     if (!c) {
         fprintf(stderr, "Could not alloc an encoding context\n");
         exit(1);
     }
-    ost->enc = c;
-
+    ost->enc = c;//02.02 编码上下文
+    //04. 设置context
     switch ((*codec)->type) {
     case AVMEDIA_TYPE_AUDIO:
-        c->sample_fmt  = (*codec)->sample_fmts ?
+        c->sample_fmt  = (*codec)->sample_fmts ?//04.01设置context
             (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
         c->bit_rate    = 64000;
         c->sample_rate = 44100;
@@ -141,11 +141,11 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
             }
         }
         c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
-        ost->st->time_base = (AVRational){ 1, c->sample_rate };
+        ost->st->time_base = (AVRational){ 1, c->sample_rate };//04.02设置流的时间
         break;
 
     case AVMEDIA_TYPE_VIDEO:
-        c->codec_id = codec_id;
+        c->codec_id = codec_id;//05.01 设置context，特别注意：如果是视频还要重新设置codec_id,额外设置，对比拼音
 
         c->bit_rate = 400000;
         /* Resolution must be a multiple of two. */
@@ -155,8 +155,8 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
          * of which frame timestamps are represented. For fixed-fps content,
          * timebase should be 1/framerate and timestamp increments should be
          * identical to 1. */
-        ost->st->time_base = (AVRational){ 1, STREAM_FRAME_RATE };
-        c->time_base       = ost->st->time_base;
+        ost->st->time_base = (AVRational){ 1, STREAM_FRAME_RATE };//05.02 设置流的时间单位
+        c->time_base       = ost->st->time_base;//额外设置的时间单位：对比音频
 
         c->gop_size      = 12; /* emit one intra frame every twelve frames at most */
         c->pix_fmt       = STREAM_PIX_FMT;
@@ -177,7 +177,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
     }
 
     /* Some formats want stream headers to be separate. */
-    if (oc->oformat->flags & AVFMT_GLOBALHEADER)
+    if (oc->oformat->flags & AVFMT_GLOBALHEADER)//06. 良好的习惯
         c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
@@ -574,6 +574,7 @@ int main(int argc, char **argv)
                "\n", argv[0]);
         //return 1;
         filename = "mux.wav";
+        //filename = "mux.mp4";
     }
     else {
         filename = argv[1];
@@ -592,9 +593,9 @@ int main(int argc, char **argv)
     }
     if (!oc)
         return 1;
-
-    fmt = oc->oformat;
-    //03. 创建video_st和audio_st
+    //tiger program: watch oc->oformat
+    fmt = oc->oformat;//03. 使用猜出来的编码器 
+    //04. 创建video_st和audio_st
     /* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE) {//如果包含视频
@@ -602,8 +603,8 @@ int main(int argc, char **argv)
         have_video = 1;
         encode_video = 1;
     }
-    if (fmt->audio_codec != AV_CODEC_ID_NONE) {//如果包含音频
-        add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);//复杂的过程：创建audio_st
+    if (fmt->audio_codec != AV_CODEC_ID_NONE) {//如果包含音频， add_stream 是一个比较大的函数
+        add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);//如果是wav文件 fmt->audio_codec 默认是AV_CODEC_ID_PCM_S16LE即AV_CODEC_ID_FIRST_AUDIO, 默认ff_w64_muxer .audio_codec       = AV_CODEC_ID_PCM_S16LE
         have_audio = 1;
         encode_audio = 1;
     }
