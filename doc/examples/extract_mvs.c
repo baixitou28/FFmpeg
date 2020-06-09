@@ -23,7 +23,7 @@
 
 #include <libavutil/motion_vector.h>
 #include <libavformat/avformat.h>
-
+//演示用AVFrameSideData输出mvs
 static AVFormatContext *fmt_ctx = NULL;
 static AVCodecContext *video_dec_ctx = NULL;
 static AVStream *video_stream = NULL;
@@ -55,7 +55,7 @@ static int decode_packet(const AVPacket *pkt)
             AVFrameSideData *sd;
 
             video_frame_count++;
-            sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
+            sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);//TIGER 从这里输出
             if (sd) {
                 const AVMotionVector *mvs = (const AVMotionVector *)sd->data;
                 for (i = 0; i < sd->size / sizeof(*mvs); i++) {
@@ -103,7 +103,7 @@ static int open_codec_context(AVFormatContext *fmt_ctx, enum AVMediaType type)
         }
 
         /* Init the video decoder */
-        av_dict_set(&opts, "flags2", "+export_mvs", 0);
+        av_dict_set(&opts, "flags2", "+export_mvs", 0);//TIGER 特殊的地方
         if ((ret = avcodec_open2(dec_ctx, dec, &opts)) < 0) {
             fprintf(stderr, "Failed to open %s codec\n",
                     av_get_media_type_string(type));

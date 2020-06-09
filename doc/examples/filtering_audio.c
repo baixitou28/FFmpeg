@@ -35,7 +35,7 @@
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/opt.h>
-
+ //用读文件来演示模拟器filter在流过程中的使用， 视频同理
 static const char *filter_descr = "aresample=8000,aformat=sample_fmts=s16:channel_layouts=mono";
 static const char *player       = "ffplay -f s16le -ar 8000 -ac 1 -";
 

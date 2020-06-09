@@ -58,7 +58,7 @@
 #define INPUT_CHANNEL_LAYOUT AV_CH_LAYOUT_5POINT0
 
 #define VOLUME_VAL 0.90
-
+//用模拟数据来演示模拟器filter的使用
 static int init_filter_graph(AVFilterGraph **graph, AVFilterContext **src,
                              AVFilterContext **sink)
 {

@@ -37,7 +37,7 @@
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/opt.h>
-
+ //用读文件来演示模拟器filter在流过程中的使用， 主要参看音频
 const char *filter_descr = "scale=78:24,transpose=cclock";
 /* other way:
    scale=78:24 [scl]; [scl] transpose=cclock // assumes "[in]" and "[out]" to be input output pads respectively

@@ -33,7 +33,7 @@
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
 #include <libavformat/avformat.h>
-//TIGER 转码并保存
+//TIGER 转码并保存：视频转图像保持
 static AVFormatContext *fmt_ctx = NULL;
 static AVCodecContext *video_dec_ctx = NULL, *audio_dec_ctx;
 static int width, height;
@@ -68,9 +68,9 @@ static int decode_packet(int *got_frame, int cached)
 
     *got_frame = 0;
 
-    if (pkt.stream_index == video_stream_idx) {
+    if (pkt.stream_index == video_stream_idx) {//通一个视频流通道
         /* decode video frame */
-        ret = avcodec_decode_video2(video_dec_ctx, frame, got_frame, &pkt);
+        ret = avcodec_decode_video2(video_dec_ctx, frame, got_frame, &pkt);//01.解码
         if (ret < 0) {
             fprintf(stderr, "Error decoding video frame (%s)\n", av_err2str(ret));
             return ret;
@@ -78,7 +78,7 @@ static int decode_packet(int *got_frame, int cached)
 
         if (*got_frame) {
 
-            if (frame->width != width || frame->height != height ||
+            if (frame->width != width || frame->height != height ||//尺寸不对
                 frame->format != pix_fmt) {
                 /* To handle this change, one could call av_image_alloc again and
                  * decode the following frames into another rawvideo file. */
@@ -99,16 +99,16 @@ static int decode_packet(int *got_frame, int cached)
 
             /* copy decoded frame to destination buffer:
              * this is required since rawvideo expects non aligned data */
-            av_image_copy(video_dst_data, video_dst_linesize,
+            av_image_copy(video_dst_data, video_dst_linesize,//02.转化
                           (const uint8_t **)(frame->data), frame->linesize,
                           pix_fmt, width, height);
 
             /* write to rawvideo file */
-            fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
+            fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);//03.写入
         }
     } else if (pkt.stream_index == audio_stream_idx) {
         /* decode audio frame */
-        ret = avcodec_decode_audio4(audio_dec_ctx, frame, got_frame, &pkt);
+        ret = avcodec_decode_audio4(audio_dec_ctx, frame, got_frame, &pkt);//解码
         if (ret < 0) {
             fprintf(stderr, "Error decoding audio frame (%s)\n", av_err2str(ret));
             return ret;
@@ -134,7 +134,7 @@ static int decode_packet(int *got_frame, int cached)
              * in these cases.
              * You should use libswresample or libavfilter to convert the frame
              * to packed data. */
-            fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
+            fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);//写入
         }
     }
 
@@ -146,14 +146,14 @@ static int decode_packet(int *got_frame, int cached)
     return decoded;
 }
 
-static int open_codec_context(int *stream_idx,
+static int open_codec_context(int *stream_idx,//多个步骤合并
                               AVCodecContext **dec_ctx, AVFormatContext *fmt_ctx, enum AVMediaType type)
 {
     int ret, stream_index;
     AVStream *st;
     AVCodec *dec = NULL;
     AVDictionary *opts = NULL;
-
+    //01.最合适的流
     ret = av_find_best_stream(fmt_ctx, type, -1, -1, NULL, 0);
     if (ret < 0) {
         fprintf(stderr, "Could not find %s stream in input file '%s'\n",
@@ -162,7 +162,7 @@ static int open_codec_context(int *stream_idx,
     } else {
         stream_index = ret;
         st = fmt_ctx->streams[stream_index];
-
+        //02.找到编码器
         /* find decoder for the stream */
         dec = avcodec_find_decoder(st->codecpar->codec_id);
         if (!dec) {
@@ -170,7 +170,7 @@ static int open_codec_context(int *stream_idx,
                     av_get_media_type_string(type));
             return AVERROR(EINVAL);
         }
-
+        //03.创建上下文
         /* Allocate a codec context for the decoder */
         *dec_ctx = avcodec_alloc_context3(dec);
         if (!*dec_ctx) {
@@ -178,14 +178,14 @@ static int open_codec_context(int *stream_idx,
                     av_get_media_type_string(type));
             return AVERROR(ENOMEM);
         }
-
+        //04.复制参数
         /* Copy codec parameters from input stream to output codec context */
         if ((ret = avcodec_parameters_to_context(*dec_ctx, st->codecpar)) < 0) {
             fprintf(stderr, "Failed to copy %s codec parameters to decoder context\n",
                     av_get_media_type_string(type));
             return ret;
         }
-
+        //05.设置可选项
         /* Init the decoders, with or without reference counting */
         av_dict_set(&opts, "refcounted_frames", refcount ? "1" : "0", 0);
         if ((ret = avcodec_open2(*dec_ctx, dec, &opts)) < 0) {
@@ -231,7 +231,7 @@ static int get_format_from_sample_fmt(const char **fmt,
 int main (int argc, char **argv)
 {
     int ret = 0, got_frame;
-
+    //01.参数
     if (argc != 4 && argc != 5) {
         fprintf(stderr, "usage: %s [-refcount] input_file video_output_file audio_output_file\n"
                 "API example program to show how to read frames from an input file.\n"
@@ -251,29 +251,29 @@ int main (int argc, char **argv)
     src_filename = argv[1];
     video_dst_filename = argv[2];
     audio_dst_filename = argv[3];
-
+    //02.打开文件，同时创建AVFormatContext
     /* open input file, and allocate format context */
     if (avformat_open_input(&fmt_ctx, src_filename, NULL, NULL) < 0) {
         fprintf(stderr, "Could not open source file %s\n", src_filename);
         exit(1);
     }
-
+    //03.启发式搜索
     /* retrieve stream information */
     if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
         fprintf(stderr, "Could not find stream information\n");
         exit(1);
     }
-
+    //04.多个步骤合并：如找到最合适的流，将参数复制到video_dec_ctx
     if (open_codec_context(&video_stream_idx, &video_dec_ctx, fmt_ctx, AVMEDIA_TYPE_VIDEO) >= 0) {
         video_stream = fmt_ctx->streams[video_stream_idx];
-
+        //打开文件
         video_dst_file = fopen(video_dst_filename, "wb");
         if (!video_dst_file) {
             fprintf(stderr, "Could not open destination file %s\n", video_dst_filename);
             ret = 1;
             goto end;
         }
-
+        //？
         /* allocate image where the decoded image will be put */
         width = video_dec_ctx->width;
         height = video_dec_ctx->height;
@@ -286,10 +286,10 @@ int main (int argc, char **argv)
         }
         video_dst_bufsize = ret;
     }
-
+    //05.同理找到音频解码上下文audio_dec_ctx
     if (open_codec_context(&audio_stream_idx, &audio_dec_ctx, fmt_ctx, AVMEDIA_TYPE_AUDIO) >= 0) {
         audio_stream = fmt_ctx->streams[audio_stream_idx];
-        audio_dst_file = fopen(audio_dst_filename, "wb");
+        audio_dst_file = fopen(audio_dst_filename, "wb");//打开文件
         if (!audio_dst_file) {
             fprintf(stderr, "Could not open destination file %s\n", audio_dst_filename);
             ret = 1;
@@ -324,10 +324,10 @@ int main (int argc, char **argv)
         printf("Demuxing audio from file '%s' into '%s'\n", src_filename, audio_dst_filename);
 
     /* read frames from the file */
-    while (av_read_frame(fmt_ctx, &pkt) >= 0) {
+    while (av_read_frame(fmt_ctx, &pkt) >= 0) {//06.读一AVPacket
         AVPacket orig_pkt = pkt;
         do {
-            ret = decode_packet(&got_frame, 0);
+            ret = decode_packet(&got_frame, 0);//07.
             if (ret < 0)
                 break;
             pkt.data += ret;
@@ -340,7 +340,7 @@ int main (int argc, char **argv)
     pkt.data = NULL;
     pkt.size = 0;
     do {
-        decode_packet(&got_frame, 1);
+        decode_packet(&got_frame, 1);//08.准备结束
     } while (got_frame);
 
     printf("Demuxing succeeded.\n");

@@ -30,7 +30,7 @@
 
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
-
+//元数据演示
 int main (int argc, char **argv)
 {
     AVFormatContext *fmt_ctx = NULL;
