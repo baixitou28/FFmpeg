@@ -147,7 +147,7 @@ int attribute_align_arg av_buffersrc_write_frame(AVFilterContext *ctx, const AVF
                                         AV_BUFFERSRC_FLAG_KEEP_REF);
 }
 
-int attribute_align_arg av_buffersrc_add_frame(AVFilterContext *ctx, AVFrame *frame)
+int attribute_align_arg av_buffersrc_add_frame(AVFilterContext *ctx, AVFrame *frame)//最终加入BufferSourceContext *s = ctx->priv 中，push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
 {
     return av_buffersrc_add_frame_flags(ctx, frame, 0);
 }
@@ -155,7 +155,7 @@ int attribute_align_arg av_buffersrc_add_frame(AVFilterContext *ctx, AVFrame *fr
 static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
                                            AVFrame *frame, int flags);
 
-int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)//TIGER 
+int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)//TIGER 最终加入BufferSourceContext *s = ctx->priv 中，push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
 {
     AVFrame *copy = NULL;
     int ret = 0;
@@ -193,8 +193,8 @@ static int push_frame(AVFilterGraph *graph)
     return 0;
 }
 
-static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
-                                           AVFrame *frame, int flags)//调用request_frame + push_frame-->ff_filter_graph_run_once-->ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
+static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,//最终加入BufferSourceContext *s = ctx->priv 中，push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
+                                           AVFrame *frame, int flags)//调用request_frame + push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
 {
     BufferSourceContext *s = ctx->priv;
     AVFrame *copy;
@@ -258,7 +258,7 @@ static int av_buffersrc_add_frame_internal(AVFilterContext *ctx,
         return ret;//如果异常返回，但如果filter中间异常呢？
     //08.调用ff_filter_activate
     if ((flags & AV_BUFFERSRC_FLAG_PUSH)) {
-        ret = push_frame(ctx->graph);//push_frame-->ff_filter_graph_run_once-->ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
+        ret = push_frame(ctx->graph);//push_frame-->ff_filter_graph_run_once-->不停调用ff_filter_activate-->ff_filter_activate_default-->ff_request_frame_to_filter
         if (ret < 0)
             return ret;
     }

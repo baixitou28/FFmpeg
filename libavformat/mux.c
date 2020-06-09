@@ -146,7 +146,7 @@ enum AVChromaLocation ff_choose_chroma_location(AVFormatContext *s, AVStream *st
 }
 //TIGER
 int avformat_alloc_output_context2(AVFormatContext **avctx, ff_const59 AVOutputFormat *oformat,
-                                   const char *format, const char *filename)
+                                   const char *format, const char *filename)//额外功能：根据文件名猜一下格式
 {
     AVFormatContext *s = avformat_alloc_context();//01. 内存
     int ret = 0;

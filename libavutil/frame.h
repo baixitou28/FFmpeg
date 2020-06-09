@@ -339,7 +339,7 @@ typedef struct AVFrame {
      * but for planar audio with more channels that can fit in data,
      * extended_data must be used in order to access all channels.
      */
-    uint8_t **extended_data;
+    uint8_t **extended_data;//packed audio 只有第一个，planar audio 是一个数组
 
     /**
      * @name Video dimensions

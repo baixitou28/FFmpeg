@@ -143,16 +143,16 @@ int64_t av_rescale_q(int64_t a, AVRational bq, AVRational cq)
 {
     return av_rescale_q_rnd(a, bq, cq, AV_ROUND_NEAR_INF);
 }
-
-int av_compare_ts(int64_t ts_a, AVRational tb_a, int64_t ts_b, AVRational tb_b)
+//看注释 -1 if `ts_a` is before `ts_b` //1 if `ts_a` is after `ts_b` //0 if they represent the same position
+int av_compare_ts(int64_t ts_a, AVRational tb_a, int64_t ts_b, AVRational tb_b)//对比时间 好像不太对？
 {
     int64_t a = tb_a.num * (int64_t)tb_b.den;
     int64_t b = tb_b.num * (int64_t)tb_a.den;
-    if ((FFABS(ts_a)|a|FFABS(ts_b)|b) <= INT_MAX)
-        return (ts_a*a > ts_b*b) - (ts_a*a < ts_b*b);
-    if (av_rescale_rnd(ts_a, a, b, AV_ROUND_DOWN) < ts_b)
+    if ((FFABS(ts_a)|a|FFABS(ts_b)|b) <= INT_MAX)//如果在int范围内
+        return (ts_a*a > ts_b*b) - (ts_a*a < ts_b*b);//直接乘法比较即可， 但ts_a*a 不是ts_a/a或者ts_a*b吗？
+    if (av_rescale_rnd(ts_a, a, b, AV_ROUND_DOWN) < ts_b)//ts_a 转换为 b
         return -1;
-    if (av_rescale_rnd(ts_b, b, a, AV_ROUND_DOWN) < ts_a)
+    if (av_rescale_rnd(ts_b, b, a, AV_ROUND_DOWN) < ts_a)//ts_b 转化为 a
         return 1;
     return 0;
 }
