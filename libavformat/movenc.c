@@ -7000,8 +7000,8 @@ AVOutputFormat ff_f4v_muxer = {
     .mime_type         = "application/f4v",
     .extensions        = "f4v",
     .priv_data_size    = sizeof(MOVMuxContext),
-    .audio_codec       = AV_CODEC_ID_AAC,
-    .video_codec       = AV_CODEC_ID_H264,
+    .audio_codec       = AV_CODEC_ID_AAC,//容器编码定义了默认的音频编码==>所以所有的编码器都是有音频编码ID vs pcmenc  aacenc
+    .video_codec       = AV_CODEC_ID_H264,//容器编码定义默认的视频编码
     .init              = mov_init,
     .write_header      = mov_write_header,
     .write_packet      = mov_write_packet,

@@ -321,7 +321,7 @@ static int get_audio_buffer(AVFrame *frame, int align)
 
 }
 
-int av_frame_get_buffer(AVFrame *frame, int align)
+int av_frame_get_buffer(AVFrame *frame, int align)//分配frame->buf[0] 等内存
 {
     if (frame->format < 0)
         return AVERROR(EINVAL);
@@ -576,7 +576,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     av_buffer_unref(&frame->opaque_ref);
     av_buffer_unref(&frame->private_ref);
 
-    get_frame_defaults(frame);
+    get_frame_defaults(frame);//最后重设置为缺省值
 }
 
 void av_frame_move_ref(AVFrame *dst, AVFrame *src)
@@ -616,9 +616,9 @@ int av_frame_make_writable(AVFrame *frame)
     if (!frame->buf[0])
         return AVERROR(EINVAL);
 
-    if (av_frame_is_writable(frame))
+    if (av_frame_is_writable(frame))//若已经可写
         return 0;
-
+    //01. 
     memset(&tmp, 0, sizeof(tmp));
     tmp.format         = frame->format;
     tmp.width          = frame->width;
@@ -626,27 +626,27 @@ int av_frame_make_writable(AVFrame *frame)
     tmp.channels       = frame->channels;
     tmp.channel_layout = frame->channel_layout;
     tmp.nb_samples     = frame->nb_samples;
-    ret = av_frame_get_buffer(&tmp, 32);
+    ret = av_frame_get_buffer(&tmp, 32);//02.根据视频或音频来分配frame->buf[0] 等内存，32 位对齐
     if (ret < 0)
         return ret;
-
+    //03.copy frame数据
     ret = av_frame_copy(&tmp, frame);
     if (ret < 0) {
         av_frame_unref(&tmp);
         return ret;
     }
-
+    //04.复制属性
     ret = av_frame_copy_props(&tmp, frame);
     if (ret < 0) {
         av_frame_unref(&tmp);
         return ret;
     }
-
+    //05.计数减1
     av_frame_unref(frame);
-
+    //06.?
     *frame = tmp;
-    if (tmp.data == tmp.extended_data)
-        frame->extended_data = frame->data;
+    if (tmp.data == tmp.extended_data)//07.
+        frame->extended_data = frame->data;//？
 
     return 0;
 }

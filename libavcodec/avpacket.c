@@ -30,7 +30,7 @@
 #include "bytestream.h"
 #include "internal.h"
 
-void av_init_packet(AVPacket *pkt)
+void av_init_packet(AVPacket *pkt)//init_packet中没有设置data，防止空间没有被回收
 {
     pkt->pts                  = AV_NOPTS_VALUE;
     pkt->dts                  = AV_NOPTS_VALUE;

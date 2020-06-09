@@ -154,34 +154,34 @@ int avformat_alloc_output_context2(AVFormatContext **avctx, ff_const59 AVOutputF
     *avctx = NULL;
     if (!s)
         goto nomem;
-
+    //02.没有输出格式，就猜一下
     if (!oformat) {//如果没有输出格式，猜一下
         if (format) {
-            oformat = av_guess_format(format, NULL, NULL);//按输入格式猜
+            oformat = av_guess_format(format, NULL, NULL);//单独按输入格式猜
             if (!oformat) {
                 av_log(s, AV_LOG_ERROR, "Requested output format '%s' is not a suitable output format\n", format);
                 ret = AVERROR(EINVAL);
-                goto error;
+                goto error;//format优先，如果找不到，提示用户并返回错误
             }
         } else {
-            oformat = av_guess_format(NULL, filename, NULL);//按文件名猜
+            oformat = av_guess_format(NULL, filename, NULL);//单独按文件名猜
             if (!oformat) {
                 ret = AVERROR(EINVAL);
                 av_log(s, AV_LOG_ERROR, "Unable to find a suitable output format for '%s'\n",
                        filename);
-                goto error;
+                goto error;//用文件名还猜不出来，只能报错
             }
         }
     }
 
-    s->oformat = oformat;
-    if (s->oformat->priv_data_size > 0) {//输出格式有自定义数据
+    s->oformat = oformat;//03. 将找到的输出格式赋值，放在context里
+    if (s->oformat->priv_data_size > 0) {//04. 输出格式有自定义数据
         s->priv_data = av_mallocz(s->oformat->priv_data_size);
         if (!s->priv_data)
             goto nomem;
         if (s->oformat->priv_class) {
             *(const AVClass**)s->priv_data= s->oformat->priv_class;
-            av_opt_set_defaults(s->priv_data);//设置默认参数
+            av_opt_set_defaults(s->priv_data);//设置默认参数，比如ff_w64_muxer 中的.audio_codec       = AV_CODEC_ID_PCM_S16LE
         }
     } else
         s->priv_data = NULL;//也可能没有
@@ -196,7 +196,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             goto nomem;
 
     }
-    *avctx = s;
+    *avctx = s;//复制传回 //watch oc->oformat->video_codec 定位到
     return 0;
 nomem:
     av_log(s, AV_LOG_ERROR, "Out of memory\n");

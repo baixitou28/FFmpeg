@@ -621,8 +621,8 @@ AVOutputFormat ff_w64_muxer = {
     .long_name         = NULL_IF_CONFIG_SMALL("Sony Wave64"),
     .extensions        = "w64",
     .priv_data_size    = sizeof(WAVMuxContext),
-    .audio_codec       = AV_CODEC_ID_PCM_S16LE,
-    .video_codec       = AV_CODEC_ID_NONE,
+    .audio_codec       = AV_CODEC_ID_PCM_S16LE,//容器编码定义了默认的音频编码 ==>所以所有的编码器都是有音频编码ID vs pcmenc  aacenc
+    .video_codec       = AV_CODEC_ID_NONE,//容器编码未定义默认的视频编码，因为wav只有音频
     .write_header      = w64_write_header,
     .write_packet      = wav_write_packet,
     .write_trailer     = w64_write_trailer,

@@ -1818,7 +1818,7 @@ typedef struct AVFormatContext {//tiger AVFormatContext
      * the same codec_id.
      * Demuxing: Set by user
      */
-    AVCodec *audio_codec;
+    AVCodec *audio_codec;//音频的编码ID，特别针对容易如wav，flv，mp4等
 
     /**
      * Forced subtitle codec.

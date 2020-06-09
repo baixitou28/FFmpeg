@@ -69,14 +69,14 @@ ff_const59 AVOutputFormat *av_guess_format(const char *short_name, const char *f
     while ((fmt = av_muxer_iterate(&i))) {
         score = 0;
         if (fmt->name && short_name && av_match_name(short_name, fmt->name))
-            score += 100;
+            score += 100;//编码器评分最高
         if (fmt->mime_type && mime_type && !strcmp(fmt->mime_type, mime_type))
-            score += 10;
+            score += 10;//mime类型居中
         if (filename && fmt->extensions &&
             av_match_ext(filename, fmt->extensions)) {
-            score += 5;
+            score += 5;//文件名分数最低
         }
-        if (score > score_max) {
+        if (score > score_max) {//比拼分数
             score_max = score;
             fmt_found = (AVOutputFormat*)fmt;
         }
