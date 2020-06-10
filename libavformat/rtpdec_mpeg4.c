@@ -104,7 +104,7 @@ static int parse_fmtp_config(AVCodecParameters *par, const char *value)
     av_freep(&par->extradata);
     if (ff_alloc_extradata(par, len))
         return AVERROR(ENOMEM);
-    ff_hex_to_data(par->extradata, value);
+    ff_hex_to_data(par->extradata, value);//TIGER AAC EXTRADATA直接放到par->extradata
     return 0;
 }
 
@@ -115,30 +115,30 @@ static int rtp_parse_mp4_au(PayloadContext *data, const uint8_t *buf, int len)
 
     if (len < 2)
         return AVERROR_INVALIDDATA;
-
+    //01.开始2位是长度
     /* decode the first 2 bytes where the AUHeader sections are stored
        length in bits */
     au_headers_length = AV_RB16(buf);
 
-    if (au_headers_length > RTP_MAX_PACKET_LENGTH)
+    if (au_headers_length > RTP_MAX_PACKET_LENGTH)//校验
       return -1;
-
+    //除8
     data->au_headers_length_bytes = (au_headers_length + 7) / 8;
-
+    //跳过长度的2位
     /* skip AU headers length section (2 bytes) */
     buf += 2;
     len -= 2;
-
+    //校验
     if (len < data->au_headers_length_bytes)
         return AVERROR_INVALIDDATA;
-
+    //02.转化为bit读取adts头
     init_get_bits(&getbitcontext, buf, data->au_headers_length_bytes * 8);
 
     /* XXX: Wrong if optional additional sections are present (cts, dts etc...) */
     au_header_size = data->sizelength + data->indexlength;
     if (au_header_size <= 0 || (au_headers_length % au_header_size != 0))
         return -1;
-
+    //03.
     data->nb_au_headers = au_headers_length / au_header_size;
     if (!data->au_headers || data->au_headers_allocated < data->nb_au_headers) {
         av_free(data->au_headers);
@@ -147,7 +147,7 @@ static int rtp_parse_mp4_au(PayloadContext *data, const uint8_t *buf, int len)
             return AVERROR(ENOMEM);
         data->au_headers_allocated = data->nb_au_headers;
     }
-
+    //04.
     for (i = 0; i < data->nb_au_headers; ++i) {
         data->au_headers[i].size  = get_bits_long(&getbitcontext, data->sizelength);
         data->au_headers[i].index = get_bits_long(&getbitcontext, data->indexlength);
@@ -165,7 +165,7 @@ static int aac_parse_packet(AVFormatContext *ctx, PayloadContext *data,
 {
     int ret;
 
-
+    //01.
     if (!buf) {
         if (data->cur_au_index > data->nb_au_headers) {
             av_log(ctx, AV_LOG_ERROR, "Invalid parser state\n");
@@ -191,7 +191,7 @@ static int aac_parse_packet(AVFormatContext *ctx, PayloadContext *data,
 
         return 1;
     }
-
+    //02.
     if (rtp_parse_mp4_au(data, buf, len)) {
         av_log(ctx, AV_LOG_ERROR, "Error parsing AU headers\n");
         return -1;
@@ -335,11 +335,11 @@ const RTPDynamicProtocolHandler ff_mp4v_es_dynamic_handler = {
 };
 
 const RTPDynamicProtocolHandler ff_mpeg4_generic_dynamic_handler = {
-    .enc_name           = "mpeg4-generic",
+    .enc_name           = "mpeg4-generic",//TIGER AAC
     .codec_type         = AVMEDIA_TYPE_AUDIO,
     .codec_id           = AV_CODEC_ID_AAC,
     .priv_data_size     = sizeof(PayloadContext),
-    .parse_sdp_a_line   = parse_sdp_line,
+    .parse_sdp_a_line   = parse_sdp_line,//TIGER SDP AAC
     .close              = close_context,
     .parse_packet       = aac_parse_packet,
 };
