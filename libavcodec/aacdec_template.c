@@ -1000,7 +1000,7 @@ static int decode_audio_specific_config_gb(AACContext *ac,
     case AOT_AAC_SSR:
     case AOT_AAC_LTP:
     case AOT_ER_AAC_LC:
-    case AOT_ER_AAC_LD:
+    case AOT_ER_AAC_LD://TIGER SDP
         if ((ret = decode_ga_specific_config(ac, avctx, gb, get_bit_alignment,
                                             m4ac, m4ac->chan_config)) < 0)
             return ret;

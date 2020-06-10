@@ -101,17 +101,17 @@ static int put_audio_specific_config(AVCodecContext *avctx)
     avctx->extradata = av_mallocz(max_size);
     if (!avctx->extradata)
         return AVERROR(ENOMEM);
-
+    //tiger aac //tiger sdp //对于aac 是否前15bit的profile， samplerate，channels 已经足够了？
     init_put_bits(&pb, avctx->extradata, max_size);
     put_bits(&pb, 5, s->profile+1); //profile
     put_bits(&pb, 4, s->samplerate_index); //sample rate index
-    put_bits(&pb, 4, channels);
+    put_bits(&pb, 4, channels);//channel
     //GASpecificConfig
     put_bits(&pb, 1, 0); //frame length - 1024 samples
     put_bits(&pb, 1, 0); //does not depend on core coder
     put_bits(&pb, 1, 0); //is not extension
     if (s->needs_pce)
-        put_pce(&pb, avctx);
+        put_pce(&pb, avctx);//这里额外很多位
 
     //Explicitly Mark SBR absent
     put_bits(&pb, 11, 0x2b7); //sync extension
