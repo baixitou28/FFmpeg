@@ -232,7 +232,7 @@ static void rtp_init_sequence(RTPStatistics *s, uint16_t seq)
 }
 
 /* Returns 1 if we should handle this packet. */
-static int rtp_valid_packet_in_sequence(RTPStatistics *s, uint16_t seq)
+static int rtp_valid_packet_in_sequence(RTPStatistics *s, uint16_t seq)//TIGER rtp sequence
 {
     uint16_t udelta = seq - s->max_seq;
     const int MAX_DROPOUT    = 3000;
@@ -623,7 +623,7 @@ static void finalize_packet(RTPDemuxContext *s, AVPacket *pkt, uint32_t timestam
     pkt->pts     = s->unwrapped_timestamp + s->range_start_offset -
                    s->base_timestamp;
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
                                      const uint8_t *buf, int len)
 {
@@ -689,7 +689,7 @@ static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
     }
 
     if (s->handler && s->handler->parse_packet) {
-        rv = s->handler->parse_packet(s->ic, s->dynamic_protocol_context,
+        rv = s->handler->parse_packet(s->ic, s->dynamic_protocol_context,//调用这里的动态协议
                                       s->st, pkt, &timestamp, buf, len, seq,
                                       flags);
     } else if (st) {
@@ -866,7 +866,7 @@ static int rtp_parse_one_packet(RTPDemuxContext *s, AVPacket *pkt,
  * @return 0 if a packet is returned, 1 if a packet is returned and more can follow
  * (use buf as NULL to read the next). -1 if no packet (error or no more packet).
  */
-int ff_rtp_parse_packet(RTPDemuxContext *s, AVPacket *pkt,
+int ff_rtp_parse_packet(RTPDemuxContext *s, AVPacket *pkt,//TIGER RTP PARSE
                         uint8_t **bufptr, int len)
 {
     int rv;
@@ -886,7 +886,7 @@ void ff_rtp_parse_close(RTPDemuxContext *s)
     av_free(s);
 }
 
-int ff_parse_fmtp(AVFormatContext *s,
+int ff_parse_fmtp(AVFormatContext *s,//TIGER RTP FMTP
                   AVStream *stream, PayloadContext *data, const char *p,
                   int (*parse_fmtp)(AVFormatContext *s,
                                     AVStream *stream,
@@ -914,7 +914,7 @@ int ff_parse_fmtp(AVFormatContext *s,
     while (ff_rtsp_next_attr_and_value(&p,
                                        attr, sizeof(attr),
                                        value, value_size)) {
-        res = parse_fmtp(s, stream, data, attr, value);
+        res = parse_fmtp(s, stream, data, attr, value);//用函数指针
         if (res < 0 && res != AVERROR_PATCHWELCOME) {
             av_free(value);
             return res;

@@ -214,7 +214,7 @@ int ff_h264_handle_aggregated_packet(AVFormatContext *ctx, PayloadContext *data,
     int ret;
 
     // first we are going to figure out the total size
-    for (pass = 0; pass < 2; pass++) {
+    for (pass = 0; pass < 2; pass++) {//奇怪的写法，第一次计算长度，第二次copy数据，这样好吗？:(
         const uint8_t *src = buf;
         int src_len        = len;
 
@@ -268,17 +268,17 @@ int ff_h264_handle_frag_packet(AVPacket *pkt, const uint8_t *buf, int len,
     int ret;
     int tot_len = len;
     int pos = 0;
-    if (start_bit)
+    if (start_bit)//01. 创建以nal开头的长度
         tot_len += sizeof(start_sequence) + nal_header_len;
-    if ((ret = av_new_packet(pkt, tot_len)) < 0)
+    if ((ret = av_new_packet(pkt, tot_len)) < 0)//02.
         return ret;
-    if (start_bit) {
-        memcpy(pkt->data + pos, start_sequence, sizeof(start_sequence));
+    if (start_bit) {//03.如果是分包的第一个包
+        memcpy(pkt->data + pos, start_sequence, sizeof(start_sequence));//03.01 start_sequence
         pos += sizeof(start_sequence);
-        memcpy(pkt->data + pos, nal_header, nal_header_len);
+        memcpy(pkt->data + pos, nal_header, nal_header_len);//03.02 nal
         pos += nal_header_len;
-    }
-    memcpy(pkt->data + pos, buf, len);
+    }//如果不是分包的第一个，就直接copy数据等待后续合并 ==>在哪里？
+    memcpy(pkt->data + pos, buf, len);//04.后面的数据
     return 0;
 }
 
@@ -293,21 +293,21 @@ static int h264_handle_packet_fu_a(AVFormatContext *ctx, PayloadContext *data, A
         return AVERROR_INVALIDDATA;
     }
 
-    fu_indicator = buf[0];
+    fu_indicator = buf[0];//分包多了这一byte //重要
     fu_header    = buf[1];
-    start_bit    = fu_header >> 7;
+    start_bit    = fu_header >> 7;//是否是第一帧
     nal_type     = fu_header & 0x1f;
     nal          = fu_indicator & 0xe0 | nal_type;
 
     // skip the fu_indicator and fu_header
-    buf += 2;
+    buf += 2;//跳过2位
     len -= 2;
 
     if (start_bit && nal_counters)
         nal_counters[nal_type & nal_mask]++;
-    return ff_h264_handle_frag_packet(pkt, buf, len, start_bit, &nal, 1);
+    return ff_h264_handle_frag_packet(pkt, buf, len, start_bit, &nal, 1);//合并的帧的开头可以nal再拼出一个新的nal
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 // return 0 on packet, no more left, 1 on packet, 1 on partial packet
 static int h264_handle_packet(AVFormatContext *ctx, PayloadContext *data,
                               AVStream *st, AVPacket *pkt, uint32_t *timestamp,
@@ -322,21 +322,21 @@ static int h264_handle_packet(AVFormatContext *ctx, PayloadContext *data,
         av_log(ctx, AV_LOG_ERROR, "Empty H.264 RTP packet\n");
         return AVERROR_INVALIDDATA;
     }
-    nal  = buf[0];
+    nal  = buf[0];//01.nal 
     type = nal & 0x1f;
-
+    //02.根据type
     /* Simplify the case (these are all the NAL types used internally by
      * the H.264 codec). */
     if (type >= 1 && type <= 23)
         type = 1;
     switch (type) {
     case 0:                    // undefined, but pass them through
-    case 1:
-        if ((result = av_new_packet(pkt, len + sizeof(start_sequence))) < 0)
+    case 1://02.01 单包
+        if ((result = av_new_packet(pkt, len + sizeof(start_sequence))) < 0)//多分配{ 0, 0, 0, 1 };
             return result;
-        memcpy(pkt->data, start_sequence, sizeof(start_sequence));
-        memcpy(pkt->data + sizeof(start_sequence), buf, len);
-        COUNT_NAL_TYPE(data, nal);
+        memcpy(pkt->data, start_sequence, sizeof(start_sequence));//内部存储是带start_sequence头的
+        memcpy(pkt->data + sizeof(start_sequence), buf, len);//后面才是rtp传过来的数据
+        COUNT_NAL_TYPE(data, nal);//TIGER PROGRAM 调试模式
         break;
 
     case 24:                   // STAP-A (one packet, multiple nals)
@@ -344,19 +344,19 @@ static int h264_handle_packet(AVFormatContext *ctx, PayloadContext *data,
         buf++;
         len--;
         result = ff_h264_handle_aggregated_packet(ctx, data, pkt, buf, len, 0,
-                                                  NAL_COUNTERS, NAL_MASK);
+                                                  NAL_COUNTERS, NAL_MASK);//02.02 多包粘合再一起，
         break;
 
     case 25:                   // STAP-B
     case 26:                   // MTAP-16
     case 27:                   // MTAP-24
     case 29:                   // FU-B
-        avpriv_report_missing_feature(ctx, "RTP H.264 NAL unit type %d", type);
+        avpriv_report_missing_feature(ctx, "RTP H.264 NAL unit type %d", type);//tiger h264 不支持b帧
         result = AVERROR_PATCHWELCOME;
         break;
 
     case 28:                   // FU-A (fragmented nal)
-        result = h264_handle_packet_fu_a(ctx, data, pkt, buf, len,
+        result = h264_handle_packet_fu_a(ctx, data, pkt, buf, len,//02.03 分包
                                          NAL_COUNTERS, NAL_MASK);
         break;
 
@@ -367,7 +367,7 @@ static int h264_handle_packet(AVFormatContext *ctx, PayloadContext *data,
         result = AVERROR_INVALIDDATA;
         break;
     }
-
+    //03.更新stream inex
     pkt->stream_index = st->index;
 
     return result;
@@ -408,7 +408,7 @@ static int parse_h264_sdp_line(AVFormatContext *s, int st_index,
     return 0;
 }
 
-const RTPDynamicProtocolHandler ff_h264_dynamic_handler = {
+const RTPDynamicProtocolHandler ff_h264_dynamic_handler = {//TIGER 动态协议
     .enc_name         = "H264",
     .codec_type       = AVMEDIA_TYPE_VIDEO,
     .codec_id         = AV_CODEC_ID_H264,
