@@ -421,7 +421,7 @@ void avpriv_request_sample(void *avc, const char *msg, ...)
     va_list argument_list;
 
     va_start(argument_list, msg);
-    missing_feature_sample(1, avc, msg, argument_list);
+    missing_feature_sample(1, avc, msg, argument_list);//无法支持
     va_end(argument_list);
 }
 
@@ -430,6 +430,6 @@ void avpriv_report_missing_feature(void *avc, const char *msg, ...)
     va_list argument_list;
 
     va_start(argument_list, msg);
-    missing_feature_sample(0, avc, msg, argument_list);
+    missing_feature_sample(0, avc, msg, argument_list);//无法支持
     va_end(argument_list);
 }

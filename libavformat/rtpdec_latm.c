@@ -89,9 +89,9 @@ static int latm_parse_packet(AVFormatContext *ctx, PayloadContext *data,
     return data->pos < data->len;
 }
 
-static int parse_fmtp_config(AVStream *st, const char *value)
+static int parse_fmtp_config(AVStream *st, const char *value)//TIGER SDP FMTP  //TIGER AAC
 {
-    int len = ff_hex_to_data(NULL, value), i, ret = 0;
+    int len = ff_hex_to_data(NULL, value), i, ret = 0;//ff_hex_to_data 获取长度
     GetBitContext gb;
     uint8_t *config;
     int audio_mux_version, same_time_framing, num_programs, num_layers;
@@ -100,8 +100,8 @@ static int parse_fmtp_config(AVStream *st, const char *value)
     config = av_mallocz(len + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!config)
         return AVERROR(ENOMEM);
-    ff_hex_to_data(config, value);
-    init_get_bits(&gb, config, len*8);
+    ff_hex_to_data(config, value);//文本转化为内部的字符类型
+    init_get_bits(&gb, config, len*8);//初始化一个GetBitContext 来读位bit
     audio_mux_version = get_bits(&gb, 1);
     same_time_framing = get_bits(&gb, 1);
     skip_bits(&gb, 6); /* num_sub_frames */
@@ -121,7 +121,7 @@ static int parse_fmtp_config(AVStream *st, const char *value)
         goto end;
     }
     for (i = 0; i < st->codecpar->extradata_size; i++)
-        st->codecpar->extradata[i] = get_bits(&gb, 8);
+        st->codecpar->extradata[i] = get_bits(&gb, 8);//将剩余的位放在extradata 中
 
 end:
     av_free(config);
@@ -141,7 +141,7 @@ static int parse_fmtp(AVFormatContext *s,
     } else if (!strcmp(attr, "cpresent")) {
         int cpresent = atoi(value);
         if (cpresent != 0)
-            avpriv_request_sample(s,
+            avpriv_request_sample(s,//不支持
                                   "RTP MP4A-LATM with in-band configuration");
     }
 
@@ -167,7 +167,7 @@ const RTPDynamicProtocolHandler ff_mp4a_latm_dynamic_handler = {//TIGER AAC LATM
     .codec_type         = AVMEDIA_TYPE_AUDIO,
     .codec_id           = AV_CODEC_ID_AAC,
     .priv_data_size     = sizeof(PayloadContext),
-    .parse_sdp_a_line   = latm_parse_sdp_line,
+    .parse_sdp_a_line   = latm_parse_sdp_line,//TIGER RTP //TIGER SDP 
     .close              = latm_close_context,
     .parse_packet       = latm_parse_packet,
 };

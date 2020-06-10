@@ -167,8 +167,8 @@ static char *extradata2psets(AVFormatContext *s, AVCodecParameters *par)
 
         return NULL;
     }
-    if (par->extradata[0] == 1) {
-        if (ff_avc_write_annexb_extradata(par->extradata, &extradata,
+    if (par->extradata[0] == 1) {//这是哪里设置？
+        if (ff_avc_write_annexb_extradata(par->extradata, &extradata,//可以把帧都放进去
                                           &extradata_size))
             return NULL;
         tmpbuf = extradata;
@@ -324,7 +324,7 @@ err:
     return NULL;
 }
 
-static char *extradata2config(AVFormatContext *s, AVCodecParameters *par)
+static char *extradata2config(AVFormatContext *s, AVCodecParameters *par)//TIGER AAC RTP //TIGER RTP AAC
 {
     char *config;
 
@@ -339,7 +339,7 @@ static char *extradata2config(AVFormatContext *s, AVCodecParameters *par)
         return NULL;
     }
     memcpy(config, "; config=", 9);
-    ff_data_to_hex(config + 9, par->extradata, par->extradata_size, 0);
+    ff_data_to_hex(config + 9, par->extradata, par->extradata_size, 0);//TIGER 直接使用extradata
     config[9 + par->extradata_size * 2] = 0;
 
     return config;
@@ -444,7 +444,7 @@ static int latm_context2profilelevel(AVCodecParameters *par)
     return profile_level;
 }
 
-static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)
+static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)//TIGER RTP AAC CONFIG //TIGER RTP AAC CONFIG
 {
     /* MP4A-LATM
      * The RTP payload format specification is described in RFC 3016
@@ -455,7 +455,7 @@ static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)
     char *config;
 
     for (rate_index = 0; rate_index < 16; rate_index++)
-        if (avpriv_mpeg4audio_sample_rates[rate_index] == par->sample_rate)
+        if (avpriv_mpeg4audio_sample_rates[rate_index] == par->sample_rate)//循环对比采样率的序号
             break;
     if (rate_index == 16) {
         av_log(s, AV_LOG_ERROR, "Unsupported sample rate\n");
@@ -464,8 +464,8 @@ static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)
 
     config_byte[0] = 0x40;
     config_byte[1] = 0;
-    config_byte[2] = 0x20 | rate_index;
-    config_byte[3] = par->channels << 4;
+    config_byte[2] = 0x20 | rate_index;//rate_index 有前面循环对比得出，有这个值就知道采样率了。
+    config_byte[3] = par->channels << 4;//声道数
     config_byte[4] = 0x3f;
     config_byte[5] = 0xc0;
 
@@ -495,9 +495,9 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
                 av_opt_flag_is_set(fmt->priv_data, "rtpflags", "h264_mode0"))
                 mode = 0;
             if (p->extradata_size) {
-                config = extradata2psets(fmt, p);
+                config = extradata2psets(fmt, p);//TIGER SDP H264
             }
-            av_strlcatf(buff, size, "a=rtpmap:%d H264/90000\r\n"
+            av_strlcatf(buff, size, "a=rtpmap:%d H264/90000\r\n" //tiger rtp rtpmap 打印 //TIGER H264 
                                     "a=fmtp:%d packetization-mode=%d%s\r\n",
                                      payload_type,
                                      payload_type, mode, config ? config : "");
@@ -551,16 +551,16 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
         case AV_CODEC_ID_AAC:
             if (fmt && fmt->oformat && fmt->oformat->priv_class &&
                 av_opt_flag_is_set(fmt->priv_data, "rtpflags", "latm")) {
-                config = latm_context2config(fmt, p);
+                config = latm_context2config(fmt, p);//是从AVCodecParameters中拼接config，不是从par->extradata copy
                 if (!config)
                     return NULL;
-                av_strlcatf(buff, size, "a=rtpmap:%d MP4A-LATM/%d/%d\r\n"
+                av_strlcatf(buff, size, "a=rtpmap:%d MP4A-LATM/%d/%d\r\n"//TIGER RTP AAC 
                                         "a=fmtp:%d profile-level-id=%d;cpresent=0;config=%s\r\n",
                                          payload_type, p->sample_rate, p->channels,
                                          payload_type, latm_context2profilelevel(p), config);
             } else {
                 if (p->extradata_size) {
-                    config = extradata2config(fmt, p);
+                    config = extradata2config(fmt, p);//从par->extradata 复制
                 } else {
                     /* FIXME: maybe we can forge config information based on the
                      *        codec parameters...
@@ -571,7 +571,7 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
                 if (!config) {
                     return NULL;
                 }
-                av_strlcatf(buff, size, "a=rtpmap:%d MPEG4-GENERIC/%d/%d\r\n"
+                av_strlcatf(buff, size, "a=rtpmap:%d MPEG4-GENERIC/%d/%d\r\n"//TIGER RTP AAC 
                                         "a=fmtp:%d profile-level-id=1;"
                                         "mode=AAC-hbr;sizelength=13;indexlength=3;"
                                         "indexdeltalength=3%s\r\n",
@@ -599,7 +599,7 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
             break;
         case AV_CODEC_ID_PCM_ALAW:
             if (payload_type >= RTP_PT_PRIVATE)
-                av_strlcatf(buff, size, "a=rtpmap:%d PCMA/%d/%d\r\n",
+                av_strlcatf(buff, size, "a=rtpmap:%d PCMA/%d/%d\r\n",//TIGER RTP rtpmap 对于pcm 固定是8bit，采样率和channel 都有了，已经不需要别的数据了
                                          payload_type,
                                          p->sample_rate, p->channels);
             break;
