@@ -2270,7 +2270,7 @@ ffmpeg -i ... -c:v libx264 -c:a mp2 -f tee -map 0:v -map 0:a
 @item
 Use @command{ffmpeg} to encode the input, and send the output
 to three different destinations. The @code{dump_extra} bitstream
-filter is used to add extradata information to all the output video
+filter is used to add extradata information to all the output video TIGER H264 add extradata information
 keyframes packets, as requested by the MPEG-TS format. The select
 option is applied to @file{out.aac} in order to make it contain only
 audio packets.

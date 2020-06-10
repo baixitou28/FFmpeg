@@ -446,7 +446,7 @@ static int decode_extradata_ps_mp4(const uint8_t *buf, int buf_size, H264ParamSe
     return 0;
 }
 
-int ff_h264_decode_extradata(const uint8_t *data, int size, H264ParamSets *ps,
+int ff_h264_decode_extradata(const uint8_t *data, int size, H264ParamSets *ps,//tiger h264 //tiger sdp
                              int *is_avc, int *nal_length_size,
                              int err_recognition, void *logctx)
 {
@@ -455,7 +455,7 @@ int ff_h264_decode_extradata(const uint8_t *data, int size, H264ParamSets *ps,
     if (!data || size <= 0)
         return -1;
 
-    if (data[0] == 1) {
+    if (data[0] == 1) {//tiger 第一个一定为1，哪里定义的？
         int i, cnt, nalsize;
         const uint8_t *p = data;
 

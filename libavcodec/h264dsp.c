@@ -64,7 +64,7 @@
 #include "h264addpx_template.c"
 #undef BIT_DEPTH
 
-av_cold void ff_h264dsp_init(H264DSPContext *c, const int bit_depth,
+av_cold void ff_h264dsp_init(H264DSPContext *c, const int bit_depth,//TIGER H264 初始化函数指针，考虑cpu 硬件指令或浮点计算单元
                              const int chroma_format_idc)
 {
 #undef FUNC
@@ -156,6 +156,6 @@ av_cold void ff_h264dsp_init(H264DSPContext *c, const int bit_depth,
     if (ARCH_AARCH64) ff_h264dsp_init_aarch64(c, bit_depth, chroma_format_idc);
     if (ARCH_ARM) ff_h264dsp_init_arm(c, bit_depth, chroma_format_idc);
     if (ARCH_PPC) ff_h264dsp_init_ppc(c, bit_depth, chroma_format_idc);
-    if (ARCH_X86) ff_h264dsp_init_x86(c, bit_depth, chroma_format_idc);
+    if (ARCH_X86) ff_h264dsp_init_x86(c, bit_depth, chroma_format_idc);//TIGER H264 INTEL CPU
     if (ARCH_MIPS) ff_h264dsp_init_mips(c, bit_depth, chroma_format_idc);
 }

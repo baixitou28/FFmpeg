@@ -330,7 +330,7 @@ void ff_h264_ps_uninit(H264ParamSets *ps)
     ps->sps = NULL;
 }
 
-int ff_h264_decode_seq_parameter_set(GetBitContext *gb, AVCodecContext *avctx,
+int ff_h264_decode_seq_parameter_set(GetBitContext *gb, AVCodecContext *avctx,//tiger h264 sps ½âÎö
                                      H264ParamSets *ps, int ignore_truncation)
 {
     AVBufferRef *sps_buf;
@@ -491,7 +491,7 @@ int ff_h264_decode_seq_parameter_set(GetBitContext *gb, AVCodecContext *avctx,
         goto fail;
     }
     sps->gaps_in_frame_num_allowed_flag = get_bits1(gb);
-    sps->mb_width                       = get_ue_golomb(gb) + 1;
+    sps->mb_width                       = get_ue_golomb(gb) + 1;//TIGER H264 SPS WIDTH
     sps->mb_height                      = get_ue_golomb(gb) + 1;
 
     sps->frame_mbs_only_flag = get_bits1(gb);
@@ -736,7 +736,7 @@ static int more_rbsp_data_in_pps(const SPS *sps, void *logctx)
     return 1;
 }
 
-int ff_h264_decode_picture_parameter_set(GetBitContext *gb, AVCodecContext *avctx,
+int ff_h264_decode_picture_parameter_set(GetBitContext *gb, AVCodecContext *avctx,//tiger h264 pps ½âÎö
                                          H264ParamSets *ps, int bit_length)
 {
     AVBufferRef *pps_buf;

@@ -577,7 +577,7 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
     H264ParseContext *p = s->priv_data;
     ParseContext *pc = &p->pc;
     int next;
-
+    //01.
     if (!p->got_first) {
         p->got_first = 1;
         if (avctx->extradata_size) {
@@ -586,7 +586,7 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
                                      avctx->err_recognition, avctx);
         }
     }
-
+    //02. 还在等待解析完整帧吗？
     if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
         next = buf_size;
     } else {
@@ -601,14 +601,14 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
         if (next < 0 && next != END_NOT_FOUND) {
             av_assert1(pc->last_index + next >= 0);
             h264_find_frame_end(p, &pc->buffer[pc->last_index + next], -next, avctx); // update state
-        }
+        }//为什么h264_find_frame_end ==END_NOT_FOUND不直接返回next呢？
     }
-
+    //03.
     parse_nal_units(s, avctx, buf, buf_size);
-
+    //04.
     if (avctx->framerate.num)
         avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
-    if (p->sei.picture_timing.cpb_removal_delay >= 0) {
+    if (p->sei.picture_timing.cpb_removal_delay >= 0) {//
         s->dts_sync_point    = p->sei.buffering_period.present;
         s->dts_ref_dts_delta = p->sei.picture_timing.cpb_removal_delay;
         s->pts_dts_delta     = p->sei.picture_timing.dpb_output_delay;
@@ -617,11 +617,11 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
         s->dts_ref_dts_delta = INT_MIN;
         s->pts_dts_delta     = INT_MIN;
     }
-
+    //05.
     if (s->flags & PARSER_FLAG_ONCE) {
         s->flags &= PARSER_FLAG_COMPLETE_FRAMES;
     }
-
+    //06.
     if (s->dts_sync_point >= 0) {
         int64_t den = avctx->time_base.den * (int64_t)avctx->pkt_timebase.num;
         if (den > 0) {
@@ -673,7 +673,7 @@ static int h264_split(AVCodecContext *avctx,
         else if ((nalu_type != H264_NAL_SEI || has_pps) &&
                   nalu_type != H264_NAL_AUD && nalu_type != H264_NAL_SPS_EXT &&
                   nalu_type != 0x0f) {
-            if (has_sps) {
+            if (has_sps) {//有些实现，应该是把sps和pps，放在i帧前面
                 while (ptr - 4 > buf && ptr[-5] == 0)
                     ptr--;
                 return ptr - 4 - buf;
