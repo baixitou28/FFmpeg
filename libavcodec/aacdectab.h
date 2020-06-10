@@ -55,7 +55,7 @@ static const uint8_t aac_channel_layout_map[16][5][3] = {
 };
 
 static const uint64_t aac_channel_layout[16] = {
-    AV_CH_LAYOUT_MONO,
+    AV_CH_LAYOUT_MONO,//第一个一般是默认的
     AV_CH_LAYOUT_STEREO,
     AV_CH_LAYOUT_SURROUND,
     AV_CH_LAYOUT_4POINT0,

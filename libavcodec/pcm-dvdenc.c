@@ -176,7 +176,7 @@ static av_cold int pcm_dvd_encode_close(AVCodecContext *avctx)
 }
 
 AVCodec ff_pcm_dvd_encoder = {
-    .name           = "pcm_dvd",
+    .name           = "pcm_dvd",//TIGER PCM
     .long_name      = NULL_IF_CONFIG_SMALL("PCM signed 16|20|24-bit big-endian for DVD media"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_PCM_DVD,
@@ -185,13 +185,13 @@ AVCodec ff_pcm_dvd_encoder = {
     .close          = pcm_dvd_encode_close,
     .encode2        = pcm_dvd_encode_frame,
     .capabilities   = AV_CODEC_CAP_SMALL_LAST_FRAME,
-    .supported_samplerates = (const int[]) { 48000, 96000, 0},
-    .channel_layouts = (const uint64_t[]) { AV_CH_LAYOUT_MONO,
+    .supported_samplerates = (const int[]) { 48000, 96000, 0},//支持采样率，48000是默认
+    .channel_layouts = (const uint64_t[]) { AV_CH_LAYOUT_MONO,//默认单声道
                                             AV_CH_LAYOUT_STEREO,
                                             AV_CH_LAYOUT_5POINT1,
                                             AV_CH_LAYOUT_7POINT1,
                                             0 },
-    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
+    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,//默认格式
                                                      AV_SAMPLE_FMT_S32,
                                                      AV_SAMPLE_FMT_NONE },
 };

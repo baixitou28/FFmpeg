@@ -460,7 +460,7 @@ typedef struct AVProbeData {
 #define AVPROBE_PADDING_SIZE 32             ///< extra allocated bytes at the end of the probe buffer
 
 /// Demuxer will use avio_open, no opened file should be provided by the caller.
-#define AVFMT_NOFILE        0x0001
+#define AVFMT_NOFILE        0x0001//看注释：用了avio_open，不需要file了
 #define AVFMT_NEEDNUMBER    0x0002 /**< Needs '%d' in filename. */
 #define AVFMT_SHOW_IDS      0x0008 /**< Show format stream IDs numbers. */
 #define AVFMT_GLOBALHEADER  0x0040 /**< Format wants global header. */
@@ -474,10 +474,10 @@ typedef struct AVProbeData {
 #define AVFMT_NOGENSEARCH   0x4000 /**< Format does not allow to fall back on generic search */
 #define AVFMT_NO_BYTE_SEEK  0x8000 /**< Format does not allow seeking by bytes */
 #define AVFMT_ALLOW_FLUSH  0x10000 /**< Format allows flushing. If not set, the muxer will not receive a NULL packet in the write_packet function. */
-#define AVFMT_TS_NONSTRICT 0x20000 /**< Format does not require strictly
+#define AVFMT_TS_NONSTRICT 0x20000 /**< Format does not require strictly//TIGER PROGRAM 可能要用到
                                         increasing timestamps, but they must
                                         still be monotonic */
-#define AVFMT_TS_NEGATIVE  0x40000 /**< Format allows muxing negative
+#define AVFMT_TS_NEGATIVE  0x40000 /**< Format allows muxing negative//TIGER PROGRAM 可能要用到
                                         timestamps. If not set the timestamp
                                         will be shifted in av_write_frame and
                                         av_interleaved_write_frame so they
@@ -786,7 +786,7 @@ typedef struct AVInputFormat {//TIGER AVInputFormat
  * @}
  */
 //tiger TODO 解析类型
-enum AVStreamParseType {
+enum AVStreamParseType {//tiger program
     AVSTREAM_PARSE_NONE,
     AVSTREAM_PARSE_FULL,       /**< full parsing and repack */
     AVSTREAM_PARSE_HEADERS,    /**< Only parse headers, do not repack. */

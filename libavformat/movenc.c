@@ -6784,7 +6784,7 @@ static const AVCodecTag codec_3gp_tags[] = {
     { AV_CODEC_ID_NONE, 0 },
 };
 
-const AVCodecTag codec_mp4_tags[] = {
+const AVCodecTag codec_mp4_tags[] = {//TIGER MP4 支持这么多格式？
     { AV_CODEC_ID_MPEG4       , MKTAG('m', 'p', '4', 'v') },
     { AV_CODEC_ID_H264        , MKTAG('a', 'v', 'c', '1') },
     { AV_CODEC_ID_H264        , MKTAG('a', 'v', 'c', '3') },
@@ -6846,7 +6846,7 @@ static const AVCodecTag codec_f4v_tags[] = {
 #if CONFIG_MOV_MUXER
 MOV_CLASS(mov)
 AVOutputFormat ff_mov_muxer = {
-    .name              = "mov",
+    .name              = "mov", //tiger mov
     .long_name         = NULL_IF_CONFIG_SMALL("QuickTime / MOV"),
     .extensions        = "mov",
     .priv_data_size    = sizeof(MOVMuxContext),
@@ -6889,7 +6889,7 @@ AVOutputFormat ff_tgp_muxer = {
 #if CONFIG_MP4_MUXER
 MOV_CLASS(mp4)
 AVOutputFormat ff_mp4_muxer = {
-    .name              = "mp4",
+    .name              = "mp4",//tiger mp4
     .long_name         = NULL_IF_CONFIG_SMALL("MP4 (MPEG-4 Part 14)"),
     .mime_type         = "video/mp4",
     .extensions        = "mp4",

@@ -213,12 +213,12 @@ retry:
 }
 
 AVInputFormat ff_aac_demuxer = {//TIGER ff_aac_demuxer
-    .name         = "aac",
+    .name         = "aac",//wav容器只在libformat有代码，libavcodec下面没有代码。而aac都有，libavcodec 是真正的解码，libformat一般相对上层，处理格式等
     .long_name    = NULL_IF_CONFIG_SMALL("raw ADTS AAC (Advanced Audio Coding)"),
-    .read_probe   = adts_aac_probe,
+    .read_probe   = adts_aac_probe,//因为有头文件，所以允许探测， 这个probe 不是容器才有的
     .read_header  = adts_aac_read_header,
     .read_packet  = adts_aac_read_packet,
-    .flags        = AVFMT_GENERIC_INDEX,
+    .flags        = AVFMT_GENERIC_INDEX,//这个不理解用途
     .extensions   = "aac",//文件名
     .mime_type    = "audio/aac,audio/aacp,audio/x-aac",
     .raw_codec_id = AV_CODEC_ID_AAC,

@@ -210,13 +210,13 @@ static int pcm_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     case AV_CODEC_ID_PCM_ALAW://TIGER PCM ALAW
         for (; n > 0; n--) {//一个字节转换一次
             v      = *samples++;//注意这个samples的单位是short，数据是13位,借用16位
-            *dst++ = linear_to_alaw[(v + 32768) >> 2];//映射//TIGER PCM ALAW 关键代码
+            *dst++ = linear_to_alaw[(v + 32768) >> 2];//映射//TIGER PCM ALAW 关键代码  32768=0x8000
         }
         break;
     case AV_CODEC_ID_PCM_MULAW:
         for (; n > 0; n--) {//每字节转化
             v      = *samples++;
-            *dst++ = linear_to_ulaw[(v + 32768) >> 2];
+            *dst++ = linear_to_ulaw[(v + 32768) >> 2];//32768=0x8000
         }
         break;
     case AV_CODEC_ID_PCM_VIDC:
@@ -276,7 +276,7 @@ static av_cold int pcm_decode_init(AVCodecContext *avctx)//tiger
         break;
     }
 
-    avctx->sample_fmt = avctx->codec->sample_fmts[0];//ALAW:AV_SAMPLE_FMT_S16 , 这里sample_fmts可能是支持多个吗？==>
+    avctx->sample_fmt = avctx->codec->sample_fmts[0];//ALAW:AV_SAMPLE_FMT_S16 , 这里sample_fmts可能是支持多个吗？==>缺省设置
 
     if (avctx->sample_fmt == AV_SAMPLE_FMT_S32)//特例：
         avctx->bits_per_raw_sample = av_get_bits_per_sample(avctx->codec_id);

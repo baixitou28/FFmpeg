@@ -548,8 +548,8 @@ static av_cold int latm_decode_init(AVCodecContext *avctx)
     return ret;
 }
 
-AVCodec ff_aac_decoder = {
-    .name            = "aac",
+AVCodec ff_aac_decoder = {//TIGER AAC
+    .name            = "aac", //wav容器只在libformat有代码，libavcodec下面没有代码。而aac都有，libavcodec 是真正的解码，libformat一般相对上层，处理格式等
     .long_name       = NULL_IF_CONFIG_SMALL("AAC (Advanced Audio Coding)"),
     .type            = AVMEDIA_TYPE_AUDIO,
     .id              = AV_CODEC_ID_AAC,
@@ -573,7 +573,7 @@ AVCodec ff_aac_decoder = {
     in MPEG transport streams which only contain one program.
     To do a more complex LATM demuxing a separate LATM demuxer should be used.
 */
-AVCodec ff_aac_latm_decoder = {
+AVCodec ff_aac_latm_decoder = {//tiger aac VS libformat\aacdec.c 
     .name            = "aac_latm",
     .long_name       = NULL_IF_CONFIG_SMALL("AAC LATM (Advanced Audio Coding LATM syntax)"),
     .type            = AVMEDIA_TYPE_AUDIO,
@@ -587,7 +587,7 @@ AVCodec ff_aac_latm_decoder = {
     },
     .capabilities    = AV_CODEC_CAP_CHANNEL_CONF | AV_CODEC_CAP_DR1,
     .caps_internal   = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
-    .channel_layouts = aac_channel_layout,
+    .channel_layouts = aac_channel_layout,//pcm 没有
     .flush = flush,
     .profiles        = NULL_IF_CONFIG_SMALL(ff_aac_profiles),
 };

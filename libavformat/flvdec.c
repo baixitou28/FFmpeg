@@ -1371,7 +1371,7 @@ static const AVClass flv_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-AVInputFormat ff_flv_demuxer = {
+AVInputFormat ff_flv_demuxer = {// tiger FLV： 容器对比真正的pcm解码器的区别pcm有raw_codec_id = AV_CODEC_ID_PCM_S8，
     .name           = "flv",
     .long_name      = NULL_IF_CONFIG_SMALL("FLV (Flash Video)"),
     .priv_data_size = sizeof(FLVContext),

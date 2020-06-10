@@ -761,8 +761,8 @@ static const AVClass wav_demuxer_class = {
     .option     = demux_options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
-AVInputFormat ff_wav_demuxer = {
-    .name           = "wav",
+AVInputFormat ff_wav_demuxer = {//tiger wav： 容器对比真正的pcm解码器的区别pcm有raw_codec_id=AV_CODEC_ID_PCM_S8， 
+    .name           = "wav",//TIGER WAV 对比pcm，wav容器只在libformat有代码，libavcodec下面没有代码。而pcm都有，libavcodec 是真正的解码，libformat一般相对上层，处理格式等
     .long_name      = NULL_IF_CONFIG_SMALL("WAV / WAVE (Waveform Audio)"),
     .priv_data_size = sizeof(WAVDemuxContext),
     .read_probe     = wav_probe,

@@ -7998,7 +7998,7 @@ static const AVClass mov_class = {
 };
 
 AVInputFormat ff_mov_demuxer = {
-    .name           = "mov,mp4,m4a,3gp,3g2,mj2",
+    .name           = "mov,mp4,m4a,3gp,3g2,mj2",//TIGER MP4 //TIGER MOV
     .long_name      = NULL_IF_CONFIG_SMALL("QuickTime / MOV"),
     .priv_class     = &mov_class,
     .priv_data_size = sizeof(MOVContext),
