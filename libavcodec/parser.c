@@ -117,7 +117,7 @@ void ff_fetch_timestamp(AVCodecParserContext *s, int off, int remove, int fuzzy)
     }
 }
 
-int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,
+int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,//av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                      uint8_t **poutbuf, int *poutbuf_size,
                      const uint8_t *buf, int buf_size,
                      int64_t pts, int64_t dts, int64_t pos)
@@ -163,7 +163,7 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,
         ff_fetch_timestamp(s, 0, 0, 0);
     }
     /* WARNING: the returned index can be negative */
-    index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,
+    index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,//av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                                     poutbuf_size, buf, buf_size);
     av_assert0(index > -0x20000000); // The API does not allow returning AVERROR codes
 #define FILL(name) if(s->name > 0 && avctx->name <= 0) avctx->name = s->name

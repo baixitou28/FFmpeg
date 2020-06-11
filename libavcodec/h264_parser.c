@@ -243,7 +243,7 @@ static int scan_mmco_reset(AVCodecParserContext *s, GetBitContext *gb,
  */
 static inline int parse_nal_units(AVCodecParserContext *s,
                                   AVCodecContext *avctx,
-                                  const uint8_t * const buf, int buf_size)
+                                  const uint8_t * const buf, int buf_size)//解析各种类型 sps，pps和 i ，p等分片信息
 {
     H264ParseContext *p = s->priv_data;
     H2645RBSP rbsp = { NULL };
@@ -255,7 +255,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
     int q264 = buf_size >=4 && !memcmp("Q264", buf, 4);
     int field_poc[2];
     int ret;
-
+    //初始化
     /* set some sane default values */
     s->pict_type         = AV_PICTURE_TYPE_I;
     s->key_frame         = 0;
@@ -266,19 +266,19 @@ static inline int parse_nal_units(AVCodecParserContext *s,
 
     if (!buf_size)
         return 0;
-
+    //
     av_fast_padded_malloc(&rbsp.rbsp_buffer, &rbsp.rbsp_buffer_alloc_size, buf_size);
     if (!rbsp.rbsp_buffer)
         return AVERROR(ENOMEM);
 
     buf_index     = 0;
     next_avc      = p->is_avc ? 0 : buf_size;
-    for (;;) {
+    for (;;) {//不停解析，对于rtp，可能不存在;对于读文本文件，可能需要不停循环
         const SPS *sps;
         int src_length, consumed, nalsize = 0;
-
+        //01.
         if (buf_index >= next_avc) {
-            nalsize = get_nalsize(p->nal_length_size, buf, buf_size, &buf_index, avctx);
+            nalsize = get_nalsize(p->nal_length_size, buf, buf_size, &buf_index, avctx);//
             if (nalsize < 0)
                 break;
             next_avc = buf_index + nalsize;
@@ -290,7 +290,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                 continue;
         }
         src_length = next_avc - buf_index;
-
+        //02.
         state = buf[buf_index];
         switch (state & 0x1f) {
         case H264_NAL_SLICE:
@@ -308,10 +308,10 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             }
             break;
         }
-        consumed = ff_h2645_extract_rbsp(buf + buf_index, src_length, &rbsp, &nal, 1);
+        consumed = ff_h2645_extract_rbsp(buf + buf_index, src_length, &rbsp, &nal, 1);//03.
         if (consumed < 0)
             break;
-
+        //04.
         buf_index += consumed;
 
         ret = init_get_bits8(&nal.gb, nal.data, nal.size);
@@ -320,41 +320,41 @@ static inline int parse_nal_units(AVCodecParserContext *s,
         get_bits1(&nal.gb);
         nal.ref_idc = get_bits(&nal.gb, 2);
         nal.type    = get_bits(&nal.gb, 5);
-
+        //05. 安装类型解析 sps，pps, sei,I , P
         switch (nal.type) {
-        case H264_NAL_SPS:
+        case H264_NAL_SPS://05.01
             ff_h264_decode_seq_parameter_set(&nal.gb, avctx, &p->ps, 0);
             break;
-        case H264_NAL_PPS:
+        case H264_NAL_PPS://05.02
             ff_h264_decode_picture_parameter_set(&nal.gb, avctx, &p->ps,
                                                  nal.size_bits);
             break;
-        case H264_NAL_SEI:
+        case H264_NAL_SEI://05.03
             ff_h264_sei_decode(&p->sei, &nal.gb, &p->ps, avctx);
             break;
-        case H264_NAL_IDR_SLICE:
-            s->key_frame = 1;
+        case H264_NAL_IDR_SLICE://05.04
+            s->key_frame = 1;//I 帧
 
-            p->poc.prev_frame_num        = 0;
+            p->poc.prev_frame_num        = 0;//如果是第一帧，必须标记一下
             p->poc.prev_frame_num_offset = 0;
             p->poc.prev_poc_msb          =
             p->poc.prev_poc_lsb          = 0;
         /* fall through */
-        case H264_NAL_SLICE:
+        case H264_NAL_SLICE://05.05
             get_ue_golomb_long(&nal.gb);  // skip first_mb_in_slice
-            slice_type   = get_ue_golomb_31(&nal.gb);
+            slice_type   = get_ue_golomb_31(&nal.gb);//05.05.01
             s->pict_type = ff_h264_golomb_to_pict_type[slice_type % 5];
             if (p->sei.recovery_point.recovery_frame_cnt >= 0) {
                 /* key frame, since recovery_frame_cnt is set */
                 s->key_frame = 1;
             }
-            pps_id = get_ue_golomb(&nal.gb);
+            pps_id = get_ue_golomb(&nal.gb);//05.05.02 pps sps 验证和引用
             if (pps_id >= MAX_PPS_COUNT) {
                 av_log(avctx, AV_LOG_ERROR,
                        "pps_id %u out of range\n", pps_id);
                 goto fail;
             }
-            if (!p->ps.pps_list[pps_id]) {
+            if (!p->ps.pps_list[pps_id]) {//ps.pps_list是在 ff_h264_decode_picture_parameter_set 末尾设置的
                 av_log(avctx, AV_LOG_ERROR,
                        "non-existing PPS %u referenced\n", pps_id);
                 goto fail;
@@ -364,7 +364,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             av_buffer_unref(&p->ps.sps_ref);
             p->ps.pps = NULL;
             p->ps.sps = NULL;
-            p->ps.pps_ref = av_buffer_ref(p->ps.pps_list[pps_id]);
+            p->ps.pps_ref = av_buffer_ref(p->ps.pps_list[pps_id]);//引用pps
             if (!p->ps.pps_ref)
                 goto fail;
             p->ps.pps = (const PPS*)p->ps.pps_ref->data;
@@ -375,7 +375,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                 goto fail;
             }
 
-            p->ps.sps_ref = av_buffer_ref(p->ps.sps_list[p->ps.pps->sps_id]);
+            p->ps.sps_ref = av_buffer_ref(p->ps.sps_list[p->ps.pps->sps_id]);//引用sps
             if (!p->ps.sps_ref)
                 goto fail;
             p->ps.sps = (const SPS*)p->ps.sps_ref->data;
@@ -384,19 +384,19 @@ static inline int parse_nal_units(AVCodecParserContext *s,
 
             // heuristic to detect non marked keyframes
             if (p->ps.sps->ref_frame_count <= 1 && p->ps.pps->ref_count[0] <= 1 && s->pict_type == AV_PICTURE_TYPE_I)
-                s->key_frame = 1;
-
+                s->key_frame = 1;//有些i帧未标记，为什么会这样？
+            //05.05.03
             p->poc.frame_num = get_bits(&nal.gb, sps->log2_max_frame_num);
-
-            s->coded_width  = 16 * sps->mb_width;
+            //05.05.04
+            s->coded_width  = 16 * sps->mb_width;//tiger program sps的参数值的width
             s->coded_height = 16 * sps->mb_height;
-            s->width        = s->coded_width  - (sps->crop_right + sps->crop_left);
+            s->width        = s->coded_width  - (sps->crop_right + sps->crop_left);//tiger program  sps 考虑 crop影响
             s->height       = s->coded_height - (sps->crop_top   + sps->crop_bottom);
             if (s->width <= 0 || s->height <= 0) {
                 s->width  = s->coded_width;
                 s->height = s->coded_height;
             }
-
+            //05.05.05 格式
             switch (sps->bit_depth_luma) {
             case 9:
                 if (sps->chroma_format_idc == 3)      s->format = AV_PIX_FMT_YUV444P9;
@@ -416,7 +416,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             default:
                 s->format = AV_PIX_FMT_NONE;
             }
-
+            //05.05.06 profile 和level
             avctx->profile = ff_h264_get_profile(sps);
             avctx->level   = sps->level_idc;
 
@@ -429,7 +429,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                     p->picture_structure = PICT_FRAME;
                 }
             }
-
+            //05.05.07
             if (nal.type == H264_NAL_IDR_SLICE)
                 get_ue_golomb_long(&nal.gb); /* idr_pic_id */
             if (sps->poc_type == 0) {
@@ -439,7 +439,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                     p->picture_structure == PICT_FRAME)
                     p->poc.delta_poc_bottom = get_se_golomb(&nal.gb);
             }
-
+            //05.05.08
             if (sps->poc_type == 1 &&
                 !sps->delta_pic_order_always_zero_flag) {
                 p->poc.delta_poc[0] = get_se_golomb(&nal.gb);
@@ -448,7 +448,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                     p->picture_structure == PICT_FRAME)
                     p->poc.delta_poc[1] = get_se_golomb(&nal.gb);
             }
-
+            //05.05.09
             /* Decode POC of this picture.
              * The prev_ values needed for decoding POC of the next picture are not set here. */
             field_poc[0] = field_poc[1] = INT_MAX;
@@ -456,7 +456,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                              &p->poc, p->picture_structure, nal.ref_idc);
             if (ret < 0)
                 goto fail;
-
+            //05.05.10
             /* Continue parsing to check if MMCO_RESET is present.
              * FIXME: MMCO_RESET could appear in non-first slice.
              *        Maybe, we should parse all undisposable non-IDR slice of this
@@ -466,7 +466,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                 if (got_reset < 0)
                     goto fail;
             }
-
+            //05.05.11
             /* Set up the prev_ values for decoding POC of the next picture. */
             p->poc.prev_frame_num        = got_reset ? 0 : p->poc.frame_num;
             p->poc.prev_frame_num_offset = got_reset ? 0 : p->poc.frame_num_offset;
@@ -480,7 +480,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
                         p->picture_structure == PICT_BOTTOM_FIELD ? 0 : field_poc[0];
                 }
             }
-
+            //05.05.12
             if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
                 switch (p->sei.picture_timing.pic_struct) {
                 case H264_SEI_PIC_STRUCT_TOP_FIELD:
@@ -509,7 +509,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             } else {
                 s->repeat_pict = p->picture_structure == PICT_FRAME ? 1 : 0;
             }
-
+            //05.05.13
             if (p->picture_structure == PICT_FRAME) {
                 s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;
                 if (sps->pic_struct_present_flag && p->sei.picture_timing.present) {
@@ -558,7 +558,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             return 0; /* no need to evaluate the rest */
         }
     }
-    if (q264) {
+    if (q264) {//特例
         av_freep(&rbsp.rbsp_buffer);
         return 0;
     }
@@ -569,7 +569,7 @@ fail:
     return -1;
 }
 
-static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
+static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse  //av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                       AVCodecContext *avctx,
                       const uint8_t **poutbuf, int *poutbuf_size,
                       const uint8_t *buf, int buf_size)
@@ -588,27 +588,27 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
     }
     //02. 还在等待解析完整帧吗？
     if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
-        next = buf_size;
+        next = buf_size;//不需要等待解析其他帧，只要重新开始即可
     } else {
-        next = h264_find_frame_end(p, buf, buf_size, avctx);
+        next = h264_find_frame_end(p, buf, buf_size, avctx);//找到末尾
 
-        if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
+        if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {//合并
             *poutbuf      = NULL;
             *poutbuf_size = 0;
             return buf_size;
         }
 
-        if (next < 0 && next != END_NOT_FOUND) {
+        if (next < 0 && next != END_NOT_FOUND) {//如果没找到，
             av_assert1(pc->last_index + next >= 0);
             h264_find_frame_end(p, &pc->buffer[pc->last_index + next], -next, avctx); // update state
         }//为什么h264_find_frame_end ==END_NOT_FOUND不直接返回next呢？
     }
-    //03.
+    //03.解析nal
     parse_nal_units(s, avctx, buf, buf_size);
-    //04.
+    //04.如果有帧率设置
     if (avctx->framerate.num)
         avctx->time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){avctx->ticks_per_frame, 1}));
-    if (p->sei.picture_timing.cpb_removal_delay >= 0) {//
+    if (p->sei.picture_timing.cpb_removal_delay >= 0) {//如果设置了sei
         s->dts_sync_point    = p->sei.buffering_period.present;
         s->dts_ref_dts_delta = p->sei.picture_timing.cpb_removal_delay;
         s->pts_dts_delta     = p->sei.picture_timing.dpb_output_delay;
@@ -617,7 +617,7 @@ static int h264_parse(AVCodecParserContext *s,//TIGER h264_parse
         s->dts_ref_dts_delta = INT_MIN;
         s->pts_dts_delta     = INT_MIN;
     }
-    //05.
+    //05.如果只需解析一次，标记已解析
     if (s->flags & PARSER_FLAG_ONCE) {
         s->flags &= PARSER_FLAG_COMPLETE_FRAMES;
     }
@@ -701,7 +701,7 @@ static av_cold int init(AVCodecParserContext *s)
 
     p->reference_dts = AV_NOPTS_VALUE;
     p->last_frame_num = INT_MAX;
-    ff_h264dsp_init(&p->h264dsp, 8, 1);
+    ff_h264dsp_init(&p->h264dsp, 8, 1);//多个指针函数：适合不同平台浮点指针或者汇编指令
     return 0;
 }
 
@@ -709,7 +709,7 @@ AVCodecParser ff_h264_parser = {
     .codec_ids      = { AV_CODEC_ID_H264 },
     .priv_data_size = sizeof(H264ParseContext),
     .parser_init    = init,
-    .parser_parse   = h264_parse,
+    .parser_parse   = h264_parse,//TIGER H264 VS 没有几个解码需要parser_parse：aac_parser, latm_parser, opus_parser
     .parser_close   = h264_close,
     .split          = h264_split,
 };
