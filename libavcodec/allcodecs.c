@@ -737,15 +737,15 @@ extern AVCodec ff_idf_decoder;
 /* external libraries, that shouldn't be used by default if one of the
  * above is available */
 extern AVCodec ff_h263_v4l2m2m_encoder;
-extern AVCodec ff_libopenh264_encoder;
+extern AVCodec ff_libopenh264_encoder;//TIGER H264 264的编码库有好多个 openh264 libx264 nvenc vaapi 
 extern AVCodec ff_libopenh264_decoder;
 extern AVCodec ff_h264_amf_encoder;
 extern AVCodec ff_h264_cuvid_decoder;
-extern AVCodec ff_h264_nvenc_encoder;
+extern AVCodec ff_h264_nvenc_encoder;//TIGER H264 264的编码库有好多个 openh264 libx264 nvenc vaapi 
 extern AVCodec ff_h264_omx_encoder;
 extern AVCodec ff_h264_qsv_encoder;
 extern AVCodec ff_h264_v4l2m2m_encoder;
-extern AVCodec ff_h264_vaapi_encoder;
+extern AVCodec ff_h264_vaapi_encoder;//TIGER H264 264的编码库有好多个 openh264 libx264 nvenc vaapi  
 extern AVCodec ff_h264_videotoolbox_encoder;
 #if FF_API_NVENC_OLD_NAME
 extern AVCodec ff_nvenc_encoder;
@@ -796,7 +796,7 @@ static void av_codec_init_static(void)
 {
     for (int i = 0; codec_list[i]; i++) {
         if (codec_list[i]->init_static_data)
-            codec_list[i]->init_static_data((AVCodec*)codec_list[i]);
+            codec_list[i]->init_static_data((AVCodec*)codec_list[i]);//只有少数编码器需要 如X264_init_static
     }
 }
 
