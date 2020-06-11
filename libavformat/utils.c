@@ -750,7 +750,7 @@ no_packet:
                 || end) {
                 pd->buf_size = 0;
                 av_freep(&pd->buf);//释放probe buffer
-                st->request_probe = -1;//设置为负数
+                st->request_probe = -1;//设置为负数 //tiger import 这里是唯一设置request_probe为-1的地方 //TIGER TODO:查询仅wavdec.c,mpeg.c和mpegts.c
                 if (st->codecpar->codec_id != AV_CODEC_ID_NONE) {
                     av_log(s, AV_LOG_DEBUG, "probed stream %d\n", st->index);//如果找到了，提示
                 } else
@@ -1696,12 +1696,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
     //03.如果队列有数据，直接从队列中读
     if (!got_packet && s->internal->parse_queue)
         ret = ff_packet_list_get(&s->internal->parse_queue, &s->internal->parse_queue_end, pkt);
-static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_frame_internal
-    //03.如果AVPacket获取成功
+
+    //04.如果AVPacket获取成功
     if (ret >= 0) {//?如果find_stream_info等，要跳过sample，那后期数据需要减去？
         AVStream *st = s->streams[pkt->stream_index];
         int discard_padding = 0;
-        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {//03.01 pkt->pts 不为空，说明需要更新
+        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {//04.01 pkt->pts 不为空，说明需要更新
             int64_t pts = pkt->pts - (is_relative(pkt->pts) ? RELATIVE_TS_BASE : 0);
             int64_t sample = ts_to_samples(st, pts);
             int duration = ts_to_samples(st, pkt->duration);
@@ -1710,9 +1710,9 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_fr
                 sample < st->last_discard_sample)
                 discard_padding = FFMIN(end_sample - st->first_discard_sample, duration);
         }
-        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))//03.02
+        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))//04.02
             st->skip_samples = st->start_skip_samples;
-        if (st->skip_samples || discard_padding) {//03.03
+        if (st->skip_samples || discard_padding) {//04.03
             uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);//
             if (p) {
                 AV_WL32(p, st->skip_samples);
@@ -1722,7 +1722,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_fr
             st->skip_samples = 0;
         }
 
-        if (st->inject_global_side_data) {//03.04
+        if (st->inject_global_side_data) {//04.04
             for (i = 0; i < st->nb_side_data; i++) {
                 AVPacketSideData *src_sd = &st->side_data[i];
                 uint8_t *dst_data;
@@ -1741,7 +1741,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_fr
             st->inject_global_side_data = 0;
         }
     }
-    //04.跟新metadata需要通知
+    //05.跟新metadata需要通知
     av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);//TIGER 元数据
     if (metadata) {//TIGER 是否更新meta， 设置一个事件
         s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;//TIGER PROGRAM
@@ -1749,7 +1749,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_fr
         av_dict_free(&metadata);
         av_opt_set_dict_val(s, "metadata", NULL, AV_OPT_SEARCH_CHILDREN);
     }
-    //05.从流里面获取参数更新到
+    //06.从流里面获取参数更新到
 #if FF_API_LAVF_AVCTX
     update_stream_avctx(s);//TIGER   avcodec_parameters_to_context(st->codec, st->codecpar); 和 avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
 #endif

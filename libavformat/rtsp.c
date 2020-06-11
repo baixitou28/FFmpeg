@@ -2440,7 +2440,7 @@ AVInputFormat ff_sdp_demuxer = {
 static int rtp_probe(const AVProbeData *p)
 {
     if (av_strstart(p->filename, "rtp:", NULL))
-        return AVPROBE_SCORE_MAX;
+        return AVPROBE_SCORE_MAX;//只要文件名即可
     return 0;
 }
 
