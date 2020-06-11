@@ -712,15 +712,15 @@ static void force_codec_ids(AVFormatContext *s, AVStream *st)
     }
 }
 
-static int probe_codec(AVFormatContext *s, AVStream *st, const AVPacket *pkt)
+static int probe_codec(AVFormatContext *s, AVStream *st, const AVPacket *pkt)//TIGER 看是否应得到codec，是否设置probe为结束即request_probe =-1
 {
-    if (st->request_probe>0) {
+    if (st->request_probe>0) {//probe中
         AVProbeData *pd = &st->probe_data;
         int end;
         av_log(s, AV_LOG_DEBUG, "probing stream %d pp:%d\n", st->index, st->probe_packets);
-        --st->probe_packets;
+        --st->probe_packets;//probe 包数限制
 
-        if (pkt) {
+        if (pkt) {//01.没有pkt，分配内存
             uint8_t *new_buf = av_realloc(pd->buf, pd->buf_size+pkt->size+AVPROBE_PADDING_SIZE);
             if (!new_buf) {
                 av_log(s, AV_LOG_WARNING,
@@ -740,23 +740,23 @@ no_packet:
                        "nothing to probe for stream %d\n", st->index);
             }
         }
-
+        //02.如果内部的数据已经不足以分析了，或者probe_packets次数已经到限制了，end设置为1
         end=    s->internal->raw_packet_buffer_remaining_size <= 0
                 || st->probe_packets<= 0;
-
-        if (end || av_log2(pd->buf_size) != av_log2(pd->buf_size - pkt->size)) {
+        //03.
+        if (end || av_log2(pd->buf_size) != av_log2(pd->buf_size - pkt->size)) {//为什么是av_log2?
             int score = set_codec_from_probe_data(s, st, pd);
             if (    (st->codecpar->codec_id != AV_CODEC_ID_NONE && score > AVPROBE_SCORE_STREAM_RETRY)
                 || end) {
                 pd->buf_size = 0;
-                av_freep(&pd->buf);
-                st->request_probe = -1;
+                av_freep(&pd->buf);//释放probe buffer
+                st->request_probe = -1;//设置为负数
                 if (st->codecpar->codec_id != AV_CODEC_ID_NONE) {
-                    av_log(s, AV_LOG_DEBUG, "probed stream %d\n", st->index);
+                    av_log(s, AV_LOG_DEBUG, "probed stream %d\n", st->index);//如果找到了，提示
                 } else
                     av_log(s, AV_LOG_WARNING, "probed stream %d failed\n", st->index);
             }
-            force_codec_ids(s, st);
+            force_codec_ids(s, st);//强行设置
         }
     }
     return 0;
@@ -827,20 +827,20 @@ static int update_wrap_reference(AVFormatContext *s, AVStream *st, int stream_in
     }
     return 1;
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, i, err;
     AVStream *st;
 
-    for (;;) {
-        AVPacketList *pktl = s->internal->raw_packet_buffer;
-
+    for (;;) {//这个循环包含了内部队列插入数据的功能，probe_codec的功能，所以看起来相对代码多一些。
+        AVPacketList *pktl = s->internal->raw_packet_buffer;//如果内部队列有数据
+        //01. 如果是启动find_stream_info probe
         if (pktl) {
-            *pkt = pktl->pkt;
+            *pkt = pktl->pkt;//第一个
             st   = s->streams[pkt->stream_index];
-            if (s->internal->raw_packet_buffer_remaining_size <= 0)
-                if ((err = probe_codec(s, st, NULL)) < 0)//怎么理解？
+            if (s->internal->raw_packet_buffer_remaining_size <= 0)//如果没有数据，
+                if ((err = probe_codec(s, st, NULL)) < 0)//是否已经找到codec
                     return err;
             if (st->request_probe <= 0) {
                 s->internal->raw_packet_buffer                 = pktl->next;
@@ -849,33 +849,33 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
                 return 0;
             }
         }
-
+        //02.
         pkt->data = NULL;
         pkt->size = 0;
-        av_init_packet(pkt);
+        av_init_packet(pkt);//举例rtp有点特别：av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
         ret = s->iformat->read_packet(s, pkt);//TIGER flv_read_packet
-        if (ret < 0) {
+        if (ret < 0) {//如果有异常
             /* Some demuxers return FFERROR_REDO when they consume
                data and discard it (ignored streams, junk, extradata).
                We must re-call the demuxer to get the real packet. */
-            if (ret == FFERROR_REDO)
+            if (ret == FFERROR_REDO)//redo没有用到
                 continue;
-            if (!pktl || ret == AVERROR(EAGAIN))
+            if (!pktl || ret == AVERROR(EAGAIN))//获取不到
                 return ret;
             for (i = 0; i < s->nb_streams; i++) {
                 st = s->streams[i];
                 if (st->probe_packets || st->request_probe > 0)
-                    if ((err = probe_codec(s, st, NULL)) < 0)
+                    if ((err = probe_codec(s, st, NULL)) < 0)//最后出错时，尝试一下probe_codec
                         return err;
                 av_assert0(st->request_probe <= 0);
             }
             continue;
         }
-
+        //03.增加引用次数
         err = av_packet_make_refcounted(pkt);
         if (err < 0)
             return err;
-
+        //04.校验
         if ((s->flags & AVFMT_FLAG_DISCARD_CORRUPT) &&
             (pkt->flags & AV_PKT_FLAG_CORRUPT)) {
             av_log(s, AV_LOG_WARNING,
@@ -889,9 +889,9 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
             av_log(s, AV_LOG_ERROR, "Invalid stream index %d\n", pkt->stream_index);
             continue;
         }
-
+        
         st = s->streams[pkt->stream_index];
-
+        //05. dts，pts
         if (update_wrap_reference(s, st, pkt->stream_index, pkt) && st->pts_wrap_behavior == AV_PTS_WRAP_SUB_OFFSET) {
             // correct first time stamps to negative values
             if (!is_relative(st->first_dts))
@@ -904,23 +904,23 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
 
         pkt->dts = wrap_timestamp(st, pkt->dts);
         pkt->pts = wrap_timestamp(st, pkt->pts);
-
+        //06.强行用AVFormatContext的id ==>
         force_codec_ids(s, st);
 
         /* TODO: audio: time filter; video: frame reordering (pts != dts) */
         if (s->use_wallclock_as_timestamps)
             pkt->dts = pkt->pts = av_rescale_q(av_gettime(), AV_TIME_BASE_Q, st->time_base);
-
-        if (!pktl && st->request_probe <= 0)
+        //07.如果pkt1为空，或者不是probe状态，直接返回
+        if (!pktl && st->request_probe <= 0)//probe_codec 会设置request_probe 为-1
             return ret;
-
+        //08.如果是probe即request_probe> 0，放入内部列表
         err = ff_packet_list_put(&s->internal->raw_packet_buffer,
                                  &s->internal->raw_packet_buffer_end,
                                  pkt, 0);
         if (err)
             return err;
-        s->internal->raw_packet_buffer_remaining_size -= pkt->size;
-
+        s->internal->raw_packet_buffer_remaining_size -= pkt->size;//空间又变小了
+        //09.如果结束probe，检查codec，设置request_probe 为-1
         if ((err = probe_codec(s, st, pkt)) < 0)
             return err;
     }
@@ -1566,28 +1566,28 @@ static int64_t ts_to_samples(AVStream *st, int64_t ts)
 {
     return av_rescale(ts, st->time_base.num * st->codecpar->sample_rate, st->time_base.den);
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_frame_internal
 {
     int ret = 0, i, got_packet = 0;
     AVDictionary *metadata = NULL;
 
-    av_init_packet(pkt);//ffmpeg内部已经初始化，所以使用ffmpeg api中，再次初始化是不必要的
-
-    while (!got_packet && !s->internal->parse_queue) {//如果没有获取packet且parse_queue还没创建
+    av_init_packet(pkt);//01.ffmpeg内部已经初始化，所以使用ffmpeg api中，再次初始化是不必要的
+    //02.如果没有获取packet且parse_queue还没创建,读数据
+    while (!got_packet && !s->internal->parse_queue) {
         AVStream *st;
         AVPacket cur_pkt;
 
         /* read next packet */
-        ret = ff_read_packet(s, &cur_pkt);//实际读入口
+        ret = ff_read_packet(s, &cur_pkt);//实际读入口 ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN))
                 return ret;
             /* flush the parsers */
             for (i = 0; i < s->nb_streams; i++) {
                 st = s->streams[i];
-                if (st->parser && st->need_parsing)
-                    parse_packet(s, NULL, st->index);//解析
+                if (st->parser && st->need_parsing)h264_parse
+                    parse_packet(s, NULL, st->index);//解析 av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
             }
             /* all remaining packets are now in parse_queue =>
              * really terminate parsing */
@@ -1693,14 +1693,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
             got_packet = 0;
         }
     }
-
+    //03.如果队列有数据，直接从队列中读
     if (!got_packet && s->internal->parse_queue)
         ret = ff_packet_list_get(&s->internal->parse_queue, &s->internal->parse_queue_end, pkt);
-
-    if (ret >= 0) {//
+static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_frame_internal
+    //03.如果AVPacket获取成功
+    if (ret >= 0) {//?如果find_stream_info等，要跳过sample，那后期数据需要减去？
         AVStream *st = s->streams[pkt->stream_index];
         int discard_padding = 0;
-        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {
+        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {//03.01 pkt->pts 不为空，说明需要更新
             int64_t pts = pkt->pts - (is_relative(pkt->pts) ? RELATIVE_TS_BASE : 0);
             int64_t sample = ts_to_samples(st, pts);
             int duration = ts_to_samples(st, pkt->duration);
@@ -1709,10 +1710,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 sample < st->last_discard_sample)
                 discard_padding = FFMIN(end_sample - st->first_discard_sample, duration);
         }
-        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))
+        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))//03.02
             st->skip_samples = st->start_skip_samples;
-        if (st->skip_samples || discard_padding) {
-            uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);
+        if (st->skip_samples || discard_padding) {//03.03
+            uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);//
             if (p) {
                 AV_WL32(p, st->skip_samples);
                 AV_WL32(p + 4, discard_padding);
@@ -1721,7 +1722,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st->skip_samples = 0;
         }
 
-        if (st->inject_global_side_data) {
+        if (st->inject_global_side_data) {//03.04
             for (i = 0; i < st->nb_side_data; i++) {
                 AVPacketSideData *src_sd = &st->side_data[i];
                 uint8_t *dst_data;
@@ -1740,20 +1741,20 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st->inject_global_side_data = 0;
         }
     }
-
+    //04.跟新metadata需要通知
     av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);//TIGER 元数据
     if (metadata) {//TIGER 是否更新meta， 设置一个事件
-        s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;
+        s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;//TIGER PROGRAM
         av_dict_copy(&s->metadata, metadata, 0);
         av_dict_free(&metadata);
         av_opt_set_dict_val(s, "metadata", NULL, AV_OPT_SEARCH_CHILDREN);
     }
-
+    //05.从流里面获取参数更新到
 #if FF_API_LAVF_AVCTX
-    update_stream_avctx(s);
+    update_stream_avctx(s);//TIGER   avcodec_parameters_to_context(st->codec, st->codecpar); 和 avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
 #endif
 
-    if (s->debug & FF_FDEBUG_TS)//TIGER 编程参考 可以增加日志
+    if (s->debug & FF_FDEBUG_TS)//06.TIGER program 编程参考 可以增加日志
         av_log(s, AV_LOG_DEBUG,//日志输出
                "read_frame_internal stream=%d, pts=%s, dts=%s, "
                "size=%d, duration=%"PRId64", flags=%d\n",

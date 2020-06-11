@@ -689,7 +689,7 @@ static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
     }
 
     if (s->handler && s->handler->parse_packet) {
-        rv = s->handler->parse_packet(s->ic, s->dynamic_protocol_context,//调用这里的动态协议
+        rv = s->handler->parse_packet(s->ic, s->dynamic_protocol_context,//调用这里的动态协议 //av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
                                       s->st, pkt, &timestamp, buf, len, seq,
                                       flags);
     } else if (st) {
@@ -778,7 +778,7 @@ static int rtp_parse_queued_packet(RTPDemuxContext *s, AVPacket *pkt)
     s->queue_len--;
     return rv;
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 static int rtp_parse_one_packet(RTPDemuxContext *s, AVPacket *pkt,
                                 uint8_t **bufptr, int len)
 {
@@ -866,7 +866,7 @@ static int rtp_parse_one_packet(RTPDemuxContext *s, AVPacket *pkt,
  * @return 0 if a packet is returned, 1 if a packet is returned and more can follow
  * (use buf as NULL to read the next). -1 if no packet (error or no more packet).
  */
-int ff_rtp_parse_packet(RTPDemuxContext *s, AVPacket *pkt,//TIGER RTP PARSE
+int ff_rtp_parse_packet(RTPDemuxContext *s, AVPacket *pkt,//TIGER RTP PARSE //av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
                         uint8_t **bufptr, int len)
 {
     int rv;

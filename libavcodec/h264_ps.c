@@ -500,7 +500,7 @@ int ff_h264_decode_seq_parameter_set(GetBitContext *gb, AVCodecContext *avctx,//
         av_log(avctx, AV_LOG_ERROR, "height overflow\n");
         goto fail;
     }
-    sps->mb_height *= 2 - sps->frame_mbs_only_flag;
+    sps->mb_height *= 2 - sps->frame_mbs_only_flag;//TIGER H264 SPS HEIGHT
 
     if (!sps->frame_mbs_only_flag)
         sps->mb_aff = get_bits1(gb);
@@ -868,7 +868,7 @@ int ff_h264_decode_picture_parameter_set(GetBitContext *gb, AVCodecContext *avct
     }
 
     remove_pps(ps, pps_id);
-    ps->pps_list[pps_id] = pps_buf;
+    ps->pps_list[pps_id] = pps_buf;//pps是有多个的，还有id
 
     return 0;
 

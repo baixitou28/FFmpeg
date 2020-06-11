@@ -402,7 +402,7 @@ static int decode_alternative_transfer(H264SEIAlternativeTransfer *h,
 }
 
 int ff_h264_sei_decode(H264SEIContext *h, GetBitContext *gb,
-                       const H264ParamSets *ps, void *logctx)
+                       const H264ParamSets *ps, void *logctx)//TIGER 这个不太用
 {
     int master_ret = 0;
 
@@ -436,7 +436,7 @@ int ff_h264_sei_decode(H264SEIContext *h, GetBitContext *gb,
             ret = decode_picture_timing(&h->picture_timing, gb, ps, logctx);
             break;
         case H264_SEI_TYPE_USER_DATA_REGISTERED:
-            ret = decode_registered_user_data(h, gb, logctx, size);
+            ret = decode_registered_user_data(h, gb, logctx, size);//TIGER PROGRAM用户属性，国家代码等
             break;
         case H264_SEI_TYPE_USER_DATA_UNREGISTERED:
             ret = decode_unregistered_user_data(&h->unregistered, gb, logctx, size);
@@ -451,7 +451,7 @@ int ff_h264_sei_decode(H264SEIContext *h, GetBitContext *gb,
             ret = decode_frame_packing_arrangement(&h->frame_packing, gb);
             break;
         case H264_SEI_TYPE_DISPLAY_ORIENTATION:
-            ret = decode_display_orientation(&h->display_orientation, gb);
+            ret = decode_display_orientation(&h->display_orientation, gb);//TIGER PROGRAM 旋转在这里
             break;
         case H264_SEI_TYPE_GREEN_METADATA:
             ret = decode_green_metadata(&h->green_metadata, gb);

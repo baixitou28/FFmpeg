@@ -2137,7 +2137,7 @@ static int read_packet(AVFormatContext *s,
 
     return len;
 }
-
+//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
 int ff_rtsp_fetch_packet(AVFormatContext *s, AVPacket *pkt)
 {
     RTSPState *rt = s->priv_data;
@@ -2153,9 +2153,9 @@ int ff_rtsp_fetch_packet(AVFormatContext *s, AVPacket *pkt)
         if (rt->transport == RTSP_TRANSPORT_RDT) {
             ret = ff_rdt_parse_packet(rt->cur_transport_priv, pkt, NULL, 0);
         } else if (rt->transport == RTSP_TRANSPORT_RTP) {
-            ret = ff_rtp_parse_packet(rt->cur_transport_priv, pkt, NULL, 0);
+            ret = ff_rtp_parse_packet(rt->cur_transport_priv, pkt, NULL, 0);//av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
         } else if (CONFIG_RTPDEC && rt->ts) {
-            ret = avpriv_mpegts_parse_packet(rt->ts, pkt, rt->recvbuf + rt->recvbuf_pos, rt->recvbuf_len - rt->recvbuf_pos);
+            ret = avpriv_mpegts_parse_packet(rt->ts, pkt, rt->recvbuf + rt->recvbuf_pos, rt->recvbuf_len - rt->recvbuf_pos);//tiger program //TIGER IMPORTANT 如果是ts流
             if (ret >= 0) {
                 rt->recvbuf_pos += ret;
                 ret = rt->recvbuf_pos < rt->recvbuf_len;
