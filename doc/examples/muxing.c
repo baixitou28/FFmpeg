@@ -42,7 +42,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
-//不需要使用常规的文件输入，模拟音频数据open_audio 模拟视频fill_yuv_image数据，写入文件
+//不需要使用常规的文件输入，模拟音频数据open_audio产生某个频率的声音， 模拟视频fill_yuv_image数据，写入用户指定的文件，格式根据文件后缀来猜测
 #define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt */
@@ -50,7 +50,7 @@
 #define SCALE_FLAGS SWS_BICUBIC
 
 // a wrapper around a single output AVStream
-typedef struct OutputStream {//使用看注释，是AVStream的一个包装
+typedef struct OutputStream {//使用看注释，本程序自义定的一个结构，是AVStream的一个包装
     AVStream *st;
     AVCodecContext *enc;//编码context
 
@@ -117,18 +117,18 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,//加入一个流
         exit(1);
     }
     ost->enc = c;//赋值
-    //设置AVCodecContext
+    //设置AVCodecContext的参数，同时记得设置AVStream的时间基准
     switch ((*codec)->type) {//最常用的一些设置
     case AVMEDIA_TYPE_AUDIO://03.01. TIGER PROGRAM
         c->sample_fmt  = (*codec)->sample_fmts ?//03.01.01 设置采样位数
-            (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;//优先采用第一个
+            (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;//优先采用缺省的第一个sample_fmts[0]
         c->bit_rate    = 64000;//比特率
-        c->sample_rate = 44100;//优先采用采样率
+        c->sample_rate = 44100;//使用采样率，CD音质
         if ((*codec)->supported_samplerates) {//参看ff_pcm_dvd_encoder  包含supported_samplerates，channel_layouts
             c->sample_rate = (*codec)->supported_samplerates[0];//优先采用第一个  //支持多个channel，一般都是aac，dvd等用于家庭影院的高级设备
             for (i = 0; (*codec)->supported_samplerates[i]; i++) {
                 if ((*codec)->supported_samplerates[i] == 44100)//如果支持的采样率有44100，优先采用44100
-                    c->sample_rate = 44100;//加break
+                    c->sample_rate = 44100;//tiger improvement 加break
             }
         }
         c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
@@ -137,17 +137,17 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,//加入一个流
             c->channel_layout = (*codec)->channel_layouts[0];//优先采用第一个
             for (i = 0; (*codec)->channel_layouts[i]; i++) {
                 if ((*codec)->channel_layouts[i] == AV_CH_LAYOUT_STEREO)
-                    c->channel_layout = AV_CH_LAYOUT_STEREO;//如果支持立体声，优先采用立体声，一般都有
+                    c->channel_layout = AV_CH_LAYOUT_STEREO;//tiger improvement 加break， //如果支持立体声，优先采用立体声，一般都有
             }
         }
-        c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);
+        c->channels        = av_get_channel_layout_nb_channels(c->channel_layout);//重新设定
         ost->st->time_base = (AVRational){ 1, c->sample_rate };//03.01.02用AVCodecContext的采样率，来设置流的时间， 用AVCodecContext的采样率根据前面多个步骤获取到的
         break;
 
     case AVMEDIA_TYPE_VIDEO://03.02tiger program
         c->codec_id = codec_id;//03.02.01 设置context，特别注意：如果是视频还要重新设置codec_id,额外设置，vs 音频
 
-        c->bit_rate = 400000;//比特率设置为上
+        c->bit_rate = 400000;//比特率最好设置一下
         /* Resolution must be a multiple of two. */
         c->width    = 352;//看注释，必须是偶数
         c->height   = 288;
@@ -158,7 +158,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,//加入一个流
         ost->st->time_base = (AVRational){ 1, STREAM_FRAME_RATE };//03.02.02 设置流的时间单位  一般是1/25
         c->time_base       = ost->st->time_base;//额外设置：AVCodecContext时间单位也设置为 1/25：对比音频 
 
-        c->gop_size      = 12; /* emit one intra frame every twelve frames at most */ //这个需要设置吗？
+        c->gop_size      = 12; /* emit one intra frame every twelve frames at most */ //这个需要设置吗？ //tiger program
         c->pix_fmt       = STREAM_PIX_FMT;//一般还需要设置这个
         if (c->codec_id == AV_CODEC_ID_MPEG2VIDEO) {
             /* just for testing, we also add B-frames */
@@ -177,7 +177,7 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,//加入一个流
     }
 
     /* Some formats want stream headers to be separate. */
-    if (oc->oformat->flags & AVFMT_GLOBALHEADER)//04. 良好的习惯 //TIGER PROGRAM
+    if (oc->oformat->flags & AVFMT_GLOBALHEADER)//04. 良好的习惯 //TIGER PROGRAM AVFMT_GLOBALHEADER
         c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
@@ -237,15 +237,15 @@ static void open_audio(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
     ost->tincr2 = 2 * M_PI * 110.0 / c->sample_rate / c->sample_rate;//增加频率
     //04.
     if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
-        nb_samples = 10000;//tiger program
+        nb_samples = 10000;//tiger program 如果可变，可采用自定义的长度
     else
         nb_samples = c->frame_size;
 
-    ost->frame     = alloc_audio_frame(c->sample_fmt, c->channel_layout,//这个是目标，比如aac
+    ost->frame     = alloc_audio_frame(c->sample_fmt, c->channel_layout,//目标帧，比如aac
                                        c->sample_rate, nb_samples);
-    ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, c->channel_layout,//这个隐含了是packed模式保存，如果是planar是AV_SAMPLE_FMT_S16P
+    ost->tmp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, c->channel_layout,//临时存储的帧，AV_SAMPLE_FMT_S16隐含了是packed模式保存，如果是planar是AV_SAMPLE_FMT_S16P
                                        c->sample_rate, nb_samples);
-    //05.从AVCodecContext中复制参数
+    //05.从AVCodecContext中复制参数到AVStream的AVCodecParameters流里
     /* copy the stream parameters to the muxer */
     ret = avcodec_parameters_from_context(ost->st->codecpar, c);
     if (ret < 0) {
@@ -259,11 +259,11 @@ static void open_audio(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
             fprintf(stderr, "Could not allocate resampler context\n");
             exit(1);
         }
-    //07. 初始化SwrContext
+    //07. 初始化SwrContext，即转码，从PCM的AV_SAMPLE_FMT_S16 转到指定的如AAC
         /* set options */
         av_opt_set_int       (ost->swr_ctx, "in_channel_count",   c->channels,       0);
         av_opt_set_int       (ost->swr_ctx, "in_sample_rate",     c->sample_rate,    0);
-        av_opt_set_sample_fmt(ost->swr_ctx, "in_sample_fmt",      AV_SAMPLE_FMT_S16, 0);//这个隐含了是packed模式保存，如果是planar是AV_SAMPLE_FMT_S16P
+        av_opt_set_sample_fmt(ost->swr_ctx, "in_sample_fmt",      AV_SAMPLE_FMT_S16, 0);//AV_SAMPLE_FMT_S16隐含了是packed模式保存，如果是planar是AV_SAMPLE_FMT_S16P
         av_opt_set_int       (ost->swr_ctx, "out_channel_count",  c->channels,       0);
         av_opt_set_int       (ost->swr_ctx, "out_sample_rate",    c->sample_rate,    0);
         av_opt_set_sample_fmt(ost->swr_ctx, "out_sample_fmt",     c->sample_fmt,     0);
@@ -296,8 +296,8 @@ static AVFrame *get_audio_frame(OutputStream *ost)
         ost->tincr += ost->tincr2;//每次增加频率
     }
     //03.
-    frame->pts = ost->next_pts;//取OutputStream* ost的下一帧时间
-    ost->next_pts  += frame->nb_samples;//记录OutputStream下一个帧，直接加sample
+    frame->pts = ost->next_pts;//取OutputStream* ost的下一帧时间，ost->next_pts仅仅是一个自定义记住pts的地方
+    ost->next_pts  += frame->nb_samples;//记录OutputStream下一个帧，直接加sample，因为这个是pcm，frame 时间基准就是 {1, 采样率}
     return frame;
 }
 
@@ -322,8 +322,9 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
     if (frame) {
         /* convert samples from native format to destination codec format, using the resampler */
             /* compute destination number of samples */
-            dst_nb_samples = av_rescale_rnd(swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples,//swr_get_delay
-                                            c->sample_rate, c->sample_rate, AV_ROUND_UP);//03.01
+            int delay = swr_get_delay(ost->swr_ctx, c->sample_rate);//swr_get_delay tiger program
+            dst_nb_samples = av_rescale_rnd(delay + frame->nb_samples,
+                                            c->sample_rate, c->sample_rate, AV_ROUND_UP);//03.01 因为采样率变化了，所以计算对应原始的采样点长度
             av_assert0(dst_nb_samples == frame->nb_samples);
 
         /* when we pass a frame to the encoder, it may keep a reference to it
@@ -335,17 +336,17 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             exit(1);
         
         /* convert to destination format */
-        ret = swr_convert(ost->swr_ctx,//03.03 转化
-                          ost->frame->data, dst_nb_samples,
+        ret = swr_convert(ost->swr_ctx,//03.03 转化为指定格式
+                          ost->frame->data, dst_nb_samples,//
                           (const uint8_t **)frame->data, frame->nb_samples);
         if (ret < 0) {
             fprintf(stderr, "Error while converting\n");
             exit(1);
         }
-        frame = ost->frame;//03.02
-        //03.04 换算成新的pts
+        frame = ost->frame;//03.04
+        //03.05 换算成新的pts
         frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);//从采样率，转换为AVFormatContext的时间单位
-        ost->samples_count += dst_nb_samples;//
+        ost->samples_count += dst_nb_samples;//计算采样值
     }
     //04.打包成AVPacket
     ret = avcodec_encode_audio2(c, &pkt, frame, &got_packet);
@@ -363,7 +364,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
         }
     }
 
-    return (frame || got_packet) ? 0 : 1;
+    return (frame || got_packet) ? 0 : 1;//返回0，说明有帧产生或者写成功
 }
 
 /**************************************************************/
@@ -373,17 +374,17 @@ static AVFrame *alloc_picture(enum AVPixelFormat pix_fmt, int width, int height)
 {
     AVFrame *picture;
     int ret;
-
+    //01.
     picture = av_frame_alloc();
     if (!picture)
         return NULL;
-
+    //02.参数
     picture->format = pix_fmt;
     picture->width  = width;
     picture->height = height;
-
+    //03.帧的buffer
     /* allocate the buffers for the frame data */
-    ret = av_frame_get_buffer(picture, 32);
+    ret = av_frame_get_buffer(picture, 64);//tiger program 改进，如果是HAVE_AVX512 应该是64不是32 //TIGER improvement
     if (ret < 0) {
         fprintf(stderr, "Could not allocate frame data.\n");
         exit(1);
@@ -397,9 +398,9 @@ static void open_video(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
     int ret;
     AVCodecContext *c = ost->enc;
     AVDictionary *opt = NULL;
-
+    //可选项
     av_dict_copy(&opt, opt_arg, 0);
-
+    //上下文
     /* open the codec */
     ret = avcodec_open2(c, codec, &opt);
     av_dict_free(&opt);
@@ -407,26 +408,26 @@ static void open_video(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
         fprintf(stderr, "Could not open video codec: %s\n", av_err2str(ret));
         exit(1);
     }
-
+    //目标帧，重复使用
     /* allocate and init a re-usable frame */
     ost->frame = alloc_picture(c->pix_fmt, c->width, c->height);
     if (!ost->frame) {
         fprintf(stderr, "Could not allocate video frame\n");
         exit(1);
     }
-
+    //临时帧，重复使用
     /* If the output format is not YUV420P, then a temporary YUV420P
      * picture is needed too. It is then converted to the required
      * output format. */
     ost->tmp_frame = NULL;
     if (c->pix_fmt != AV_PIX_FMT_YUV420P) {
-        ost->tmp_frame = alloc_picture(AV_PIX_FMT_YUV420P, c->width, c->height);
+        ost->tmp_frame = alloc_picture(AV_PIX_FMT_YUV420P, c->width, c->height);//指定AV_PIX_FMT_YUV420P格式，宽，高
         if (!ost->tmp_frame) {
             fprintf(stderr, "Could not allocate temporary picture\n");
             exit(1);
         }
     }
-
+    //ost->st->codecpar（AVStream(st)的AVCodecParameters）清零，复制Context里的参数，
     /* copy the stream parameters to the muxer */
     ret = avcodec_parameters_from_context(ost->st->codecpar, c);
     if (ret < 0) {
@@ -535,7 +536,7 @@ static int write_video_frame(AVFormatContext *oc, OutputStream *ost)
         exit(1);
     }
 
-    return (frame || got_packet) ? 0 : 1;
+    return (frame || got_packet) ? 0 : 1;//返回为0说明有帧产生或者写成功
 }
 
 static void close_stream(AVFormatContext *oc, OutputStream *ost)
@@ -552,7 +553,7 @@ static void close_stream(AVFormatContext *oc, OutputStream *ost)
 
 int main(int argc, char **argv)
 {
-    OutputStream video_st = { 0 }, audio_st = { 0 };
+    OutputStream video_st = { 0 }, audio_st = { 0 };//这个是本程序自定义的一个结构
     const char *filename;
     AVOutputFormat *fmt;
     AVFormatContext *oc;
@@ -573,7 +574,9 @@ int main(int argc, char **argv)
                "\n", argv[0]);
         //return 1;
         //filename = "mux.ul";//wav
-        filename = "mux.mp4";
+//#define MY_ALIGN (HAVE_AVX512 ? 64 : (HAVE_AVX ? 32 : 16))
+ //       int align = MY_ALIGN;
+        filename = "mux.mp4";//根据格式猜测格式，如果mp4，虽然是容器，可能允许多种格式，但如果不指定本身有默认的音频和视频格式，程序里面利用了这一点，所以没看到指定音视频的具体格式
     }
     else {
         filename = argv[1];
@@ -585,26 +588,26 @@ int main(int argc, char **argv)
     }
     //02. 用filename 创建AVFormatContext
     /* allocate the output media context */
-    avformat_alloc_output_context2(&oc, NULL, NULL, filename);//根据文件名猜一下格式
+    avformat_alloc_output_context2(&oc, NULL, NULL, filename);//因为未指定格式，只能根据输出文件名猜一下格式
     if (!oc) {
         printf("Could not deduce output format from file extension: using MPEG.\n");
         avformat_alloc_output_context2(&oc, NULL, "mpeg", filename);//如果不行，假定一个格式mpeg
     }
-    if (!oc)
+    if (!oc)//查找失败则退出
         return 1;
     //tiger program: watch oc->oformat
-    fmt = oc->oformat;//03. 使用猜出来的编码器， 如果是ul文件：PCM mu-law: audio_codec=AV_CODEC_ID_PCM_MULAW
+    fmt = oc->oformat;//03. 使用猜出来的编码器， 如果是ul文件：PCM mu-law: audio_codec=AV_CODEC_ID_PCM_MULAW，如果是mp4则是容易默认的格式
     //04. 创建video_st和audio_st
     /* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
-    if (fmt->video_codec != AV_CODEC_ID_NONE) {//如果包含视频
+    if (fmt->video_codec != AV_CODEC_ID_NONE) {//如果输出格式包含视频，用输出的编码格式，构建一个流 add_stream 是一个比较大的函数
         add_stream(&video_st, oc, &video_codec, fmt->video_codec);//复杂的过程：创建video_st
-        have_video = 1;
+        have_video = 1;//标记
         encode_video = 1;
     }
-    if (fmt->audio_codec != AV_CODEC_ID_NONE) {//如果包含音频， add_stream 是一个比较大的函数
+    if (fmt->audio_codec != AV_CODEC_ID_NONE) {//如果输出格式包含音频， add_stream 是一个比较大的函数
         add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);//如果是wav文件 fmt->audio_codec 默认是AV_CODEC_ID_PCM_S16LE即AV_CODEC_ID_FIRST_AUDIO, 默认ff_w64_muxer .audio_codec       = AV_CODEC_ID_PCM_S16LE
-        have_audio = 1;
+        have_audio = 1;//标记
         encode_audio = 1;
     }
     //04. 逐一打开
@@ -616,10 +619,10 @@ int main(int argc, char **argv)
     if (have_audio)
         open_audio(oc, audio_codec, &audio_st, opt);//打开音频
 
-    av_dump_format(oc, 0, filename, 1);
+    av_dump_format(oc, 0, filename, 1);//打印流格式是个好习惯
 
     /* open the output file, if needed */
-    if (!(fmt->flags & AVFMT_NOFILE)) {
+    if (!(fmt->flags & AVFMT_NOFILE)) {//TIGER PROGRRAM 最好判断一下
         ret = avio_open(&oc->pb, filename, AVIO_FLAG_WRITE);//05.打开输出文件
         if (ret < 0) {
             fprintf(stderr, "Could not open '%s': %s\n", filename,
@@ -636,14 +639,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    while (encode_video || encode_audio) {//07. 写帧
+    while (encode_video || encode_audio) {//07. 如果音频或视频有一个允许，写帧
         /* select the stream to encode */
-        if (encode_video &&
+        if (encode_video &&//1. 允许视频，不允许音频，直接写视频 2. 允许视频，允许音频，但视频的时间比音频小，拉后了，得补上视频
             (!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
                                             audio_st.next_pts, audio_st.enc->time_base) <= 0)) {
-            encode_video = !write_video_frame(oc, &video_st);//
+            encode_video = !write_video_frame(oc, &video_st);//如果成功返回0，允许继续写，encode_video 设为1
         } else {
-            encode_audio = !write_audio_frame(oc, &audio_st);//如果成功返回1
+            encode_audio = !write_audio_frame(oc, &audio_st);//如果成功返回0，允许继续写，encode_audio 设为1
         }
     }
 
