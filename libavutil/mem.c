@@ -122,7 +122,7 @@ void *av_malloc(size_t size)//TIGER program disassemble av_malloc: mov $0x40 %es
     ptr = malloc(size);//服务器里面定义了HAVE_AVX512，所以，不会直接用malloc
 #endif
     if(!ptr && !size) {
-        size = 1;
+        size = 1;//如果是0，改为1，大概是为了兼容以前的应用不出错？
         ptr= av_malloc(1);//如果返回失败，返回一个字节==>这是为什么？
     }
 #if CONFIG_MEMORY_POISONING

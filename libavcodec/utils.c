@@ -2011,7 +2011,7 @@ static void codec_parameters_reset(AVCodecParameters *par)
     par->color_trc           = AVCOL_TRC_UNSPECIFIED;
     par->color_space         = AVCOL_SPC_UNSPECIFIED;
     par->chroma_location     = AVCHROMA_LOC_UNSPECIFIED;
-    par->sample_aspect_ratio = (AVRational){ 0, 1 };
+    par->sample_aspect_ratio = (AVRational){ 0, 1 };//默认
     par->profile             = FF_PROFILE_UNKNOWN;
     par->level               = FF_LEVEL_UNKNOWN;
 }
@@ -2056,22 +2056,22 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
 }
 
 int avcodec_parameters_from_context(AVCodecParameters *par,
-                                    const AVCodecContext *codec)
-{
-    codec_parameters_reset(par);
+                                    const AVCodecContext *codec)//tiger 重要函数，省去一堆设置
+{   //01. 重置
+    codec_parameters_reset(par);//比我想象极端，直接AVCodecParameters清零.
+    //02.
+    par->codec_type = codec->codec_type;//音视频等类型
+    par->codec_id   = codec->codec_id;//编解码id
+    par->codec_tag  = codec->codec_tag;//编解码名称
 
-    par->codec_type = codec->codec_type;
-    par->codec_id   = codec->codec_id;
-    par->codec_tag  = codec->codec_tag;
-
-    par->bit_rate              = codec->bit_rate;
-    par->bits_per_coded_sample = codec->bits_per_coded_sample;
+    par->bit_rate              = codec->bit_rate;//最好填上
+    par->bits_per_coded_sample = codec->bits_per_coded_sample;//一般可查询或计算
     par->bits_per_raw_sample   = codec->bits_per_raw_sample;
-    par->profile               = codec->profile;
+    par->profile               = codec->profile;//视频的profile
     par->level                 = codec->level;
-
+    //03.音视频个性化数据
     switch (par->codec_type) {
-    case AVMEDIA_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO://视频三要素 format width height
         par->format              = codec->pix_fmt;
         par->width               = codec->width;
         par->height              = codec->height;
@@ -2084,12 +2084,12 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
         par->sample_aspect_ratio = codec->sample_aspect_ratio;
         par->video_delay         = codec->has_b_frames;
         break;
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://音频三要素 sample_fmt channels sample_rate
         par->format           = codec->sample_fmt;
-        par->channel_layout   = codec->channel_layout;
+        par->channel_layout   = codec->channel_layout;//AAC
         par->channels         = codec->channels;
         par->sample_rate      = codec->sample_rate;
-        par->block_align      = codec->block_align;
+        par->block_align      = codec->block_align;//以下应该都是可以重新计算的
         par->frame_size       = codec->frame_size;
         par->initial_padding  = codec->initial_padding;
         par->trailing_padding = codec->trailing_padding;
@@ -2100,7 +2100,7 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
         par->height = codec->height;
         break;
     }
-
+    //04.其他数据
     if (codec->extradata) {
         par->extradata = av_mallocz(codec->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
         if (!par->extradata)
@@ -2113,20 +2113,20 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
 }
 
 int avcodec_parameters_to_context(AVCodecContext *codec,
-                                  const AVCodecParameters *par)
-{
-    codec->codec_type = par->codec_type;
-    codec->codec_id   = par->codec_id;
-    codec->codec_tag  = par->codec_tag;
-
-    codec->bit_rate              = par->bit_rate;
-    codec->bits_per_coded_sample = par->bits_per_coded_sample;
+                                  const AVCodecParameters *par)//TIGER 重要函数  vs avcodec_parameters_from_context 没有强行重置AVCodecContext
+{   //01. 编码
+    codec->codec_type = par->codec_type;//音视频等类型
+    codec->codec_id   = par->codec_id;//编码ID
+    codec->codec_tag  = par->codec_tag;//编码名称
+    //02.通用
+    codec->bit_rate              = par->bit_rate;//最好设置
+    codec->bits_per_coded_sample = par->bits_per_coded_sample;//可计算
     codec->bits_per_raw_sample   = par->bits_per_raw_sample;
-    codec->profile               = par->profile;
+    codec->profile               = par->profile;//视频profile
     codec->level                 = par->level;
-
+    //03.音视频等特有
     switch (par->codec_type) {
-    case AVMEDIA_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO://视频三要素
         codec->pix_fmt                = par->format;
         codec->width                  = par->width;
         codec->height                 = par->height;
@@ -2139,7 +2139,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->sample_aspect_ratio    = par->sample_aspect_ratio;
         codec->has_b_frames           = par->video_delay;
         break;
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://音频三要素
         codec->sample_fmt       = par->format;
         codec->channel_layout   = par->channel_layout;
         codec->channels         = par->channels;
@@ -2156,7 +2156,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->height = par->height;
         break;
     }
-
+    //04.额外信息
     if (par->extradata) {
         av_freep(&codec->extradata);
         codec->extradata = av_mallocz(par->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);

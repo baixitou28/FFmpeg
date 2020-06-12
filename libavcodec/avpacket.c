@@ -701,7 +701,7 @@ int av_packet_make_writable(AVPacket *pkt)
     return 0;
 }
 
-void av_packet_rescale_ts(AVPacket *pkt, AVRational src_tb, AVRational dst_tb)
+void av_packet_rescale_ts(AVPacket *pkt, AVRational src_tb, AVRational dst_tb)//只有pkt的pts，dts，duration 存在的情况下才进行转化
 {
     if (pkt->pts != AV_NOPTS_VALUE)
         pkt->pts = av_rescale_q(pkt->pts, src_tb, dst_tb);

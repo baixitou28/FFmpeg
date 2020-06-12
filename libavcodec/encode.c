@@ -118,7 +118,7 @@ fail:
 int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
                                               AVPacket *avpkt,
                                               const AVFrame *frame,
-                                              int *got_packet_ptr)
+                                              int *got_packet_ptr)//从原始的采样值，变为指定的编码
 {
     AVFrame *extended_frame = NULL;
     AVFrame *padded_frame = NULL;
@@ -127,19 +127,19 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
     int needs_realloc = !user_pkt.data;
 
     *got_packet_ptr = 0;
-
-    if (!avctx->codec->encode2) {
+    //01.校验
+    if (!avctx->codec->encode2) {//总得有编码器吧 举例 ff_aac_encoder 的 .encode2        = aac_encode_frame,//tiger aac 编码主函数
         av_log(avctx, AV_LOG_ERROR, "This encoder requires using the avcodec_send_frame() API.\n");
         return AVERROR(ENOSYS);
     }
 
     if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY) && !frame) {
-        av_packet_unref(avpkt);
+        av_packet_unref(avpkt);//如果编码器有AV_CODEC_CAP_DELAY能力，语序frame为空
         return 0;
     }
-
+    //02.
     /* ensure that extended_data is properly set */
-    if (frame && !frame->extended_data) {
+    if (frame && !frame->extended_data) {//举例：
         if (av_sample_fmt_is_planar(avctx->sample_fmt) &&
             avctx->channels > AV_NUM_DATA_POINTERS) {
             av_log(avctx, AV_LOG_ERROR, "Encoding to a planar sample format, "
@@ -157,23 +157,23 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
         extended_frame->extended_data = extended_frame->data;
         frame = extended_frame;
     }
-
+    //03.
     /* extract audio service type metadata */
-    if (frame) {
+    if (frame) {//举例:
         AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_AUDIO_SERVICE_TYPE);
         if (sd && sd->size >= sizeof(enum AVAudioServiceType))
             avctx->audio_service_type = *(enum AVAudioServiceType*)sd->data;
     }
-
+    //04.
     /* check for valid frame size */
     if (frame) {
-        if (avctx->codec->capabilities & AV_CODEC_CAP_SMALL_LAST_FRAME) {
+        if (avctx->codec->capabilities & AV_CODEC_CAP_SMALL_LAST_FRAME) {//04.01.
             if (frame->nb_samples > avctx->frame_size) {
                 av_log(avctx, AV_LOG_ERROR, "more samples than frame size (avcodec_encode_audio2)\n");
                 ret = AVERROR(EINVAL);
                 goto end;
             }
-        } else if (!(avctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)) {
+        } else if (!(avctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)) {//04.02
             if (frame->nb_samples < avctx->frame_size &&
                 !avctx->internal->last_audio_frame) {
                 ret = pad_last_frame(avctx, &padded_frame, frame);
@@ -184,7 +184,7 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
                 avctx->internal->last_audio_frame = 1;
             }
 
-            if (frame->nb_samples != avctx->frame_size) {
+            if (frame->nb_samples != avctx->frame_size) {//04.03
                 av_log(avctx, AV_LOG_ERROR, "nb_samples (%d) != frame_size (%d) (avcodec_encode_audio2)\n", frame->nb_samples, avctx->frame_size);
                 ret = AVERROR(EINVAL);
                 goto end;
@@ -193,8 +193,8 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
     }
 
     av_assert0(avctx->codec->encode2);
-
-    ret = avctx->codec->encode2(avctx, avpkt, frame, got_packet_ptr);
+    //05. 主函数
+    ret = avctx->codec->encode2(avctx, avpkt, frame, got_packet_ptr);//举例 ff_aac_encoder 的 .encode2        = aac_encode_frame,
     if (!ret) {
         if (*got_packet_ptr) {
             if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY)) {
@@ -208,7 +208,7 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
         } else {
             avpkt->size = 0;
         }
-    }
+    }//06.
     if (avpkt->data && avpkt->data == avctx->internal->byte_buffer) {
         needs_realloc = 0;
         if (user_pkt.data) {
@@ -227,7 +227,7 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
                 goto end;
         }
     }
-
+    //07.
     if (!ret) {
         if (needs_realloc && avpkt->data) {
             ret = av_buffer_realloc(&avpkt->buf, avpkt->size + AV_INPUT_BUFFER_PADDING_SIZE);
@@ -242,7 +242,7 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
         av_packet_unref(avpkt);
         goto end;
     }
-
+    //08.
     /* NOTE: if we add any audio encoders which output non-keyframe packets,
      *       this needs to be moved to the encoders, but for now we can do it
      *       here to simplify things */
@@ -357,10 +357,10 @@ static int do_encode(AVCodecContext *avctx, const AVFrame *frame, int *got_packe
 {
     int ret;
     *got_packet = 0;
-
+    //01.
     av_packet_unref(avctx->internal->buffer_pkt);
     avctx->internal->buffer_pkt_valid = 0;
-
+    //02.根据音视频，调用不同函数
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
         ret = avcodec_encode_video2(avctx, avctx->internal->buffer_pkt,
                                     frame, got_packet);
@@ -370,7 +370,7 @@ static int do_encode(AVCodecContext *avctx, const AVFrame *frame, int *got_packe
     } else {
         ret = AVERROR(EINVAL);
     }
-
+    //03.
     if (ret >= 0 && *got_packet) {
         // Encoders must always return ref-counted buffers.
         // Side-data only packets have no data and can be not ref-counted.
@@ -384,22 +384,22 @@ static int do_encode(AVCodecContext *avctx, const AVFrame *frame, int *got_packe
     return ret;
 }
 
-int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame)
-{
+int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame)//TIGER avcodec_send_frame-->do_encode-->avcodec_encode_audio2/avcodec_encode_video2
+{   
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
-
+    //01.
     if (avctx->internal->draining)
         return AVERROR_EOF;
-
+    //02.
     if (!frame) {
         avctx->internal->draining = 1;
 
         if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY))
             return 0;
     }
-
-    if (avctx->codec->send_frame)
+    //03.
+    if (avctx->codec->send_frame)//举例
         return avctx->codec->send_frame(avctx, frame);
 
     // Emulation via old API. Do it here instead of avcodec_receive_packet, because:
@@ -407,28 +407,28 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
     //    expensive than copying the packet data
     // 2. assume few users use non-refcounted AVPackets, so usually no copy is
     //    needed
-
+    //04.
     if (avctx->internal->buffer_pkt_valid)
         return AVERROR(EAGAIN);
-
+    //05.
     return do_encode(avctx, frame, &(int){0});
 }
 
 int attribute_align_arg avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 {
     av_packet_unref(avpkt);
-
+    //01.
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
-
-    if (avctx->codec->receive_packet) {
+    //02.
+    if (avctx->codec->receive_packet) {//举例只有几个硬件编码才有 如：ff_nvenc_encoder .receive_packet = ff_nvenc_receive_packet,
         if (avctx->internal->draining && !(avctx->codec->capabilities & AV_CODEC_CAP_DELAY))
             return AVERROR_EOF;
         return avctx->codec->receive_packet(avctx, avpkt);
     }
 
     // Emulation via old API.
-
+    //03. 暂时不看吧
     if (!avctx->internal->buffer_pkt_valid) {
         int got_packet;
         int ret;

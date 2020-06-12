@@ -1587,7 +1587,7 @@ typedef struct AVCodecContext {
      * - encoding: Set by user, if not then the default based on codec_id will be used.
      * - decoding: Set by user, will be converted to uppercase by libavcodec during init.
      */
-    unsigned int codec_tag;
+    unsigned int codec_tag;//¿´×¢ÊÍ
 
     void *priv_data;//¾ÙÀýalaw£ºPCMDecode
 

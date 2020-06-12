@@ -137,7 +137,7 @@ int64_t av_rescale(int64_t a, int64_t b, int64_t c) av_const;
  *
  * @see av_rescale(), av_rescale_q(), av_rescale_q_rnd()
  */
-int64_t av_rescale_rnd(int64_t a, int64_t b, int64_t c, enum AVRounding rnd) av_const;
+int64_t av_rescale_rnd(int64_t a, int64_t b, int64_t c, enum AVRounding rnd) av_const;//rnd是round的意思
 
 /**
  * Rescale a 64-bit integer by 2 rational numbers.
