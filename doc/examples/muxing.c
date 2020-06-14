@@ -400,7 +400,7 @@ static void open_video(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
     AVDictionary *opt = NULL;
     //可选项
     av_dict_copy(&opt, opt_arg, 0);
-    //上下文
+    //01. 用可选项打开编解码上下文，如果未指定codec，采用c->codec
     /* open the codec */
     ret = avcodec_open2(c, codec, &opt);
     av_dict_free(&opt);
@@ -408,14 +408,14 @@ static void open_video(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
         fprintf(stderr, "Could not open video codec: %s\n", av_err2str(ret));
         exit(1);
     }
-    //目标帧，重复使用
+    //02.目标帧，重复使用
     /* allocate and init a re-usable frame */
     ost->frame = alloc_picture(c->pix_fmt, c->width, c->height);
     if (!ost->frame) {
         fprintf(stderr, "Could not allocate video frame\n");
         exit(1);
     }
-    //临时帧，重复使用
+    //03. 临时帧，重复使用
     /* If the output format is not YUV420P, then a temporary YUV420P
      * picture is needed too. It is then converted to the required
      * output format. */
@@ -427,7 +427,7 @@ static void open_video(AVFormatContext *oc, AVCodec *codec, OutputStream *ost, A
             exit(1);
         }
     }
-    //ost->st->codecpar（AVStream(st)的AVCodecParameters）清零，复制Context里的参数，
+    //04. ost->st->codecpar（AVStream(st)的AVCodecParameters）清零，复制Context里的参数，
     /* copy the stream parameters to the muxer */
     ret = avcodec_parameters_from_context(ost->st->codecpar, c);
     if (ret < 0) {
@@ -477,9 +477,9 @@ static AVFrame *get_video_frame(OutputStream *ost)
          * to the codec pixel format if needed */
         if (!ost->sws_ctx) {
             ost->sws_ctx = sws_getContext(c->width, c->height,//初始化
-                                          AV_PIX_FMT_YUV420P,
+                                          AV_PIX_FMT_YUV420P,//源格式
                                           c->width, c->height,
-                                          c->pix_fmt,
+                                          c->pix_fmt,//目标格式
                                           SCALE_FLAGS, NULL, NULL, NULL);
             if (!ost->sws_ctx) {
                 fprintf(stderr,
@@ -487,15 +487,15 @@ static AVFrame *get_video_frame(OutputStream *ost)
                 exit(1);
             }
         }
-        fill_yuv_image(ost->tmp_frame, ost->next_pts, c->width, c->height);
-        sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,//按比例缩放
+        fill_yuv_image(ost->tmp_frame, ost->next_pts, c->width, c->height);//点阵 先放到ost->tmp_frame
+        sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,//按比例缩放 再放到ost->frame
                   ost->tmp_frame->linesize, 0, c->height, ost->frame->data,
                   ost->frame->linesize);
     } else {
-        fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);
+        fill_yuv_image(ost->frame, ost->next_pts, c->width, c->height);//直接填充 直接放到ost->frame
     }
 
-    ost->frame->pts = ost->next_pts++;//这里只要加1即可
+    ost->frame->pts = ost->next_pts++;//这里只要加1即可，比音频简单
 
     return ost->frame;
 }
@@ -513,7 +513,7 @@ static int write_video_frame(AVFormatContext *oc, OutputStream *ost)
     AVPacket pkt = { 0 };
 
     c = ost->enc;
-    //01.取一帧
+    //01.取一帧，pts 加1即可
     frame = get_video_frame(ost);
     //02.初始化
     av_init_packet(&pkt);
@@ -524,7 +524,7 @@ static int write_video_frame(AVFormatContext *oc, OutputStream *ost)
         fprintf(stderr, "Error encoding video frame: %s\n", av_err2str(ret));
         exit(1);
     }
-    //04. 写入
+    //04. 如果有，才写入
     if (got_packet) {
         ret = write_frame(oc, &c->time_base, ost->st, &pkt);//时间转换 
     } else {
