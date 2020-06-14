@@ -1003,7 +1003,7 @@ typedef struct RcOverride{
  *       each output packet. If this flag is not set, the pts and duration will
  *       be determined by libavcodec from the input frame.
  */
-#define AV_CODEC_CAP_DELAY               (1 <<  5)
+#define AV_CODEC_CAP_DELAY               (1 <<  5)//TIGER 看代码 also means that the encoder must set the pts and duration
 /**
  * Codec can be fed a final frame with a smaller size.
  * This can be used to prevent truncation of the last audio samples.
@@ -1475,7 +1475,7 @@ typedef struct AVPacket {
      */
     int64_t dts;
     uint8_t *data;//数据的当前地址，指向buf的某个位置
-    int   size;//可存放数据的长度，不是实际数据的长度
+    int   size;//可存放数据的长度，不是实际数据的长度  //avcodec_encode_audio2 设置为0,为不可用
     int   stream_index;
     /**
      * A combination of AV_PKT_FLAG values

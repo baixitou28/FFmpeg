@@ -286,7 +286,7 @@ attribute_deprecated int ff_alloc_packet(AVPacket *avpkt, int size);
  * Rescale from sample rate to AVCodecContext.time_base.
  */
 static av_always_inline int64_t ff_samples_to_time_base(AVCodecContext *avctx,
-                                                        int64_t samples)
+                                                        int64_t samples)//通过采样个数/采样率，即可计算时间，同时转化为上下文的时间标准
 {
     if(samples == AV_NOPTS_VALUE)
         return AV_NOPTS_VALUE;

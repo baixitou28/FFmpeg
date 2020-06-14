@@ -109,7 +109,7 @@ int av_get_bytes_per_sample(enum AVSampleFormat sample_fmt)
         0 : sample_fmt_info[sample_fmt].bits >> 3;
 }
 
-int av_sample_fmt_is_planar(enum AVSampleFormat sample_fmt)//是否是堆叠planar的
+int av_sample_fmt_is_planar(enum AVSampleFormat sample_fmt)//是否按层或面planar，而不是交错
 {
      if (sample_fmt < 0 || sample_fmt >= AV_SAMPLE_FMT_NB)
          return 0;

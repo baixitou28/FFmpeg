@@ -1199,22 +1199,22 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)//output_packet
 
     if (pkt) {
         AVStream *st = s->streams[pkt->stream_index];
-        //添加 BSF(bitstream filters)
+        //01.添加 BSF(bitstream filters)
         ret = do_packet_auto_bsf(s, pkt);
         if (ret == 0)
             return 0;
         else if (ret < 0)
             goto fail;
-        //打印更多
+        //打印更多 tiger program
         if (s->debug & FF_FDEBUG_TS)
             av_log(s, AV_LOG_DEBUG, "av_interleaved_write_frame size:%d dts:%s pts:%s\n",
                 pkt->size, av_ts2str(pkt->dts), av_ts2str(pkt->pts));
-        //高版本打印更多，保守做法，只59以下，目前是58版本==>如果上新的avformat，就不打印？
+        //02. 高版本打印更多，保守做法，只59以下，目前是58版本==>如果上新的avformat，就不打印？
 #if FF_API_COMPUTE_PKT_FIELDS2 && FF_API_LAVF_AVCTX
         if ((ret = compute_muxer_pkt_fields(s, st, pkt)) < 0 && !(s->oformat->flags & AVFMT_NOTIMESTAMPS))
             goto fail;
 #endif
-        //如果没有时间戳
+        //03.如果没有时间戳
         if (pkt->dts == AV_NOPTS_VALUE && !(s->oformat->flags & AVFMT_NOTIMESTAMPS)) {
             ret = AVERROR(EINVAL);
             goto fail;
@@ -1223,10 +1223,10 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)//output_packet
         av_log(s, AV_LOG_TRACE, "av_interleaved_write_frame FLUSH\n");
         flush = 1;
     }
-
+    //
     for (;; ) {
         AVPacket opkt;
-        int ret = interleave_packet(s, &opkt, pkt, flush);//方式A写
+        int ret = interleave_packet(s, &opkt, pkt, flush);//04.方式A写
         if (pkt) {//如果pkt没有释放
             memset(pkt, 0, sizeof(*pkt));
             av_init_packet(pkt);
@@ -1235,7 +1235,7 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)//output_packet
         if (ret <= 0) //FIXME cleanup needed for ret<0 ?
             return ret;
 
-        ret = write_packet(s, &opkt);//方式B写:将复制后的opkt，放入内部队列
+        ret = write_packet(s, &opkt);//05.方式B写:将复制后的opkt，放入内部队列
         if (ret >= 0)
             s->streams[opkt.stream_index]->nb_frames++;//T统计
 
@@ -1254,7 +1254,7 @@ fail:
 int av_write_trailer(AVFormatContext *s)
 {
     int ret, i;
-
+    //01. 强制结束
     for (;; ) {
         AVPacket pkt;
         ret = interleave_packet(s, &pkt, NULL, 1);//用null，迫使结束
@@ -1275,7 +1275,7 @@ int av_write_trailer(AVFormatContext *s)
             goto fail;
     }
 
-fail://
+fail://02.
     if (s->oformat->write_trailer) {
         if (!(s->oformat->flags & AVFMT_NOFILE) && s->pb)
             avio_write_marker(s->pb, AV_NOPTS_VALUE, AVIO_DATA_MARKER_TRAILER);
@@ -1285,13 +1285,13 @@ fail://
             s->oformat->write_trailer(s);
         }
     }
-    //析构
+    //03.析构
     if (s->oformat->deinit)
         s->oformat->deinit(s);
 
     s->internal->initialized =
     s->internal->streams_initialized = 0;
-    //刷新
+    //04.刷新
     if (s->pb)
        avio_flush(s->pb);
     if (ret == 0)
