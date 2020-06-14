@@ -524,7 +524,7 @@ static int64_t get_bit_rate(AVCodecContext *ctx)//音频可以通过编解码ID来获取，视
 static void ff_lock_avcodec(AVCodecContext *log_ctx, const AVCodec *codec)
 {
     if (!(codec->caps_internal & FF_CODEC_CAP_INIT_THREADSAFE) && codec->init)
-        ff_mutex_lock(&codec_mutex);
+        ff_mutex_lock(&codec_mutex);//这个是全局锁
 }
 
 static void ff_unlock_avcodec(const AVCodec *codec)
@@ -554,7 +554,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     //01.find_steam_info时候已经打开过了？，这个是用s->internal来判断是否的
     if (avcodec_is_open(avctx))
         return 0;
-    //02.
+    //02.校验
     if ((!codec && !avctx->codec)) {
         av_log(avctx, AV_LOG_ERROR, "No codec provided to avcodec_open2()\n");
         return AVERROR(EINVAL);
@@ -564,15 +564,15 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
                                     "but %s passed to avcodec_open2()\n", avctx->codec->name, codec->name);
         return AVERROR(EINVAL);
     }
-    if (!codec)//04.
+    if (!codec)//04.使用context的编解码
         codec = avctx->codec;
-    //05.
+    //05.校验
     if (avctx->extradata_size < 0 || avctx->extradata_size >= FF_MAX_EXTRADATA_SIZE)
         return AVERROR(EINVAL);
     //06.
     if (options)
         av_dict_copy(&tmp, *options, 0);
-    //06.为什么要上锁？是
+    //06.使用编解码的全局锁codec_mutex，在末尾即23步才释放 ==>主要是锁什么？哪里会冲突？==> //tiger TODO:
     ff_lock_avcodec(avctx, codec);
     //07.分配内存 包含find_stream_info的很多变量
     avctx->internal = av_mallocz(sizeof(*avctx->internal));//AVCodecInternal
@@ -1897,7 +1897,7 @@ void ff_thread_report_progress2(AVCodecContext *avctx, int field, int thread, in
 
 int avcodec_is_open(AVCodecContext *s)
 {
-    return !!s->internal;
+    return !!s->internal;//这样返回的是1，不是指针，可直接转化为true
 }
 
 int avpriv_bprint_to_extradata(AVCodecContext *avctx, struct AVBPrint *buf)
@@ -2056,7 +2056,7 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
 }
 
 int avcodec_parameters_from_context(AVCodecParameters *par,
-                                    const AVCodecContext *codec)//tiger 重要函数，省去一堆设置
+                                    const AVCodecContext *codec)//tiger 重要函数，省去一堆设置， 主要是编解码id，名称，音视频类型，比特率，视频profile，音视频三要素
 {   //01. 重置
     codec_parameters_reset(par);//比我想象极端，直接AVCodecParameters清零.
     //02.
