@@ -3569,19 +3569,19 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
 {
     int i, count = 0, ret = 0, j;
     int64_t read_size;
-    AVStream *st;
+    AVStream *st;//流
     AVCodecContext *avctx;//指向内部的结构体st->internal->avctx
-    AVPacket pkt1, *pkt;
-    int64_t old_offset  = avio_tell(ic->pb);//自定义
+    AVPacket pkt1, *pkt;//包
+    int64_t old_offset  = avio_tell(ic->pb);//自定义流的位置
     // new streams might appear, no options for those
-    int orig_nb_streams = ic->nb_streams;
-    int flush_codecs;
-    int64_t max_analyze_duration = ic->max_analyze_duration;
-    int64_t max_stream_analyze_duration;
-    int64_t max_subtitle_analyze_duration;
-    int64_t probesize = ic->probesize;
-    int eof_reached = 0;
-    int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");//这个选项？
+    int orig_nb_streams = ic->nb_streams;//原始的流个数
+    int flush_codecs;//probe需要不停分析解碼器
+    int64_t max_analyze_duration = ic->max_analyze_duration;//最大分析时长
+    int64_t max_stream_analyze_duration;//最大流分析时长
+    int64_t max_subtitle_analyze_duration;//最大字幕分析时长
+    int64_t probesize = ic->probesize;//分析的字节数
+    int eof_reached = 0;//是否到末尾
+    int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");//特殊选项
     //01.参数初始化
     flush_codecs = probesize > 0;
     //增加一个选项
