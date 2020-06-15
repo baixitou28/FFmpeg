@@ -368,7 +368,7 @@ finish:
  * @return one of the input values, may be AV_NOPTS_VALUE
  */
 static int64_t guess_correct_pts(AVCodecContext *ctx,
-                                 int64_t reordered_pts, int64_t dts)
+                                 int64_t reordered_pts, int64_t dts)//TIGER 重要
 {
     int64_t pts = AV_NOPTS_VALUE;
 
@@ -399,7 +399,7 @@ static int64_t guess_correct_pts(AVCodecContext *ctx,
  * returning any output, so this function needs to be called in a loop until it
  * returns EAGAIN.
  **/
-static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)
+static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)//主函数 调用avctx->codec->decode或者ff_thread_decode_frame
 {
     AVCodecInternal   *avci = avctx->internal;
     DecodeSimpleContext *ds = &avci->ds;
@@ -407,7 +407,7 @@ static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)
     // copy to ensure we do not change pkt
     int got_frame, actual_got_frame;
     int ret;
-
+    //01.
     if (!pkt->data && !avci->draining) {
         av_packet_unref(pkt);
         ret = ff_decode_get_packet(avctx, pkt);
@@ -426,15 +426,15 @@ static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)
         return AVERROR_EOF;
 
     got_frame = 0;
-
+    //02.
     if (HAVE_THREADS && avctx->active_thread_type & FF_THREAD_FRAME) {
-        ret = ff_thread_decode_frame(avctx, frame, &got_frame, pkt);
+        ret = ff_thread_decode_frame(avctx, frame, &got_frame, pkt);//用线程来解析 decode_receive_frame_internal-->decode_simple_receive_frame-->decode_simple_internal-->ff_thread_decode_frame -->submit_packet
     } else {
-        ret = avctx->codec->decode(avctx, frame, &got_frame, pkt);
+        ret = avctx->codec->decode(avctx, frame, &got_frame, pkt);//主函数
 
         if (!(avctx->codec->caps_internal & FF_CODEC_CAP_SETS_PKT_DTS))
             frame->pkt_dts = pkt->dts;
-        if (avctx->codec->type == AVMEDIA_TYPE_VIDEO) {
+        if (avctx->codec->type == AVMEDIA_TYPE_VIDEO) {//特例
             if(!avctx->has_b_frames)
                 frame->pkt_pos = pkt->pos;
             //FIXME these should be under if(!avctx->has_b_frames)
@@ -452,7 +452,7 @@ static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)
 
     if (avctx->codec->type == AVMEDIA_TYPE_VIDEO) {
         if (frame->flags & AV_FRAME_FLAG_DISCARD)
-            got_frame = 0;
+            got_frame = 0;//如果是直接丢弃的，就不要标记got_frame为1了
         if (got_frame)
             frame->best_effort_timestamp = guess_correct_pts(avctx,
                                                              frame->pts,
@@ -464,7 +464,7 @@ static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)
         uint8_t skip_reason = 0;
         uint8_t discard_reason = 0;
 
-        if (ret >= 0 && got_frame) {
+        if (ret >= 0 && got_frame) {//如果参数没有，就从上下文里取
             frame->best_effort_timestamp = guess_correct_pts(avctx,
                                                              frame->pts,
                                                              frame->pkt_dts);
@@ -750,8 +750,8 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
     if (avci->buffer_frame->buf[0]) {
         av_frame_move_ref(frame, avci->buffer_frame);
     } else {
-        ret = decode_receive_frame_internal(avctx, frame);
-        if (ret < 0)
+        ret = decode_receive_frame_internal(avctx, frame);//decode_receive_frame_internal-->decode_simple_receive_frame-->decode_simple_internal-->ff_thread_decode_frame -->submit_packet
+        if (ret < 0)//或decode_receive_frame_internal-->decode_simple_receive_frame-->decode_simple_internal-->avctx->codec->decode
             return ret;
     }
 
@@ -765,7 +765,7 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
 
     avctx->frame_number++;
 
-    if (avctx->flags & AV_CODEC_FLAG_DROPCHANGED) {
+    if (avctx->flags & AV_CODEC_FLAG_DROPCHANGED) {//这个是可选项的一个需求：{"drop_changed", "Drop frames whose parameters differ from first decoded frame", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_DROPCHANGED }, INT_MIN, INT_MAX, A|V|D, "flags"},
 
         if (avctx->frame_number == 1) {
             avci->initial_format = frame->format;
@@ -799,7 +799,7 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
                 break;
             }
 
-            if (changed) {
+            if (changed) {//如果有变化，drop掉
                 avci->changed_frames_dropped++;
                 av_log(avctx, AV_LOG_INFO, "dropped changed frame #%d pts %"PRId64
                                             " drop count: %d \n",

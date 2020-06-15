@@ -1550,14 +1550,14 @@ int av_get_bits_per_sample(enum AVCodecID codec_id)
 
 static int get_audio_frame_duration(enum AVCodecID id, int sr, int ch, int ba,
                                     uint32_t tag, int bits_per_coded_sample, int64_t bitrate,
-                                    uint8_t * extradata, int frame_size, int frame_bytes)
+                                    uint8_t * extradata, int frame_size, int frame_bytes)//tiger 复杂的计算, alaw 直接返回320
 {
-    int bps = av_get_exact_bits_per_sample(id);
-    int framecount = (ba > 0 && frame_bytes / ba > 0) ? frame_bytes / ba : 1;
+    int bps = av_get_exact_bits_per_sample(id);//AWAW: 8
+    int framecount = (ba > 0 && frame_bytes / ba > 0) ? frame_bytes / ba : 1;//TIGER AWLAW ba =1 frame_bytes=320， framecount = 320
 
     /* codecs with an exact constant bits per sample */
     if (bps > 0 && ch > 0 && frame_bytes > 0 && ch < 32768 && bps < 32768)
-        return (frame_bytes * 8LL) / (bps * ch);
+        return (frame_bytes * 8LL) / (bps * ch);//awaw: 320
     bps = bits_per_coded_sample;
 
     /* codecs with a fixed packet duration */
@@ -2117,7 +2117,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
 {   //01. 编码
     codec->codec_type = par->codec_type;//音视频等类型
     codec->codec_id   = par->codec_id;//编码ID
-    codec->codec_tag  = par->codec_tag;//编码名称
+    codec->codec_tag  = par->codec_tag;//编码名称  //ALAW par：codec_type = AVMEDIA_TYPE_AUDIO, codec_id = AV_CODEC_ID_PCM_ALAW, codec_tag = 0,
     //02.通用
     codec->bit_rate              = par->bit_rate;//最好设置
     codec->bits_per_coded_sample = par->bits_per_coded_sample;//可计算
@@ -2140,7 +2140,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->has_b_frames           = par->video_delay;
         break;
     case AVMEDIA_TYPE_AUDIO://音频三要素
-        codec->sample_fmt       = par->format;
+        codec->sample_fmt       = par->format;//ALAW par：codec_type = AVMEDIA_TYPE_AUDIO, codec_id = AV_CODEC_ID_PCM_ALAW, codec_tag = 0, extradata = 0x0, extradata_size = 0, format = -1, bit_rate = 0,bits_per_coded_sample = 8, bits_per_raw_sample = 0, profile = -99, level = -99, width = 0, height = 0, sample_aspect_ratio = {num = 0, den = 1},field_order = AV_FIELD_UNKNOWN, color_range = AVCOL_RANGE_UNSPECIFIED, color_primaries = AVCOL_PRI_UNSPECIFIED, color_trc = AVCOL_TRC_UNSPECIFIED,color_space = AVCOL_SPC_UNSPECIFIED, chroma_location = AVCHROMA_LOC_UNSPECIFIED, video_delay = 0, channel_layout = 0, channels = 1, sample_rate = 8000, block_align = 1, frame_size = 0, initial_padding = 0, trailing_padding = 0, seek_preroll = 0}
         codec->channel_layout   = par->channel_layout;
         codec->channels         = par->channels;
         codec->sample_rate      = par->sample_rate;
