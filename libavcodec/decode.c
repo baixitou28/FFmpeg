@@ -430,7 +430,7 @@ static int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame)//主函数
     if (HAVE_THREADS && avctx->active_thread_type & FF_THREAD_FRAME) {
         ret = ff_thread_decode_frame(avctx, frame, &got_frame, pkt);//用线程来解析 decode_receive_frame_internal-->decode_simple_receive_frame-->decode_simple_internal-->ff_thread_decode_frame -->submit_packet
     } else {
-        ret = avctx->codec->decode(avctx, frame, &got_frame, pkt);//主函数
+        ret = avctx->codec->decode(avctx, frame, &got_frame, pkt);//主函数 
 
         if (!(avctx->codec->caps_internal & FF_CODEC_CAP_SETS_PKT_DTS))
             frame->pkt_dts = pkt->dts;
