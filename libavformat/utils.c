@@ -3209,7 +3209,7 @@ int av_codec_get_tag2(const AVCodecTag * const *tags, enum AVCodecID id,
     return 0;
 }
 
-enum AVCodecID av_codec_get_id(const AVCodecTag *const *tags, unsigned int tag)
+enum AVCodecID av_codec_get_id(const AVCodecTag *const *tags, unsigned int tag)//通过tag名称来获取id
 {
     int i;
     for (i = 0; tags && tags[i]; i++) {
@@ -4331,7 +4331,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     return 0;
 }
 
-static void free_stream(AVStream **pst)
+static void free_stream(AVStream **pst)//释放
 {
     AVStream *st = *pst;
     int i;
@@ -4383,7 +4383,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     av_freep(pst);
 }
 
-void ff_free_stream(AVFormatContext *s, AVStream *st)
+void ff_free_stream(AVFormatContext *s, AVStream *st)//
 {
     av_assert0(s->nb_streams>0);
     av_assert0(s->streams[ s->nb_streams - 1 ] == st);
@@ -4391,7 +4391,7 @@ void ff_free_stream(AVFormatContext *s, AVStream *st)
     free_stream(&s->streams[ --s->nb_streams ]);
 }
 
-void avformat_free_context(AVFormatContext *s)
+void avformat_free_context(AVFormatContext *s)//释放AVFormatContext
 {
     int i;
 
@@ -4835,7 +4835,7 @@ int ff_mkdir_p(const char *path)
     return ret;
 }
 
-char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase)
+char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase)//转为16进制字符
 {
     int i;
     static const char hex_table_uc[16] = { '0', '1', '2', '3',
@@ -4856,7 +4856,7 @@ char *ff_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase)
     return buff;
 }
 
-int ff_hex_to_data(uint8_t *data, const char *p)
+int ff_hex_to_data(uint8_t *data, const char *p)//16进制字符转数字
 {
     int c, len, v;
 
@@ -4914,7 +4914,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     s->pts_wrap_bits = pts_wrap_bits;
 }
 
-void ff_parse_key_value(const char *str, ff_parse_key_val_cb callback_get_buf,
+void ff_parse_key_value(const char *str, ff_parse_key_val_cb callback_get_buf,//解析
                         void *context)
 {
     const char *ptr = str;
@@ -5007,7 +5007,7 @@ int avformat_network_init(void)
     return 0;
 }
 
-int avformat_network_deinit(void)
+int avformat_network_deinit(void)//退出网络
 {
 #if CONFIG_NETWORK
     ff_network_close();//windows 影响比较大
@@ -5309,7 +5309,7 @@ error:
     return ret;
 }
 
-int ff_generate_avci_extradata(AVStream *st)
+int ff_generate_avci_extradata(AVStream *st)//产生sps和pps
 {
     static const uint8_t avci100_1080p_extradata[] = {
         // SPS
@@ -5629,12 +5629,12 @@ int av_apply_bitstream_filters(AVCodecContext *codec, AVPacket *pkt,
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-int ff_format_output_open(AVFormatContext *s, const char *url, AVDictionary **options)
+int ff_format_output_open(AVFormatContext *s, const char *url, AVDictionary **options)//AVFormatContext
 {
     if (!s->oformat)
         return AVERROR(EINVAL);
 
-    if (!(s->oformat->flags & AVFMT_NOFILE))
+    if (!(s->oformat->flags & AVFMT_NOFILE))//如果有问题，打开
         return s->io_open(s, &s->pb, url, AVIO_FLAG_WRITE, options);
     return 0;
 }
