@@ -945,24 +945,24 @@ static int determinable_frame_size(AVCodecContext *avctx)
 /**
  * Return the frame duration in seconds. Return 0 if not available.
  */
-void ff_compute_frame_duration(AVFormatContext *s, int *pnum, int *pden, AVStream *st,
+void ff_compute_frame_duration(AVFormatContext *s, int *pnum, int *pden, AVStream *st,//TIGER ALAW: pnum=320, pden=8000, 320/8000相当于40ms
                                AVCodecParserContext *pc, AVPacket *pkt)
-{
+{//01. alaw codec_framerate={num = 0, den = 1}
     AVRational codec_framerate = s->iformat ? st->internal->avctx->framerate :
                                               av_mul_q(av_inv_q(st->internal->avctx->time_base), (AVRational){1, st->internal->avctx->ticks_per_frame});
     int frame_size, sample_rate;
-
+    //02.
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
     if ((!codec_framerate.den || !codec_framerate.num) && st->codec->time_base.den && st->codec->time_base.num)
         codec_framerate = av_mul_q(av_inv_q(st->codec->time_base), (AVRational){1, st->codec->ticks_per_frame});
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-
+    //03.
     *pnum = 0;
     *pden = 0;
     switch (st->codecpar->codec_type) {
-    case AVMEDIA_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO://03.01
         if (st->r_frame_rate.num && !pc && s->iformat) {
             *pnum = st->r_frame_rate.den;
             *pden = st->r_frame_rate.num;
@@ -990,10 +990,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 *pnum = *pden = 0;
         }
         break;
-    case AVMEDIA_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO://03.02 alaw: 320/8000= 40ms
         if (st->internal->avctx_inited) {
-            frame_size = av_get_audio_frame_duration(st->internal->avctx, pkt->size);
-            sample_rate = st->internal->avctx->sample_rate;
+            frame_size = av_get_audio_frame_duration(st->internal->avctx, pkt->size);//alaw:  frame_size =320 , pkt->size = 320
+            sample_rate = st->internal->avctx->sample_rate;//alaw:  sample_rate=8000, 
         } else {
             frame_size = av_get_audio_frame_duration2(st->codecpar, pkt->size);
             sample_rate = st->codecpar->sample_rate;
@@ -1227,47 +1227,47 @@ static void update_initial_durations(AVFormatContext *s, AVStream *st,
 
 static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
                                AVCodecParserContext *pc, AVPacket *pkt,
-                               int64_t next_dts, int64_t next_pts)//tiger
+                               int64_t next_dts, int64_t next_pts)//tiger 把这么多特例放一起，真是晕
 {
     int num, den, presentation_delayed, delay, i;
     int64_t offset;
     AVRational duration;
-    int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&
+    int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&//01.读取out.al 时onein_oneout =1 ，特例：H264 H265不是
                        st->codecpar->codec_id != AV_CODEC_ID_HEVC;
-
+    //02.特例
     if (s->flags & AVFMT_FLAG_NOFILLIN)
         return;
-
+    //03.如果视频且pkt含dts
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && pkt->dts != AV_NOPTS_VALUE) {
         if (pkt->dts == pkt->pts && st->last_dts_for_order_check != AV_NOPTS_VALUE) {
-            if (st->last_dts_for_order_check <= pkt->dts) {
+            if (st->last_dts_for_order_check <= pkt->dts) {//是否是单调增长
                 st->dts_ordered++;
             } else {
-                av_log(s, st->dts_misordered ? AV_LOG_DEBUG : AV_LOG_WARNING,
+                av_log(s, st->dts_misordered ? AV_LOG_DEBUG : AV_LOG_WARNING,//打印
                        "DTS %"PRIi64" < %"PRIi64" out of order\n",
                        pkt->dts,
                        st->last_dts_for_order_check);
-                st->dts_misordered++;
+                st->dts_misordered++;//失序
             }
-            if (st->dts_ordered + st->dts_misordered > 250) {
+            if (st->dts_ordered + st->dts_misordered > 250) {//大于250，减半，便于统计吗？
                 st->dts_ordered    >>= 1;
                 st->dts_misordered >>= 1;
             }
         }
 
-        st->last_dts_for_order_check = pkt->dts;
+        st->last_dts_for_order_check = pkt->dts;//保存看是否失序
         if (st->dts_ordered < 8*st->dts_misordered && pkt->dts == pkt->pts)
             pkt->dts = AV_NOPTS_VALUE;
     }
-
+    //04.
     if ((s->flags & AVFMT_FLAG_IGNDTS) && pkt->pts != AV_NOPTS_VALUE)
         pkt->dts = AV_NOPTS_VALUE;
-
+    //05.视频的b帧
     if (pc && pc->pict_type == AV_PICTURE_TYPE_B
         && !st->internal->avctx->has_b_frames)
         //FIXME Set low_delay = 0 when has_b_frames = 1
         st->internal->avctx->has_b_frames = 1;
-
+    
     /* do we have a video B-frame ? */
     delay = st->internal->avctx->has_b_frames;
     presentation_delayed = 0;
@@ -1277,16 +1277,16 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
     if (delay &&
         pc && pc->pict_type != AV_PICTURE_TYPE_B)
         presentation_delayed = 1;
-
+    //06.不理解 //tiger todo
     if (pkt->pts != AV_NOPTS_VALUE && pkt->dts != AV_NOPTS_VALUE &&
-        st->pts_wrap_bits < 63 &&
+        st->pts_wrap_bits < 63 &&//举例 alaw ：st->pts_wrap_bits =64
         pkt->dts - (1LL << (st->pts_wrap_bits - 1)) > pkt->pts) {
         if (is_relative(st->cur_dts) || pkt->dts - (1LL<<(st->pts_wrap_bits - 1)) > st->cur_dts) {
             pkt->dts -= 1LL << st->pts_wrap_bits;
         } else
             pkt->pts += 1LL << st->pts_wrap_bits;
     }
-
+    //08.注释
     /* Some MPEG-2 in MPEG-PS lack dts (issue #171 / input_file.mpg).
      * We take the conservative approach and discard both.
      * Note: If this is misbehaving for an H.264 file, then possibly
@@ -1298,10 +1298,10 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
              && strcmp(s->iformat->name, "flv")) // otherwise we discard correct timestamps for vc1-wmapro.ism
             pkt->dts = AV_NOPTS_VALUE;
     }
-
-    duration = av_mul_q((AVRational) {pkt->duration, 1}, st->time_base);
-    if (pkt->duration == 0) {
-        ff_compute_frame_duration(s, &num, &den, st, pc, pkt);
+    //09.
+    duration = av_mul_q((AVRational) {pkt->duration, 1}, st->time_base);//ALAW st->time_base:{num = 1, den = 8000}， 计算结果duration：{num = 0, den = 1}
+    if (pkt->duration == 0) {//
+        ff_compute_frame_duration(s, &num, &den, st, pc, pkt);//AWAW:num =320，den=8000
         if (den && num) {
             duration = (AVRational) {num, den};
             pkt->duration = av_rescale_rnd(1,
@@ -1310,10 +1310,10 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
                                            AV_ROUND_DOWN);
         }
     }
-
+    //10.
     if (pkt->duration != 0 && (s->internal->packet_buffer || s->internal->parse_queue))
         update_initial_durations(s, st, pkt->stream_index, pkt->duration);
-
+    //11.
     /* Correct timestamps with byte offset if demuxers only have timestamps
      * on packet boundaries */
     if (pc && st->need_parsing == AVSTREAM_PARSE_TIMESTAMPS && pkt->size) {
@@ -1324,7 +1324,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
         if (pkt->dts != AV_NOPTS_VALUE)
             pkt->dts += offset;
     }
-
+    //12.
     /* This may be redundant, but it should not hurt. */
     if (pkt->dts != AV_NOPTS_VALUE &&
         pkt->pts != AV_NOPTS_VALUE &&
@@ -1336,7 +1336,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
             "IN delayed:%d pts:%s, dts:%s cur_dts:%s st:%d pc:%p duration:%"PRId64" delay:%d onein_oneout:%d\n",
             presentation_delayed, av_ts2str(pkt->pts), av_ts2str(pkt->dts), av_ts2str(st->cur_dts),
             pkt->stream_index, pc, pkt->duration, delay, onein_oneout);
-
+    //13.
     /* Interpolate PTS and DTS if they are not present. We skip H264
      * currently because delay and has_b_frames are not reliably set. */
     if ((delay == 0 || (delay == 1 && pc)) &&
@@ -1385,7 +1385,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
                 st->cur_dts = av_add_stable(st->time_base, pkt->pts, duration, 1);
         }
     }
-
+    //14.
     if (pkt->pts != AV_NOPTS_VALUE && delay <= MAX_REORDER_DELAY) {
         st->pts_buffer[0] = pkt->pts;
         for (i = 0; i<delay && st->pts_buffer[i] > st->pts_buffer[i + 1]; i++)
@@ -1395,7 +1395,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
             pkt->dts = select_from_pts_buffer(st, st->pts_buffer, pkt->dts);
     }
     // We skipped it above so we try here.
-    if (!onein_oneout)
+    if (!onein_oneout)//15.
         // This should happen on the first packet
         update_initial_timestamps(s, pkt->stream_index, pkt->dts, pkt->pts, pkt);
     if (pkt->dts > st->cur_dts)
@@ -1404,7 +1404,7 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
     if (s->debug & FF_FDEBUG_TS)
         av_log(s, AV_LOG_DEBUG, "OUTdelayed:%d/%d pts:%s, dts:%s cur_dts:%s st:%d (%d)\n",
             presentation_delayed, delay, av_ts2str(pkt->pts), av_ts2str(pkt->dts), av_ts2str(st->cur_dts), st->index, st->id);
-
+    //16.
     /* update flags */
     if (st->codecpar->codec_type == AVMEDIA_TYPE_DATA || is_intra_only(st->codecpar->codec_id))
         pkt->flags |= AV_PKT_FLAG_KEY;
@@ -1659,16 +1659,16 @@ FF_ENABLE_DEPRECATION_WARNINGS
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_RAW)
                 st->parser->flags |= PARSER_FLAG_USE_CODEC_TS;
         }
-        //02.05 不需要parse  ==>举例: alaw 就没有
+        //02.05 不需要parse  ==>举例: alaw 就没有st->parser ==0，st->need_parsing==0
         if (!st->need_parsing || !st->parser) {//st->codec:
             /* no parsing needed: we just output the packet as is */
             *pkt = cur_pkt;//直接输出即可
             compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
             if ((s->iformat->flags & AVFMT_GENERIC_INDEX) &&
                 (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {//TIGER ALAW 文件再次停留：
-                ff_reduce_index(s, st->index);
+                ff_reduce_index(s, st->index);//若条目太多，舍弃一半
                 av_add_index_entry(st, pkt->pos, pkt->dts,
-                                   0, 0, AVINDEX_KEYFRAME);
+                                   0, 0, AVINDEX_KEYFRAME); //加入st->index_entries,以便更好索引
             }
             got_packet = 1;
         } else if (st->discard < AVDISCARD_ALL) {//如果无需丢弃所有
@@ -1693,11 +1693,11 @@ FF_ENABLE_DEPRECATION_WARNINGS
             got_packet = 0;
         }
     }
-    //03.如果队列已有解析好的数据，直接从队列中取一个
+    //03.如果没有得到数据，而且队列已有解析好的数据，直接从队列中取一个
     if (!got_packet && s->internal->parse_queue)
         ret = ff_packet_list_get(&s->internal->parse_queue, &s->internal->parse_queue_end, pkt);
 
-    //04.如果AVPacket获取成功，设置side_data
+    //04.如果AVPacket获取成功，设置side_data，(但alaw，几乎不用做什么，没有discard，没有side_data， metadata)
     if (ret >= 0) {//?如果find_stream_info等，要跳过sample，那后期数据需要减去？
         AVStream *st = s->streams[pkt->stream_index];
         int discard_padding = 0;
@@ -1751,7 +1751,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
     //06.几个流里面逐一处理：从流里面获取参数更新到st->internal->avctx 和st->codec
 #if FF_API_LAVF_AVCTX
-    update_stream_avctx(s);//TIGER   avcodec_parameters_to_context(st->codec, st->codecpar); 和 avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
+    update_stream_avctx(s);//TIGER 如果未更新，更新一下 avcodec_parameters_to_context(st->codec, st->codecpar); 和 avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
 #endif
 
     if (s->debug & FF_FDEBUG_TS)//06.TIGER program 编程参考 可以增加日志
@@ -1965,16 +1965,16 @@ void ff_update_cur_dts(AVFormatContext *s, AVStream *ref_st, int64_t timestamp)
     }
 }
 
-void ff_reduce_index(AVFormatContext *s, int stream_index)
+void ff_reduce_index(AVFormatContext *s, int stream_index)//如果st->index_entries插入条目太多，舍弃其中的一半
 {
     AVStream *st             = s->streams[stream_index];
-    unsigned int max_entries = s->max_index_size / sizeof(AVIndexEntry);//01.
+    unsigned int max_entries = s->max_index_size / sizeof(AVIndexEntry);//01.alaw：s->max_index_size= 1048576， sizeof(AVIndexEntry) = 24， max_entries=43690
 
-    if ((unsigned) st->nb_index_entries >= max_entries) {//02.
+    if ((unsigned) st->nb_index_entries >= max_entries) {//02.如果entry太多了
         int i;
-        for (i = 0; 2 * i < st->nb_index_entries; i++)//03.
-            st->index_entries[i] = st->index_entries[2 * i];//04.
-        st->nb_index_entries = i;//05.
+        for (i = 0; 2 * i < st->nb_index_entries; i++)//03.循环直到最大值
+            st->index_entries[i] = st->index_entries[2 * i];//04.  st->index_entries看注释 舍弃其中的一半
+        st->nb_index_entries = i;//05.最后的值
     }
 }
 
@@ -1982,7 +1982,7 @@ int ff_add_index_entry(AVIndexEntry **index_entries,
                        int *nb_index_entries,
                        unsigned int *index_entries_allocated_size,
                        int64_t pos, int64_t timestamp,
-                       int size, int distance, int flags)//TIGER 
+                       int size, int distance, int flags)//TIGER 加入以便更好索引: 加一个entry，比如alaw，需要加入一条
 {
     AVIndexEntry *entries, *ie;
     int index;
@@ -2001,7 +2001,7 @@ int ff_add_index_entry(AVIndexEntry **index_entries,
 
     entries = av_fast_realloc(*index_entries,
                               index_entries_allocated_size,
-                              (*nb_index_entries + 1) *
+                              (*nb_index_entries + 1) *//举例 alaw ： (*nb_index_entries + 1) = 1， sizeof(AVIndexEntry)=24
                               sizeof(AVIndexEntry));
     if (!entries)
         return -1;
@@ -2037,7 +2037,7 @@ int ff_add_index_entry(AVIndexEntry **index_entries,
     return index;
 }
 
-int av_add_index_entry(AVStream *st, int64_t pos, int64_t timestamp,
+int av_add_index_entry(AVStream *st, int64_t pos, int64_t timestamp,//加入&st->index_entries以便更好索引
                        int size, int distance, int flags)
 {
     timestamp = wrap_timestamp(st, timestamp);
@@ -3016,7 +3016,7 @@ static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)//AVStream
 
 /* returns 1 or 0 if or if not decoded data was returned, or a negative error */
 static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//tiger try_decode_frame 未打开解码器，则打开，对于alaw,AAC和H264仅此而已
-                            AVDictionary **options)
+                            AVDictionary **options)//尝试解开一帧
 {
     AVCodecContext *avctx = st->internal->avctx;
     const AVCodec *codec;
@@ -3026,7 +3026,7 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//
     AVPacket pkt = *avpkt;
     int do_skip_frame = 0;
     enum AVDiscard skip_frame;
-    //01.
+    //01.校验
     if (!frame)
         return AVERROR(ENOMEM);
     //02. 打开decoder，初始化decoder
@@ -3034,11 +3034,11 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//
         st->info->found_decoder <= 0 &&
         (st->codecpar->codec_id != -st->info->found_decoder || !st->codecpar->codec_id)) {
         AVDictionary *thread_opt = NULL;
-        //打开decoder
+        //打开解码器
         codec = find_probe_decoder(s, st, st->codecpar->codec_id);
 
         if (!codec) {
-            st->info->found_decoder = -st->codecpar->codec_id;
+            st->info->found_decoder = -st->codecpar->codec_id;//为负数
             ret                     = -1;
             goto fail;
         }
@@ -3069,10 +3069,10 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//
         skip_frame = avctx->skip_frame;
         avctx->skip_frame = AVDISCARD_ALL;
     }
-    //05.
+    //05.编码解码 举例：alaw不会进入这个循环
     while ((pkt.size > 0 || (!pkt.data && got_picture)) &&
            ret >= 0 &&
-           (!has_codec_parameters(st, NULL) || !has_decode_delay_been_guessed(st) ||
+           (!has_codec_parameters(st, NULL) || !has_decode_delay_been_guessed(st) ||//举例：对于alaw has_codec_parameters(st, NULL) =1 ，has_decode_delay_been_guessed(st)=1
             (!st->codec_info_nb_frames &&
              (avctx->codec->capabilities & AV_CODEC_CAP_CHANNEL_CONF)))) {
         got_picture = 0;
@@ -3085,7 +3085,7 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//
                 pkt.size = 0;
             ret = avcodec_receive_frame(avctx, frame);//05.02.解出一帧
             if (ret >= 0)
-                got_picture = 1;
+                got_picture = 1;//解出一帧
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
                 ret = 0;
         } else if (avctx->codec_type == AVMEDIA_TYPE_SUBTITLE) {//字幕
@@ -3603,7 +3603,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
         av_log(ic, AV_LOG_DEBUG, "Before avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d nb_streams:%d\n",
                avio_tell(ic->pb), ic->pb->bytes_read, ic->pb->seek_count, ic->nb_streams);
     //02.每个流:找到parser，复制avcodec_parameters_to_context，find_probe_decoder，打开输入流
-    for (i = 0; i < ic->nb_streams; i++) {//逐一打开每个流
+    for (i = 0; i < ic->nb_streams; i++) {//逐一执行每个流
         const AVCodec *codec;
         AVDictionary *thread_opt = NULL;
         st = ic->streams[i];
@@ -3626,7 +3626,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
             st->internal->orig_codec_id = st->codec->codec_id;
         }
 FF_ENABLE_DEPRECATION_WARNINGS
-#endif
+#endif  //重要步骤01.parser 
         // only for the split stuff
         if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {//02.04如果：没设置parse的flag，也没有parser，probe已结束或者不需要
             st->parser = av_parser_init(st->codecpar->codec_id);//parser_list中configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
@@ -3645,13 +3645,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         if (st->codecpar->codec_id != st->internal->orig_codec_id)//如果是st->codecpar->codec_id 不一样，那codec_tag 之类能保持一致吗？==>TIGER todo:
             st->internal->orig_codec_id = st->codecpar->codec_id;//02.05 更新，前面3632行已经判断，这里相当于设置了标志位，已更改
-
+        //重要步骤01. 复制AVCodecParameters信息(音视频三要素等)
         ret = avcodec_parameters_to_context(avctx, st->codecpar);//02.06 将AVCodecParameters解码器的信息更新到内部find_stream_info的AVCodecContext context里
         if (ret < 0)
             goto find_stream_info_err;
         if (st->request_probe <= 0)//02.07 这个何解==>已经probe，或者probe不需要
             st->internal->avctx_inited = 1;//已经初始化
-
+        //重要步骤03. 解码器
         codec = find_probe_decoder(ic, st, st->codecpar->codec_id);//02.08 这个何解==>已经probe，或者probe不需要查找probe的解码器，如ff_pcm_alaw_decoder
 
         /* Force thread count to 1 since the H.264 decoder will not extract
@@ -3660,7 +3660,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         if (ic->codec_whitelist)//02.09 白名单
             av_dict_set(options ? &options[i] : &thread_opt, "codec_whitelist", ic->codec_whitelist, 0);
-
+        
         /* Ensure that subtitle_header is properly set. */
         if (st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE
             && codec && !avctx->codec) {//02.10字幕为什么要这么做？
@@ -3668,10 +3668,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 av_log(ic, AV_LOG_WARNING,
                        "Failed to open codec in %s\n",__FUNCTION__);
         }
-
+        //重要步骤04. 解码器上下文
         // Try to just open decoders, in case this is enough to get parameters.
         if (!has_codec_parameters(st, NULL) && st->request_probe <= 0) {//02.11 是否包含足够的参数 如视频需要足够的长和宽，音频一般需要采样率，声道数等
-            if (codec && !avctx->codec)
+            if (codec && !avctx->codec)//如果有解码器，且上下文未打开这个解码
                 if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)//这里相当于find_stream_info的初始化
                     av_log(ic, AV_LOG_WARNING,
                            "Failed to open codec in %s\n",__FUNCTION__);
@@ -3691,7 +3691,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     read_size = 0;
     for (;;) {
         int analyzed_all_streams;
-        if (ff_check_interrupt(&ic->interrupt_callback)) {//04.01 tiger 是否可以从这里强行退出
+        if (ff_check_interrupt(&ic->interrupt_callback)) {//04.01 tiger program 是否可以从这里强行退出
             ret = AVERROR_EXIT;
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
             break;
@@ -3699,12 +3699,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
         
         /* check if one codec still needs to be handled */
         for (i = 0; i < ic->nb_streams; i++) {//04.02几个stream 轮流执行
-            int fps_analyze_framecount = 20;
+            int fps_analyze_framecount = 20;//默认每秒20帧
             int count;
 
             st = ic->streams[i];
             if (!has_codec_parameters(st, NULL))//01. 编解码参数不对 但avctx->width不是find出来的，怎么在这里判断？是找到了复制到这里吗？==>再次判断吧
-                break;
+                break;//返回0，是异常
             /* If the timebase is coarse (like the usual millisecond precision
              * of mkv), we need to analyze more frames to reliably arrive at
              * the correct fps. */
@@ -3717,12 +3717,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (st->disposition & AV_DISPOSITION_ATTACHED_PIC)//又是特例
                 fps_analyze_framecount = 0;
             /* variable fps and no guess at the real fps */
-            count = (ic->iformat->flags & AVFMT_NOTIMESTAMPS) ?//特例：没有需要时间戳的情况
+            count = (ic->iformat->flags & AVFMT_NOTIMESTAMPS) ?//特例：没有需要时间戳的情况  
                        st->info->codec_info_duration_fields/2 :
                        st->info->duration_count;
             if (!(st->r_frame_rate.num && st->avg_frame_rate.num) &&
                 st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-                if (count < fps_analyze_framecount)
+                if (count < fps_analyze_framecount)//举例：alaw:count = 0,fps_analyze_framecount=20
                     break;//时间已经到了
             }
             // Look at the first 3 frames if there is evidence of frame delay
@@ -3784,19 +3784,19 @@ FF_ENABLE_DEPRECATION_WARNINGS
         }
         
         pkt = &pkt1;
-        //04.07
+        //04.07 放入队列，以便重新读取
         if (!(ic->flags & AVFMT_FLAG_NOBUFFER)) {
-            ret = ff_packet_list_put(&ic->internal->packet_buffer,
+            ret = ff_packet_list_put(&ic->internal->packet_buffer,//
                                      &ic->internal->packet_buffer_end,
                                      pkt, 0);
             if (ret < 0)
                 goto find_stream_info_err;
         }
-        //04.08
+        //04.08 统计值read_size 增加
         st = ic->streams[pkt->stream_index];
         if (!(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
             read_size += pkt->size;
-        //04.09
+        //04.09 更新内部AVCodecContext
         avctx = st->internal->avctx;
         if (!st->internal->avctx_inited) {
             ret = avcodec_parameters_to_context(avctx, st->codecpar);
@@ -3805,7 +3805,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st->internal->avctx_inited = 1;
         }
         //04.10
-        if (pkt->dts != AV_NOPTS_VALUE && st->codec_info_nb_frames > 1) {
+        if (pkt->dts != AV_NOPTS_VALUE && st->codec_info_nb_frames > 1) {//举例 alaw out.al ：st->codec_info_nb_frames = 0
             /* check for non-increasing dts */
             if (st->info->fps_last_dts != AV_NOPTS_VALUE &&
                 st->info->fps_last_dts >= pkt->dts) {
@@ -3844,7 +3844,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             st->info->fps_last_dts     = pkt->dts;
             st->info->fps_last_dts_idx = st->codec_info_nb_frames;
         }
-        if (st->codec_info_nb_frames>1) {//04.11
+        if (st->codec_info_nb_frames>1) {//04.11  //举例 alaw out.al ：st->codec_info_nb_frames = 0
             int64_t t = 0;
             int64_t limit;
 

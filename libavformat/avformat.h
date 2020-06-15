@@ -1100,7 +1100,7 @@ typedef struct AVStream {//TIGER AVStream
 
     AVIndexEntry *index_entries; /**< Only used if the format does not
                                     support seeking natively. */
-    int nb_index_entries;
+    int nb_index_entries;//举例:alaw 
     unsigned int index_entries_allocated_size;
 
     /**
@@ -1206,7 +1206,7 @@ typedef struct AVStream {//TIGER AVStream
     /**
      * Internal data to analyze DTS and detect faulty mpeg streams
      */
-    int64_t last_dts_for_order_check;
+    int64_t last_dts_for_order_check;//在compute_pkt_fields里面 保存看是否失序
     uint8_t dts_ordered;
     uint8_t dts_misordered;
 
