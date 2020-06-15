@@ -377,7 +377,7 @@ static void release_delayed_buffers(PerThreadContext *p)
     }
 }
 
-static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
+static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,//TIGER 参数是上下文和AVPacket
                          AVPacket *avpkt)
 {
     FrameThreadContext *fctx = p->parent;
@@ -389,7 +389,7 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
         return 0;
 
     pthread_mutex_lock(&p->mutex);
-
+    //01.
     ret = update_context_from_user(p->avctx, user_avctx);
     if (ret) {
         pthread_mutex_unlock(&p->mutex);
@@ -398,9 +398,9 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
     atomic_store_explicit(&p->debug_threads,
                           (p->avctx->debug & FF_DEBUG_THREADS) != 0,
                           memory_order_relaxed);
-
+    //02.
     release_delayed_buffers(p);
-
+    //03.
     if (prev_thread) {
         int err;
         if (atomic_load(&prev_thread->state) == STATE_SETTING_UP) {
@@ -416,7 +416,7 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
             return err;
         }
     }
-
+    //04.
     av_packet_unref(&p->avpkt);
     ret = av_packet_ref(&p->avpkt, avpkt);
     if (ret < 0) {
@@ -424,7 +424,7 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
         av_log(p->avctx, AV_LOG_ERROR, "av_packet_ref() failed in submit_packet()\n");
         return ret;
     }
-
+    //05.
     atomic_store(&p->state, STATE_SETTING_UP);
     pthread_cond_signal(&p->input_cond);
     pthread_mutex_unlock(&p->mutex);
@@ -434,7 +434,7 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
      * then decoding threads call back to the main thread,
      * and it calls back to the client here.
      */
-
+    //06.
     if (!p->avctx->thread_safe_callbacks && (
          p->avctx->get_format != avcodec_default_get_format ||
          p->avctx->get_buffer2 != avcodec_default_get_buffer2)) {
@@ -486,18 +486,18 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
      * Submit a packet to the next decoding thread.
      */
 
-    p = &fctx->threads[fctx->next_decoding];
-    err = submit_packet(p, avctx, avpkt);
+    p = &fctx->threads[fctx->next_decoding];//01.
+    err = submit_packet(p, avctx, avpkt);//02.
     if (err)
         goto finish;
 
     /*
      * If we're still receiving the initial packets, don't return a frame.
      */
-
+    //03.
     if (fctx->next_decoding > (avctx->thread_count-1-(avctx->codec_id == AV_CODEC_ID_FFV1)))
         fctx->delaying = 0;
-
+    //04.
     if (fctx->delaying) {
         *got_picture_ptr=0;
         if (avpkt->size) {
@@ -512,22 +512,22 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
      * didn't output a frame/error, because we don't want to accidentally signal
      * EOF (avpkt->size == 0 && *got_picture_ptr == 0 && err >= 0).
      */
-
+    //05.
     do {
-        p = &fctx->threads[finished++];
+        p = &fctx->threads[finished++];//05.01
 
-        if (atomic_load(&p->state) != STATE_INPUT_READY) {
+        if (atomic_load(&p->state) != STATE_INPUT_READY) {//05.02
             pthread_mutex_lock(&p->progress_mutex);
             while (atomic_load_explicit(&p->state, memory_order_relaxed) != STATE_INPUT_READY)
                 pthread_cond_wait(&p->output_cond, &p->progress_mutex);
             pthread_mutex_unlock(&p->progress_mutex);
         }
-
+        //05.03.
         av_frame_move_ref(picture, p->frame);
         *got_picture_ptr = p->got_frame;
         picture->pkt_dts = p->avpkt.dts;
         err = p->result;
-
+        //05.04
         /*
          * A later call with avkpt->size == 0 may loop over all threads,
          * including this one, searching for a frame/error to return before being
@@ -536,14 +536,14 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
          */
         p->got_frame = 0;
         p->result = 0;
-
+        //05.05
         if (finished >= avctx->thread_count) finished = 0;
     } while (!avpkt->size && !*got_picture_ptr && err >= 0 && finished != fctx->next_finished);
-
+    //06.
     update_context_from_thread(avctx, p->avctx, 1);
-
+    //07.
     if (fctx->next_decoding >= avctx->thread_count) fctx->next_decoding = 0;
-
+    //08.
     fctx->next_finished = finished;
 
     /* return the size of the consumed packet if no error occurred */
