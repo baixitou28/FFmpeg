@@ -31,18 +31,18 @@
 #include "internal.h"
 #include "parser.h"
 
-AVCodecParserContext *av_parser_init(int codec_id)
+AVCodecParserContext *av_parser_init(int codec_id)//解析文件
 {
     AVCodecParserContext *s = NULL;
     const AVCodecParser *parser;
     void *i = 0;
     int ret;
-
+    //01.校验
     if (codec_id == AV_CODEC_ID_NONE)
         return NULL;
-
-    while ((parser = av_parser_iterate(&i))) {
-        if (parser->codec_ids[0] == codec_id ||
+    //02.查找
+    while ((parser = av_parser_iterate(&i))) {//parser_list中configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
+        if (parser->codec_ids[0] == codec_id ||//允许有多个codec_id/举例：
             parser->codec_ids[1] == codec_id ||
             parser->codec_ids[2] == codec_id ||
             parser->codec_ids[3] == codec_id ||
@@ -51,7 +51,7 @@ AVCodecParserContext *av_parser_init(int codec_id)
     }
     return NULL;
 
-found:
+found://03.上下文
     s = av_mallocz(sizeof(AVCodecParserContext));
     if (!s)
         goto err_out;
@@ -60,9 +60,9 @@ found:
     if (!s->priv_data)
         goto err_out;
     s->fetch_timestamp=1;
-    s->pict_type = AV_PICTURE_TYPE_I;
+    s->pict_type = AV_PICTURE_TYPE_I;//默认是这个，这个还不如放在parser_init
     if (parser->parser_init) {
-        ret = parser->parser_init(s);
+        ret = parser->parser_init(s);//是否还带初始化函数
         if (ret != 0)
             goto err_out;
     }
@@ -72,7 +72,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
     s->convergence_duration = 0;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
-    s->dts_sync_point       = INT_MIN;
+    s->dts_sync_point       = INT_MIN;//初始的pts
     s->dts_ref_dts_delta    = INT_MIN;
     s->pts_dts_delta        = INT_MIN;
     s->format               = -1;
@@ -90,13 +90,13 @@ void ff_fetch_timestamp(AVCodecParserContext *s, int off, int remove, int fuzzy)
 {
     int i;
   
-    if (!fuzzy) {//
+    if (!fuzzy) {//如果不是模糊，设置默认值
         s->dts    =
         s->pts    = AV_NOPTS_VALUE;
         s->pos    = -1;
         s->offset = 0;
     }
-    for (i = 0; i < AV_PARSER_PTS_NB; i++) {//02.
+    for (i = 0; i < AV_PARSER_PTS_NB; i++) {//
         if (s->cur_offset + off >= s->cur_frame_offset[i] &&
             (s->frame_offset < s->cur_frame_offset[i] ||
              (!s->frame_offset && !s->next_frame_offset)) && // first field/frame
@@ -188,12 +188,12 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,//av_read_fr
 
 int av_parser_change(AVCodecParserContext *s, AVCodecContext *avctx,
                      uint8_t **poutbuf, int *poutbuf_size,
-                     const uint8_t *buf, int buf_size, int keyframe)
+                     const uint8_t *buf, int buf_size, int keyframe)//TIGER 没用到
 {
-    if (s && s->parser->split) {
+    if (s && s->parser->split) {//如果有split函数
         if (avctx->flags  & AV_CODEC_FLAG_GLOBAL_HEADER ||
             avctx->flags2 & AV_CODEC_FLAG2_LOCAL_HEADER) {
-            int i = s->parser->split(avctx, buf, buf_size);
+            int i = s->parser->split(avctx, buf, buf_size);//跳过pps和sps等信息
             buf      += i;
             buf_size -= i;
         }
@@ -221,7 +221,7 @@ int av_parser_change(AVCodecParserContext *s, AVCodecContext *avctx,
     return 0;
 }
 
-void av_parser_close(AVCodecParserContext *s)
+void av_parser_close(AVCodecParserContext *s)//关闭
 {
     if (s) {
         if (s->parser->parser_close)
@@ -232,28 +232,28 @@ void av_parser_close(AVCodecParserContext *s)
 }
 
 int ff_combine_frame(ParseContext *pc, int next,
-                     const uint8_t **buf, int *buf_size)
+                     const uint8_t **buf, int *buf_size)//未读完
 {
-    if (pc->overread) {
+    if (pc->overread) {//01.不能回退的读
         ff_dlog(NULL, "overread %d, state:%"PRIX32" next:%d index:%d o_index:%d\n",
                 pc->overread, pc->state, next, pc->index, pc->overread_index);
         ff_dlog(NULL, "%X %X %X %X\n",
                 (*buf)[0], (*buf)[1], (*buf)[2], (*buf)[3]);
     }
-
+    //02.复制
     /* Copy overread bytes from last frame into buffer. */
     for (; pc->overread > 0; pc->overread--)
-        pc->buffer[pc->index++] = pc->buffer[pc->overread_index++];
-
+        pc->buffer[pc->index++] = pc->buffer[pc->overread_index++];//复制前面部分
+    //03.校验
     if (next > *buf_size)
         return AVERROR(EINVAL);
-
+    //04.校验
     /* flush remaining if EOF */
     if (!*buf_size && next == END_NOT_FOUND)
         next = 0;
-
+    //05.
     pc->last_index = pc->index;
-
+    //06.
     /* copy into buffer end return */
     if (next == END_NOT_FOUND) {
         void *new_buffer = av_fast_realloc(pc->buffer, &pc->buffer_size,
@@ -266,16 +266,16 @@ int ff_combine_frame(ParseContext *pc, int next,
             return AVERROR(ENOMEM);
         }
         pc->buffer = new_buffer;
-        memcpy(&pc->buffer[pc->index], *buf, *buf_size);
+        memcpy(&pc->buffer[pc->index], *buf, *buf_size);//复制后面部分
         pc->index += *buf_size;
         return -1;
     }
 
     av_assert0(next >= 0 || pc->buffer);
-
+    //07.
     *buf_size          =
     pc->overread_index = pc->index + next;
-
+    //08.
     /* append to buffer */
     if (pc->index) {
         void *new_buffer = av_fast_realloc(pc->buffer, &pc->buffer_size,
@@ -294,7 +294,7 @@ int ff_combine_frame(ParseContext *pc, int next,
         pc->index = 0;
         *buf      = pc->buffer;
     }
-
+    //09.
     /* store overread bytes */
     for (; next < 0; next++) {
         pc->state   = pc->state   << 8 | pc->buffer[pc->last_index + next];
@@ -312,7 +312,7 @@ int ff_combine_frame(ParseContext *pc, int next,
     return 0;
 }
 
-void ff_parse_close(AVCodecParserContext *s)
+void ff_parse_close(AVCodecParserContext *s)//关闭
 {
     ParseContext *pc = s->priv_data;
 

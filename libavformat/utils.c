@@ -1659,8 +1659,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_RAW)
                 st->parser->flags |= PARSER_FLAG_USE_CODEC_TS;
         }
-        //02.05 不需要parse  ==>举例:
-        if (!st->need_parsing || !st->parser) {
+        //02.05 不需要parse  ==>举例: alaw 就没有
+        if (!st->need_parsing || !st->parser) {//st->codec:
             /* no parsing needed: we just output the packet as is */
             *pkt = cur_pkt;//直接输出即可
             compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);

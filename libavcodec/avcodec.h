@@ -5281,9 +5281,9 @@ typedef struct AVCodecParser {
     int (*parser_parse)(AVCodecParserContext *s,
                         AVCodecContext *avctx,
                         const uint8_t **poutbuf, int *poutbuf_size,
-                        const uint8_t *buf, int buf_size);
+                        const uint8_t *buf, int buf_size);//举例：ff_h264_parser  .parser_parse   = h264_parse, 没有几个解码需要parser_parse：aac_parser, latm_parser, opus_parser
     void (*parser_close)(AVCodecParserContext *s);
-    int (*split)(AVCodecContext *avctx, const uint8_t *buf, int buf_size);
+    int (*split)(AVCodecContext *avctx, const uint8_t *buf, int buf_size);//举例：ff_h264_parser .split          = h264_split,
     struct AVCodecParser *next;
 } AVCodecParser;//configure定义parser_list  ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
 

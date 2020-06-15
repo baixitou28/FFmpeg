@@ -473,10 +473,10 @@ void av_memcpy_backptr(uint8_t *dst, int back, int cnt)
     }
 }
 
-void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)//TIGER 减少内存频繁分配，最好预分配一个大一点的*size
+void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size)//TIGER 减少内存频繁分配，原理：需要分配的min_size，比实际已分配的内存要小，直接使用，减少调动次数
 {
     if (min_size <= *size)
-        return ptr;
+        return ptr;//如果分配的内存，比已分配的小，直接返回，就可以用了，这样减少调用次数
 
     if (min_size > max_alloc_size - 32) {
         *size = 0;

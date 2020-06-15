@@ -1087,8 +1087,8 @@ typedef struct AVStream {//TIGER AVStream
     int codec_info_nb_frames;
 
     /* av_read_frame() support */
-    enum AVStreamParseType need_parsing;
-    struct AVCodecParserContext *parser;
+    enum AVStreamParseType need_parsing;//¾ÙÀý adts_aac_read_header: st->need_parsing         = AVSTREAM_PARSE_FULL_RAW;
+    struct AVCodecParserContext *parser;//¾ÙÀý£ºread_frame_internal  st->parser = av_parser_init(st->codecpar->codec_id);
 
     /**
      * last packet in packet_buffer for this stream when muxing.
