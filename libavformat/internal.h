@@ -189,7 +189,7 @@ struct AVStreamInternal {
     /**
      * Whether the internal avctx needs to be updated from codecpar (after a late change to codecpar)
      */
-    int need_context_update;
+    int need_context_update;//重要，flv，hls等出现extradata，就可能要更新， mpegts，ogg也类似。其他就是avformat_new_stream初始化的时候，设置为1
 
     FFFrac *priv_pts;
 };

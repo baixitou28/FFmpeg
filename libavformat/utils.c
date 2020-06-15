@@ -375,7 +375,7 @@ static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
                     continue;
                 st->codecpar->codec_id   = fmt_id_type[i].id;
                 st->codecpar->codec_type = fmt_id_type[i].type;
-                st->internal->need_context_update = 1;
+                st->internal->need_context_update = 1;//重要
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
                 st->codec->codec_type = st->codecpar->codec_type;
@@ -1227,7 +1227,7 @@ static void update_initial_durations(AVFormatContext *s, AVStream *st,
 
 static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
                                AVCodecParserContext *pc, AVPacket *pkt,
-                               int64_t next_dts, int64_t next_pts)
+                               int64_t next_dts, int64_t next_pts)//
 {
     int num, den, presentation_delayed, delay, i;
     int64_t offset;
@@ -1435,44 +1435,44 @@ void ff_packet_list_free(AVPacketList **pkt_buf, AVPacketList **pkt_buf_end)
  *
  * @param pkt Packet to parse, NULL when flushing the parser at end of stream.
  */
-static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)
+static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)//TIGER 看注释，解析包，将各部分加入parse_queue
 {
     AVPacket out_pkt = { 0 }, flush_pkt = { 0 };
     AVStream *st = s->streams[stream_index];
     uint8_t *data = pkt ? pkt->data : NULL;
-    int size      = pkt ? pkt->size : 0;
+    int size      = pkt ? pkt->size : 0;//空间够大
     int ret = 0, got_output = 0;
-
-    if (!pkt) {
-        av_init_packet(&flush_pkt);
+    //01.
+    if (!pkt) {//如果pkt 为空，使用堆栈上的AVPacket
+        av_init_packet(&flush_pkt);//01.01 初始化堆栈上的AVPacket
         pkt        = &flush_pkt;
-        got_output = 1;
-    } else if (!size && st->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) {
+        got_output = 1;//标记需要输出
+    } else if (!size && st->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) {//如果size为0，且需要完整的帧
         // preserve 0-size sync packets
-        compute_pkt_fields(s, st, st->parser, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
+        compute_pkt_fields(s, st, st->parser, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);//超大函数
     }
-
+    //02.需要解析
     while (size > 0 || (pkt == &flush_pkt && got_output)) {
         int len;
         int64_t next_pts = pkt->pts;
         int64_t next_dts = pkt->dts;
-
+        //02.01.
         av_init_packet(&out_pkt);
-        len = av_parser_parse2(st->parser, st->internal->avctx,
+        len = av_parser_parse2(st->parser, st->internal->avctx,//av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                                &out_pkt.data, &out_pkt.size, data, size,
                                pkt->pts, pkt->dts, pkt->pos);
-
+        //02.02.
         pkt->pts = pkt->dts = AV_NOPTS_VALUE;
         pkt->pos = -1;
         /* increment read pointer */
         data += len;
         size -= len;
-
+        //02.03.
         got_output = !!out_pkt.size;
-
+        //02.04.
         if (!out_pkt.size)
             continue;
-
+        //02.05.
         if (pkt->buf && out_pkt.data == pkt->data) {
             /* reference pkt->buf only when out_pkt.data is guaranteed to point
              * to data in it and not in the parser's internal buffer. */
@@ -1488,14 +1488,14 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)
             if (ret < 0)
                 goto fail;
         }
-
+        //02.06.
         if (pkt->side_data) {
             out_pkt.side_data       = pkt->side_data;
             out_pkt.side_data_elems = pkt->side_data_elems;
             pkt->side_data          = NULL;
             pkt->side_data_elems    = 0;
         }
-
+        //02.07.
         /* set the duration */
         out_pkt.duration = (st->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) ? pkt->duration : 0;
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -1507,7 +1507,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)
                                      AV_ROUND_DOWN);
             }
         }
-
+        //02.08.
         out_pkt.stream_index = st->index;
         out_pkt.pts          = st->parser->pts;
         out_pkt.dts          = st->parser->dts;
@@ -1524,9 +1524,9 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)
 
         if (st->parser->key_frame == -1 && st->parser->pict_type ==AV_PICTURE_TYPE_NONE && (pkt->flags&AV_PKT_FLAG_KEY))
             out_pkt.flags |= AV_PKT_FLAG_KEY;
-
+        //02.09.
         compute_pkt_fields(s, st, st->parser, &out_pkt, next_dts, next_pts);
-
+        //02.10. 放入parse_queue队列
         ret = ff_packet_list_put(&s->internal->parse_queue,
                                  &s->internal->parse_queue_end,
                                  &out_pkt, 0);
@@ -1537,8 +1537,8 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)
     }
 
     /* end of the stream => close and free the parser */
-    if (pkt == &flush_pkt) {
-        av_parser_close(st->parser);
+    if (pkt == &flush_pkt) {//如果是堆栈上的AVPacket，关闭parser
+        av_parser_close(st->parser);//为什么关闭？
         st->parser = NULL;
     }
 
@@ -1572,52 +1572,52 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)//TIGER read_fr
     int ret = 0, i, got_packet = 0;
     AVDictionary *metadata = NULL;
 
-    av_init_packet(pkt);//01.ffmpeg内部已经初始化，所以使用ffmpeg api中，再次初始化是不必要的
+    av_init_packet(pkt);//01.ffmpeg内部已经初始化，所以使用ffmpeg api中，再次初始化是不必要的 //tiger program
     //02.如果没有获取packet且parse_queue还没创建,读数据
     while (!got_packet && !s->internal->parse_queue) {
         AVStream *st;
         AVPacket cur_pkt;
 
         /* read next packet */
-        ret = ff_read_packet(s, &cur_pkt);//实际读入口 ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
-        if (ret < 0) {
+        ret = ff_read_packet(s, &cur_pkt);//02.01 实际读入口 ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
+        if (ret < 0) {//如果读取失败，尝试最后一次解析所有流
             if (ret == AVERROR(EAGAIN))
                 return ret;
             /* flush the parsers */
             for (i = 0; i < s->nb_streams; i++) {
                 st = s->streams[i];
-                if (st->parser && st->need_parsing)h264_parse
-                    parse_packet(s, NULL, st->index);//解析 av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
+                if (st->parser && st->need_parsing)//parse_packet需要解码器支持，如果不支持，直接返回，但不会报错。
+                    parse_packet(s, NULL, st->index);//放入null，最后一次解析各个流，并结束： av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
             }
             /* all remaining packets are now in parse_queue =>
              * really terminate parsing */
             break;
         }
-        ret = 0;
+        ret = 0;//设置返回值是0
         st  = s->streams[cur_pkt.stream_index];
-
+        //02.02 参数变化
         /* update context if required */
-        if (st->internal->need_context_update) {//更新参数//tiger TODO need_context_update这个参数需要考虑吗？
-            if (avcodec_is_open(st->internal->avctx)) {
+        if (st->internal->need_context_update) {//更新参数  ==>一般也就flv，hls会设置，或者初始化stream
+            if (avcodec_is_open(st->internal->avctx)) {//已打开的AVCodecContext要关闭
                 av_log(s, AV_LOG_DEBUG, "Demuxer context update while decoder is open, closing and trying to re-open\n");
                 avcodec_close(st->internal->avctx);
-                st->info->found_decoder = 0;
+                st->info->found_decoder = 0;//这个也设置为0
             }
 
             /* close parser, because it depends on the codec */
-            if (st->parser && st->internal->avctx->codec_id != st->codecpar->codec_id) {
+            if (st->parser && st->internal->avctx->codec_id != st->codecpar->codec_id) {//如果id变了，关闭parser
                 av_parser_close(st->parser);
                 st->parser = NULL;
             }
 
-            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);//复制出参数
+            ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);//从AVCodecParameters复制到AVCodecContext *avctx
             if (ret < 0)
                 return ret;
 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
             /* update deprecated public codec context */
-            ret = avcodec_parameters_to_context(st->codec, st->codecpar);
+            ret = avcodec_parameters_to_context(st->codec, st->codecpar);//从AVCodecParameters复制到AVCodecContext* codec
             if (ret < 0)
                 return ret;
 FF_ENABLE_DEPRECATION_WARNINGS
@@ -1625,7 +1625,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
             st->internal->need_context_update = 0;//标记已处理
         }
-        //如果pts <dts,提示错误
+        //02.03 如果pts <dts,提示错误  ==>但不理解
         if (cur_pkt.pts != AV_NOPTS_VALUE &&
             cur_pkt.dts != AV_NOPTS_VALUE &&
             cur_pkt.pts < cur_pkt.dts) {
@@ -1636,14 +1636,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
                    av_ts2str(cur_pkt.dts),
                    cur_pkt.size);
         }
-        if (s->debug & FF_FDEBUG_TS)
+        if (s->debug & FF_FDEBUG_TS)//更多显示
             av_log(s, AV_LOG_DEBUG,
                    "ff_read_packet stream=%d, pts=%s, dts=%s, size=%d, duration=%"PRId64", flags=%d\n",
                    cur_pkt.stream_index,
                    av_ts2str(cur_pkt.pts),
                    av_ts2str(cur_pkt.dts),
                    cur_pkt.size, cur_pkt.duration, cur_pkt.flags);
-
+        //02.04 需要使用的parser，但为空，初始化parser
         if (st->need_parsing && !st->parser && !(s->flags & AVFMT_FLAG_NOPARSE)) {
             st->parser = av_parser_init(st->codecpar->codec_id);//找到parser
             if (!st->parser) {
@@ -1659,10 +1659,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
             else if (st->need_parsing == AVSTREAM_PARSE_FULL_RAW)
                 st->parser->flags |= PARSER_FLAG_USE_CODEC_TS;
         }
-
+        //02.05 不需要parse  ==>举例:
         if (!st->need_parsing || !st->parser) {
             /* no parsing needed: we just output the packet as is */
-            *pkt = cur_pkt;
+            *pkt = cur_pkt;//直接输出即可
             compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
             if ((s->iformat->flags & AVFMT_GENERIC_INDEX) &&
                 (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {//TIGER ALAW 文件再次停留：
@@ -1671,7 +1671,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                                    0, 0, AVINDEX_KEYFRAME);
             }
             got_packet = 1;
-        } else if (st->discard < AVDISCARD_ALL) {
+        } else if (st->discard < AVDISCARD_ALL) {//如果无需丢弃所有
             if ((ret = parse_packet(s, &cur_pkt, cur_pkt.stream_index)) < 0)
                 return ret;
             st->codecpar->sample_rate = st->internal->avctx->sample_rate;
@@ -1683,9 +1683,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
             /* free packet */
             av_packet_unref(&cur_pkt);
         }
-        if (pkt->flags & AV_PKT_FLAG_KEY)
+        if (pkt->flags & AV_PKT_FLAG_KEY)//02.06
             st->skip_to_keyframe = 0;
-        if (st->skip_to_keyframe) {
+        if (st->skip_to_keyframe) {//02.07
             av_packet_unref(&cur_pkt);
             if (got_packet) {
                 *pkt = cur_pkt;
@@ -1693,36 +1693,36 @@ FF_ENABLE_DEPRECATION_WARNINGS
             got_packet = 0;
         }
     }
-    //03.如果队列有数据，直接从队列中读
+    //03.如果队列已有解析好的数据，直接从队列中取一个
     if (!got_packet && s->internal->parse_queue)
         ret = ff_packet_list_get(&s->internal->parse_queue, &s->internal->parse_queue_end, pkt);
 
-    //04.如果AVPacket获取成功
+    //04.如果AVPacket获取成功，设置side_data
     if (ret >= 0) {//?如果find_stream_info等，要跳过sample，那后期数据需要减去？
         AVStream *st = s->streams[pkt->stream_index];
         int discard_padding = 0;
-        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {//04.01 pkt->pts 不为空，说明需要更新
+        if (st->first_discard_sample && pkt->pts != AV_NOPTS_VALUE) {//04.01 pkt->pts 不为空，且需要跳过n个采样值，则计算跳过的具体位置
             int64_t pts = pkt->pts - (is_relative(pkt->pts) ? RELATIVE_TS_BASE : 0);
             int64_t sample = ts_to_samples(st, pts);
-            int duration = ts_to_samples(st, pkt->duration);
+            int duration = ts_to_samples(st, pkt->duration);//时间折算
             int64_t end_sample = sample + duration;
             if (duration > 0 && end_sample >= st->first_discard_sample &&
                 sample < st->last_discard_sample)
-                discard_padding = FFMIN(end_sample - st->first_discard_sample, duration);
+                discard_padding = FFMIN(end_sample - st->first_discard_sample, duration);//有时候还要考虑padding问题
         }
-        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))//04.02
+        if (st->start_skip_samples && (pkt->pts == 0 || pkt->pts == RELATIVE_TS_BASE))//04.02 从pts为0开始
             st->skip_samples = st->start_skip_samples;
-        if (st->skip_samples || discard_padding) {//04.03
-            uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);//
+        if (st->skip_samples || discard_padding) {//04.03写到side_data里面即可
+            uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);//pkt的side_data加入 AV_PKT_DATA_SKIP_SAMPLES一项
             if (p) {
                 AV_WL32(p, st->skip_samples);
                 AV_WL32(p + 4, discard_padding);
                 av_log(s, AV_LOG_DEBUG, "demuxer injecting skip %d / discard %d\n", st->skip_samples, discard_padding);
             }
-            st->skip_samples = 0;
+            st->skip_samples = 0;//清零
         }
 
-        if (st->inject_global_side_data) {//04.04
+        if (st->inject_global_side_data) {//04.04 pkt里面注入AVStream的side_data
             for (i = 0; i < st->nb_side_data; i++) {
                 AVPacketSideData *src_sd = &st->side_data[i];
                 uint8_t *dst_data;
@@ -1738,18 +1738,18 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
                 memcpy(dst_data, src_sd->data, src_sd->size);
             }
-            st->inject_global_side_data = 0;
+            st->inject_global_side_data = 0;//清零
         }
     }
-    //05.跟新metadata需要通知
-    av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);//TIGER 元数据
+    //05.如果有metadata更新需要通知
+    av_opt_get_dict_val(s, "metadata", AV_OPT_SEARCH_CHILDREN, &metadata);//TIGER 如果有元数据
     if (metadata) {//TIGER 是否更新meta， 设置一个事件
         s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;//TIGER PROGRAM
-        av_dict_copy(&s->metadata, metadata, 0);
+        av_dict_copy(&s->metadata, metadata, 0);//保存在AVFormatContext的s->metadata中
         av_dict_free(&metadata);
         av_opt_set_dict_val(s, "metadata", NULL, AV_OPT_SEARCH_CHILDREN);
     }
-    //06.从流里面获取参数更新到
+    //06.几个流里面逐一处理：从流里面获取参数更新到st->internal->avctx 和st->codec
 #if FF_API_LAVF_AVCTX
     update_stream_avctx(s);//TIGER   avcodec_parameters_to_context(st->codec, st->codecpar); 和 avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
 #endif
@@ -1968,13 +1968,13 @@ void ff_update_cur_dts(AVFormatContext *s, AVStream *ref_st, int64_t timestamp)
 void ff_reduce_index(AVFormatContext *s, int stream_index)
 {
     AVStream *st             = s->streams[stream_index];
-    unsigned int max_entries = s->max_index_size / sizeof(AVIndexEntry);
+    unsigned int max_entries = s->max_index_size / sizeof(AVIndexEntry);//01.
 
-    if ((unsigned) st->nb_index_entries >= max_entries) {
+    if ((unsigned) st->nb_index_entries >= max_entries) {//02.
         int i;
-        for (i = 0; 2 * i < st->nb_index_entries; i++)
-            st->index_entries[i] = st->index_entries[2 * i];
-        st->nb_index_entries = i;
+        for (i = 0; 2 * i < st->nb_index_entries; i++)//03.
+            st->index_entries[i] = st->index_entries[2 * i];//04.
+        st->nb_index_entries = i;//05.
     }
 }
 
@@ -3602,26 +3602,26 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)//看一
     if (ic->pb)
         av_log(ic, AV_LOG_DEBUG, "Before avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d nb_streams:%d\n",
                avio_tell(ic->pb), ic->pb->bytes_read, ic->pb->seek_count, ic->nb_streams);
-    //02.
-    for (i = 0; i < ic->nb_streams; i++) {//逐一分析
+    //02.每个流:找到parser，复制avcodec_parameters_to_context，find_probe_decoder，打开输入流
+    for (i = 0; i < ic->nb_streams; i++) {//逐一打开每个流
         const AVCodec *codec;
         AVDictionary *thread_opt = NULL;
         st = ic->streams[i];
-        avctx = st->internal->avctx;//02.01 取内部的结构体地址，每个流私有空间，避免线程冲突
+        avctx = st->internal->avctx;//02.01 取内部的AVCodecContext地址，每个流私有空间，避免线程冲突
 
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||
-            st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+            st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {//
 /*            if (!st->time_base.num)
                 st->time_base = */
-            if (!avctx->time_base.num)//02.02 如果没有设置time_base，采用流的设定值--> 不理解是什么特例
+            if (!avctx->time_base.num)//02.02 如果视频和字幕流的AVCodecContext没有设置time_base，采用流的设定值--> 不理解是什么特例
                 avctx->time_base = st->time_base;
         }
 
         /* check if the caller has overridden the codec id */
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-        if (st->codec->codec_id != st->internal->orig_codec_id) {
-            st->codecpar->codec_id   = st->codec->codec_id;//02.03 兼容以前的版本？
+        if (st->codec->codec_id != st->internal->orig_codec_id) {//02.03是否以前运行过find_stream_info？ st->internal->orig_codec_id有遗留，用现在的覆盖
+            st->codecpar->codec_id   = st->codec->codec_id;
             st->codecpar->codec_type = st->codec->codec_type;
             st->internal->orig_codec_id = st->codec->codec_id;
         }
@@ -3630,23 +3630,23 @@ FF_ENABLE_DEPRECATION_WARNINGS
         // only for the split stuff
         if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE) && st->request_probe <= 0) {//02.04如果：没设置parse的flag，也没有parser，probe已结束或者不需要
             st->parser = av_parser_init(st->codecpar->codec_id);//parser_list中configure定义 ff_aac_parser(调用ff_aac_ac3_parse) ff_aac_latm_parse ff_h264_parser  但pcm，sdp 什么都没有
-            if (st->parser) {
+            if (st->parser) {//找到编码器，设置flag
                 if (st->need_parsing == AVSTREAM_PARSE_HEADERS) {
                     st->parser->flags |= PARSER_FLAG_COMPLETE_FRAMES;//？
                 } else if (st->need_parsing == AVSTREAM_PARSE_FULL_RAW) {
                     st->parser->flags |= PARSER_FLAG_USE_CODEC_TS;//？
                 }
-            } else if (st->need_parsing) {
+            } else if (st->need_parsing) {//如果需要解析，但找不到编码器
                 av_log(ic, AV_LOG_VERBOSE, "parser not found for codec "
                        "%s, packets or times may be invalid.\n",
                        avcodec_get_name(st->codecpar->codec_id));//找不到解码器。 如果是sdp文件，那这里应该是sdp文件解析过了。
             }
         }
 
-        if (st->codecpar->codec_id != st->internal->orig_codec_id)
+        if (st->codecpar->codec_id != st->internal->orig_codec_id)//如果是st->codecpar->codec_id 不一样，那codec_tag 之类能保持一致吗？==>TIGER todo:
             st->internal->orig_codec_id = st->codecpar->codec_id;//02.05 更新，前面3632行已经判断，这里相当于设置了标志位，已更改
 
-        ret = avcodec_parameters_to_context(avctx, st->codecpar);//02.06 将解码器的信息更新到内部find_stream_info的context里
+        ret = avcodec_parameters_to_context(avctx, st->codecpar);//02.06 将AVCodecParameters解码器的信息更新到内部find_stream_info的AVCodecContext context里
         if (ret < 0)
             goto find_stream_info_err;
         if (st->request_probe <= 0)//02.07 这个何解==>已经probe，或者probe不需要
@@ -3679,7 +3679,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (!options)//02.12如果没有options，也不需要thread_opt
             av_dict_free(&thread_opt);
     }
-    //03.
+    //03. dts 初始化
     for (i = 0; i < ic->nb_streams; i++) {//初始化所有流的dts ==>
 #if FF_API_R_FRAME_RATE
         ic->streams[i]->info->last_dts = AV_NOPTS_VALUE;
@@ -3696,7 +3696,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
             break;
         }
-
+        
         /* check if one codec still needs to be handled */
         for (i = 0; i < ic->nb_streams; i++) {//04.02几个stream 轮流执行
             int fps_analyze_framecount = 20;
@@ -3773,8 +3773,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         /* NOTE: A new stream can be added there if no header in file
          * (AVFMTCTX_NOHEADER). */
-        ret = read_frame_internal(ic, &pkt1);//04.05读
-        if (ret == AVERROR(EAGAIN))
+        ret = read_frame_internal(ic, &pkt1);//04.05 主函数读 av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet -->ff_rtp_parse_packet -->rtp_parse_one_packet -->rtp_parse_packet_internal-->h264_handle_packet
+        if (ret == AVERROR(EAGAIN))//主函数 av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
             continue;
 
         if (ret < 0) {//04.06末尾了
@@ -4468,11 +4468,11 @@ AVStream *avformat_new_stream(AVFormatContext *s, const AVCodec *c)//TIGER avfor
             av_log(s, AV_LOG_ERROR, "Number of streams exceeds max_streams parameter (%d), see the documentation if you wish to increase it\n", s->max_streams);
         return NULL;
     }
-    streams = av_realloc_array(s->streams, s->nb_streams + 1, sizeof(*streams));//02.创建一个队列
+    streams = av_realloc_array(s->streams, s->nb_streams + 1, sizeof(*streams));//02.AVFormatContext的流数组扩展一个位置
     if (!streams)
         return NULL;
-    s->streams = streams;
-    //03.创建一个AVStream
+    s->streams = streams;//只有在流成功的时候才更新，但这句可能是废话 //TIGER IMPROVEMENT
+    //03.创建一个AVStream实例
     st = av_mallocz(sizeof(AVStream));
     if (!st)
         return NULL;
@@ -4484,7 +4484,7 @@ AVStream *avformat_new_stream(AVFormatContext *s, const AVCodec *c)//TIGER avfor
 
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-    st->codec = avcodec_alloc_context3(c);//06.弃用
+    st->codec = avcodec_alloc_context3(c);//06.给 AVCodec *c分配AVCodecContext
     if (!st->codec) {
         av_free(st->info);
         av_free(st);
@@ -4497,15 +4497,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
     if (!st->internal)
         goto fail;
 
-    st->codecpar = avcodec_parameters_alloc();//08.
+    st->codecpar = avcodec_parameters_alloc();//08.分配AVCodecParameters //重要
     if (!st->codecpar)
         goto fail;
 
-    st->internal->avctx = avcodec_alloc_context3(NULL);//09.avformat_find_stream_info的AVCodecContext
+    st->internal->avctx = avcodec_alloc_context3(NULL);//09.avformat_find_stream_info的AVCodecContext，这里没有指定 AVCodec *c
     if (!st->internal->avctx)
         goto fail;
-
-    if (s->iformat) {//10.
+    //输入容器存在
+    if (s->iformat) {//10. 存在
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         /* no default bitrate if decoding */
@@ -4520,10 +4520,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
          * timestamps have their first few packets buffered and the
          * timestamps corrected before they are returned to the user */
         st->cur_dts = RELATIVE_TS_BASE;
-    } else {
+    } else {//不存在
         st->cur_dts = AV_NOPTS_VALUE;
     }
-    //11.
+    //11. 常规设置
     st->index      = s->nb_streams;
     st->start_time = AV_NOPTS_VALUE;
     st->duration   = AV_NOPTS_VALUE;
@@ -4547,8 +4547,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     st->inject_global_side_data = s->internal->inject_global_side_data;
 
-    st->internal->need_context_update = 1;
-    //14.
+    st->internal->need_context_update = 1;//重要的参数
+    //14.更新
     s->streams[s->nb_streams++] = st;//添加成功后，计数加1
     return st;
 fail:

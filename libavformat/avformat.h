@@ -1016,7 +1016,7 @@ typedef struct AVStream {//TIGER AVStream
      *             avformat_find_stream_info()
      * - muxing: filled by the caller before avformat_write_header()
      */
-    AVCodecParameters *codecpar;
+    AVCodecParameters *codecpar;//看注释
 
     /*****************************************************************
      * All fields below this line are not part of the public API. They
@@ -1353,14 +1353,14 @@ typedef struct AVFormatContext {//tiger AVFormatContext
      *
      * Demuxing only, set by avformat_open_input().
      */
-    ff_const59 struct AVInputFormat *iformat;
+    ff_const59 struct AVInputFormat *iformat;//输入容器的格式(看注释)
 
     /**
      * The output container format.
      *
      * Muxing only, must be set by the caller before avformat_write_header().
      */
-    ff_const59 struct AVOutputFormat *oformat;
+    ff_const59 struct AVOutputFormat *oformat;//输出容器的格式(看注释)
 
     /**
      * Format private data. This is an AVOptions-enabled struct

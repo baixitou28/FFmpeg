@@ -95,7 +95,7 @@ static int init_context_defaults(AVCodecContext *s, const AVCodec *codec)
 
     s->av_class = &av_codec_context_class;
 
-    s->codec_type = codec ? codec->type : AVMEDIA_TYPE_UNKNOWN;
+    s->codec_type = codec ? codec->type : AVMEDIA_TYPE_UNKNOWN;//参看avformat_new_stream 中avcodec_alloc_context3(NULL)
     if (codec) {
         s->codec = codec;
         s->codec_id = codec->id;
@@ -153,7 +153,7 @@ int avcodec_get_context_defaults3(AVCodecContext *s, const AVCodec *codec)
 }
 #endif
 
-AVCodecContext *avcodec_alloc_context3(const AVCodec *codec)
+AVCodecContext *avcodec_alloc_context3(const AVCodec *codec)//avformat_new_stream 中avcodec_alloc_context3(NULL)
 {
     AVCodecContext *avctx= av_malloc(sizeof(AVCodecContext));
 

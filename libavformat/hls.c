@@ -1718,7 +1718,7 @@ static int set_stream_info_from_input_stream(AVStream *st, struct playlist *pls,
     else
         avpriv_set_pts_info(st, ist->pts_wrap_bits, ist->time_base.num, ist->time_base.den);
 
-    st->internal->need_context_update = 1;
+    st->internal->need_context_update = 1;//格式变化
 
     return 0;
 }

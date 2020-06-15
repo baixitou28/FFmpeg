@@ -5146,7 +5146,7 @@ typedef struct AVCodecParserContext {//tiger AVCodecParserContext
 #define PARSER_FLAG_USE_CODEC_TS              0x1000
 
     int64_t offset;      ///< byte offset from starting packet start
-    int64_t cur_frame_end[AV_PARSER_PTS_NB];
+    int64_t cur_frame_end[AV_PARSER_PTS_NB];//解析帧的列表
 
     /**
      * Set by parser to 1 for key frames and 0 for non-key frames.

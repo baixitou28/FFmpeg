@@ -89,29 +89,29 @@ err_out:
 void ff_fetch_timestamp(AVCodecParserContext *s, int off, int remove, int fuzzy)
 {
     int i;
-
-    if (!fuzzy) {
+  
+    if (!fuzzy) {//
         s->dts    =
         s->pts    = AV_NOPTS_VALUE;
         s->pos    = -1;
         s->offset = 0;
     }
-    for (i = 0; i < AV_PARSER_PTS_NB; i++) {
+    for (i = 0; i < AV_PARSER_PTS_NB; i++) {//02.
         if (s->cur_offset + off >= s->cur_frame_offset[i] &&
             (s->frame_offset < s->cur_frame_offset[i] ||
              (!s->frame_offset && !s->next_frame_offset)) && // first field/frame
             // check disabled since MPEG-TS does not send complete PES packets
             /*s->next_frame_offset + off <*/  s->cur_frame_end[i]){
-
+            //01.
             if (!fuzzy || s->cur_frame_dts[i] != AV_NOPTS_VALUE) {
                 s->dts    = s->cur_frame_dts[i];
                 s->pts    = s->cur_frame_pts[i];
                 s->pos    = s->cur_frame_pos[i];
                 s->offset = s->next_frame_offset - s->cur_frame_offset[i];
-            }
+            }//02.
             if (remove)
                 s->cur_frame_offset[i] = INT64_MAX;
-            if (s->cur_offset + off < s->cur_frame_end[i])
+            if (s->cur_offset + off < s->cur_frame_end[i])//03
                 break;
         }
     }
@@ -133,28 +133,28 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,//av_read_fr
                avctx->codec_id == s->parser->codec_ids[2] ||
                avctx->codec_id == s->parser->codec_ids[3] ||
                avctx->codec_id == s->parser->codec_ids[4]);
-
+    //01.未设置，归一化处理
     if (!(s->flags & PARSER_FLAG_FETCHED_OFFSET)) {
         s->next_frame_offset =
         s->cur_offset        = pos;
         s->flags            |= PARSER_FLAG_FETCHED_OFFSET;
     }
-
-    if (buf_size == 0) {
+    //02.如果输入buff是0
+    if (buf_size == 0) {//如果输入buff是0，使用堆栈上的uint8_t数组
         /* padding is always necessary even if EOF, so we add it here */
         memset(dummy_buf, 0, sizeof(dummy_buf));
         buf = dummy_buf;
-    } else if (s->cur_offset + buf_size != s->cur_frame_end[s->cur_frame_start_index]) { /* skip remainder packets */
+    } else if (s->cur_offset + buf_size != s->cur_frame_end[s->cur_frame_start_index]) { /* skip remainder packets *///
         /* add a new packet descriptor */
-        i = (s->cur_frame_start_index + 1) & (AV_PARSER_PTS_NB - 1);
-        s->cur_frame_start_index = i;
-        s->cur_frame_offset[i]   = s->cur_offset;
+        i = (s->cur_frame_start_index + 1) & (AV_PARSER_PTS_NB - 1);//计算列表数组的index
+        s->cur_frame_start_index = i;//当前index
+        s->cur_frame_offset[i]   = s->cur_offset;//
         s->cur_frame_end[i]      = s->cur_offset + buf_size;
         s->cur_frame_pts[i]      = pts;
         s->cur_frame_dts[i]      = dts;
         s->cur_frame_pos[i]      = pos;
     }
-
+    //03.成功替换
     if (s->fetch_timestamp) {
         s->fetch_timestamp = 0;
         s->last_pts        = s->pts;
@@ -163,14 +163,14 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,//av_read_fr
         ff_fetch_timestamp(s, 0, 0, 0);
     }
     /* WARNING: the returned index can be negative */
-    index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,//av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
+    index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,//04.调用解码器的parser_parse av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                                     poutbuf_size, buf, buf_size);
     av_assert0(index > -0x20000000); // The API does not allow returning AVERROR codes
 #define FILL(name) if(s->name > 0 && avctx->name <= 0) avctx->name = s->name
-    if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+    if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {//05.如果是视频， AVCodecContext *avctx的name 为空，则要补全
         FILL(field_order);
     }
-
+    //06.如果成功，更新offset。基本思路：用上次的next_frame_offset更新frame_offset，用cur_offset + index来更新。
     /* update the file pointer */
     if (*poutbuf_size) {
         /* fill the data for the current frame */
@@ -180,9 +180,9 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,//av_read_fr
         s->next_frame_offset = s->cur_offset + index;
         s->fetch_timestamp   = 1;
     }
-    if (index < 0)
+    if (index < 0)//07.看s->parser->parser_parse解析的注释，可能为负
         index = 0;
-    s->cur_offset += index;
+    s->cur_offset += index;//08.更新cur_offset
     return index;
 }
 
