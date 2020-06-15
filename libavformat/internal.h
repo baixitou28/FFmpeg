@@ -175,7 +175,7 @@ struct AVStreamInternal {
      */
     int avctx_inited;
 
-    enum AVCodecID orig_codec_id;
+    enum AVCodecID orig_codec_id;//¶Ô±Èfind_stream_info
 
     /* the context for extracting extradata in find_stream_info()
      * inited=1/bsf=NULL signals that extracting is not possible (codec not

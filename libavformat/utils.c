@@ -118,7 +118,7 @@ static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
 }
 
 #if FF_API_FORMAT_GET_SET
-MAKE_ACCESSORS(AVStream, stream, AVRational, r_frame_rate)
+MAKE_ACCESSORS(AVStream, stream, AVRational, r_frame_rate)//tiger 用宏，简洁，但查找困难
 #if FF_API_LAVF_FFSERVER
 FF_DISABLE_DEPRECATION_WARNINGS
 MAKE_ACCESSORS(AVStream, stream, char *, recommended_encoder_configuration)
@@ -181,16 +181,16 @@ int ff_copy_whiteblacklists(AVFormatContext *dst, const AVFormatContext *src)
     return 0;
 }
 
-static const AVCodec *find_decoder(AVFormatContext *s, const AVStream *st, enum AVCodecID codec_id)
+static const AVCodec *find_decoder(AVFormatContext *s, const AVStream *st, enum AVCodecID codec_id)//TIGER 对于AVFormatContext，查找就是判断AVFormatContext是否已查找过并保存，不存在才再查找
 {
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-    if (st->codec->codec)
+    if (st->codec->codec)//这个是老的接口
         return st->codec->codec;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 
-    switch (st->codecpar->codec_type) {
+    switch (st->codecpar->codec_type) {//一般已经存在，所以直接返回即可，这样可以快一点
     case AVMEDIA_TYPE_VIDEO:
         if (s->video_codec)    return s->video_codec;
         break;
@@ -202,29 +202,29 @@ FF_ENABLE_DEPRECATION_WARNINGS
         break;
     }
 
-    return avcodec_find_decoder(codec_id);
+    return avcodec_find_decoder(codec_id);//以前没有查找过，就再次查找。
 }
 //TIGER 
 static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st, enum AVCodecID codec_id)
 {
     const AVCodec *codec;
-    //tiger CONFIG_H264_DECODER 在哪里定义？==>
+    //01. tiger CONFIG_H264_DECODER 在哪里定义？==> configure中
 #if CONFIG_H264_DECODER
     /* Other parts of the code assume this decoder to be used for h264,
      * so force it if possible. */
     if (codec_id == AV_CODEC_ID_H264)
-        return avcodec_find_decoder_by_name("h264");
+        return avcodec_find_decoder_by_name("h264");//兼容
 #endif
 
-    codec = find_decoder(s, st, codec_id);//找解码器
+    codec = find_decoder(s, st, codec_id);//02.找解码器
     if (!codec)
         return NULL;
 
-    if (codec->capabilities & AV_CODEC_CAP_AVOID_PROBING) {//若允许probe
+    if (codec->capabilities & AV_CODEC_CAP_AVOID_PROBING) {//03.若允许probe
         const AVCodec *probe_codec = NULL;
-        while (probe_codec = av_codec_next(probe_codec)) {//逐个对比
+        while (probe_codec = av_codec_next(probe_codec)) {//04.逐个对比
             if (probe_codec->id == codec_id &&
-                    av_codec_is_decoder(probe_codec) &&//如果是ID相同的解码器
+                    av_codec_is_decoder(probe_codec) &&//05.如果是ID相同的解码器
                     !(probe_codec->capabilities & (AV_CODEC_CAP_AVOID_PROBING | AV_CODEC_CAP_EXPERIMENTAL))) {
                 return probe_codec;
             }
@@ -331,14 +331,14 @@ int av_filename_number_test(const char *filename)
            (av_get_frame_filename(buf, sizeof(buf), filename, 1) >= 0);
 }
 
-static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
+static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,//通过文件扩展名，或者打开文件内容的头部信息来判断输入的类型得出类型，再对比是否是仅有的fmt_id_type几个文件类型之一
                                      AVProbeData *pd)
 {
     static const struct {
         const char *name;
         enum AVCodecID id;
         enum AVMediaType type;
-    } fmt_id_type[] = {
+    } fmt_id_type[] = {//tiger 为什么是这些类型？ aac h264 h265已包括
         { "aac",       AV_CODEC_ID_AAC,        AVMEDIA_TYPE_AUDIO },
         { "ac3",       AV_CODEC_ID_AC3,        AVMEDIA_TYPE_AUDIO },
         { "aptx",      AV_CODEC_ID_APTX,       AVMEDIA_TYPE_AUDIO },
@@ -357,7 +357,7 @@ static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
         { 0 }
     };
     int score;
-    const AVInputFormat *fmt = av_probe_input_format3(pd, 1, &score);
+    const AVInputFormat *fmt = av_probe_input_format3(pd, 1, &score);//通过文件扩展名，或者打开文件内容的头部信息来判断输入的类型
 
     if (fmt) {
         int i;
@@ -365,20 +365,20 @@ static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
                "Probe with size=%d, packets=%d detected %s with score=%d\n",
                pd->buf_size, MAX_PROBE_PACKETS - st->probe_packets,
                fmt->name, score);
-        for (i = 0; fmt_id_type[i].name; i++) {
-            if (!strcmp(fmt->name, fmt_id_type[i].name)) {
-                if (fmt_id_type[i].type != AVMEDIA_TYPE_AUDIO &&
+        for (i = 0; fmt_id_type[i].name; i++) {//fmt_id_type 是仅有的几个编码格式 ，在这几个里面逐一对比
+            if (!strcmp(fmt->name, fmt_id_type[i].name)) {//如果名称相同
+                if (fmt_id_type[i].type != AVMEDIA_TYPE_AUDIO &&//不是音频必须有采样率
                     st->codecpar->sample_rate)
                     continue;
-                if (st->request_probe > score &&
-                    st->codecpar->codec_id != fmt_id_type[i].id)
+                if (st->request_probe > score &&//有些解码会设置st->request_probe，如mpegvideo  
+                    st->codecpar->codec_id != fmt_id_type[i].id)//名称相同但codec_id 也不同
                     continue;
                 st->codecpar->codec_id   = fmt_id_type[i].id;
                 st->codecpar->codec_type = fmt_id_type[i].type;
                 st->internal->need_context_update = 1;//重要
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
-                st->codec->codec_type = st->codecpar->codec_type;
+                st->codec->codec_type = st->codecpar->codec_type;//只是为了避免告警而已
                 st->codec->codec_id   = st->codecpar->codec_id;
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
@@ -392,37 +392,37 @@ FF_ENABLE_DEPRECATION_WARNINGS
 /************************************************************/
 /* input media file */
 
-int av_demuxer_open(AVFormatContext *ic) {
+int av_demuxer_open(AVFormatContext *ic) {//调用iformat->read_header)，来初始化容器AVFormatContext
     int err;
-
+    //01.首先判断是否在名单上
     if (ic->format_whitelist && av_match_list(ic->iformat->name, ic->format_whitelist, ',') <= 0) {
         av_log(ic, AV_LOG_ERROR, "Format not on whitelist \'%s\'\n", ic->format_whitelist);
         return AVERROR(EINVAL);
     }
-
-    if (ic->iformat->read_header) {
-        err = ic->iformat->read_header(ic);
+    //02.容器格式的read_header函数
+    if (ic->iformat->read_header) {//看注释Read the format header and initialize the AVFormatContext structure
+        err = ic->iformat->read_header(ic);//ff_pcm_alaw_demuxer中 .read_header    = pcm_read_header或ff_aac_demuxer .read_probe   = adts_aac_probe
         if (err < 0)
             return err;
     }
 
     if (ic->pb && !ic->internal->data_offset)
-        ic->internal->data_offset = avio_tell(ic->pb);
+        ic->internal->data_offset = avio_tell(ic->pb);//及时告知当前位置，便于调试
 
     return 0;
 }
 
 /* Open input file and probe the format if necessary. */
-static int init_input(AVFormatContext *s, const char *filename,//TIGER init_input 如果没有iformat,启用av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
+static int init_input(AVFormatContext *s, const char *filename,//TIGER init_input 如果没有容器iformat,启用av_probe_input_format2函数探测，再调用io_open;或者直接使用av_probe_input_buffer2
                       AVDictionary **options)
 {
     int ret;
     AVProbeData pd = { filename, NULL, 0 };//
-    int score = AVPROBE_SCORE_RETRY;
-    //01.
+    int score = AVPROBE_SCORE_RETRY;//默认值是25
+    //01.如果有自定意义的IO
     if (s->pb) {
         s->flags |= AVFMT_FLAG_CUSTOM_IO;
-        if (!s->iformat)
+        if (!s->iformat)//如果没有容器的格式，探测buffer
             return av_probe_input_buffer2(s->pb, &s->iformat, filename,//直接用读文件头部或者文件名后缀来判断。
                                          s, 0, s->format_probesize);
         else if (s->iformat->flags & AVFMT_NOFILE)
@@ -430,23 +430,23 @@ static int init_input(AVFormatContext *s, const char *filename,//TIGER init_inpu
                                       "will be ignored with AVFMT_NOFILE format.\n");
         return 0;
     }
-    //02.使用probe处输入格式 //举例：s->iformat=ff_pcm_alaw_demuxer
-    if ((s->iformat && s->iformat->flags & AVFMT_NOFILE) ||
-        (!s->iformat && (s->iformat = av_probe_input_format2(&pd, 0, &score))))
+    //02.如果有容器格式且没有文件，直接返回。或者没有容器格式，使用probe处输入格式 //举例：s->iformat=ff_pcm_alaw_demuxer
+    if ((s->iformat && s->iformat->flags & AVFMT_NOFILE) ||//如果是没有文件类型，直接返回25
+        (!s->iformat && (s->iformat = av_probe_input_format2(&pd, 0, &score))))//或者没有容器格式，探测格式，分值大于25，则成功赋值，并返回分值退出。
         return score;
     //03. 调用io_open  
     if ((ret = s->io_open(s, &s->pb, filename, AVIO_FLAG_READ | s->avio_flags, options)) < 0)//io_open ==io_open_default
-        return ret; 
-    //04.
+        return ret; //打开文件失败
+    //04.如果已经有容器格式
     if (s->iformat)
         return 0;
-    return av_probe_input_buffer2(s->pb, &s->iformat, filename,//05.
+    return av_probe_input_buffer2(s->pb, &s->iformat, filename,//05.探测容器格式
                                  s, 0, s->format_probesize);
 }
 //单向列表而已
 int ff_packet_list_put(AVPacketList **packet_buffer,
                        AVPacketList **plast_pktl,
-                       AVPacket      *pkt, int flags)
+                       AVPacket      *pkt, int flags)//放入单向列表，如果元素可引用，采用引用的方式
 {
     AVPacketList *pktl = av_mallocz(sizeof(AVPacketList));
     int ret;
@@ -499,7 +499,7 @@ int avformat_queue_attached_pictures(AVFormatContext *s)
     return 0;
 }
 
-static int update_stream_avctx(AVFormatContext *s)//tiger 
+static int update_stream_avctx(AVFormatContext *s)//tiger AVCodecParameters复制到st->codec和st->internal->avctx AVFormatContext的AVStream里面 AVCodecParameters的信息复制到的st->codec和st->internal->avctx 这两个AVCodecContext
 {
     int i, ret;
     for (i = 0; i < s->nb_streams; i++) {//逐一处理
@@ -513,12 +513,12 @@ static int update_stream_avctx(AVFormatContext *s)//tiger
             av_parser_close(st->parser);
             st->parser = NULL;
         }
-        //03.复制到internal里面，以便find_stream_info里面使用
+        //03.AVCodecParameters复制到st->internal->avctx，以便find_stream_info里面使用
         /* update internal codec context, for the parser */
         ret = avcodec_parameters_to_context(st->internal->avctx, st->codecpar);
         if (ret < 0)
             return ret;
-        //04.复制到st->codec
+        //04.AVCodecParameters复制到st->codec
 #if FF_API_LAVF_AVCTX
 FF_DISABLE_DEPRECATION_WARNINGS
         /* update deprecated public codec context */
@@ -534,7 +534,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 }
 
 //如果没有AVFormatContext内存，先分配内存，如果没有s->iformat,就用av_probe_input_format2，通过文件后缀名或者文件内容头部的格式信息来判断。
-int avformat_open_input(AVFormatContext **ps, const char *filename,//TIGER avformat_open_input 最重要的函数init_input 
+int avformat_open_input(AVFormatContext **ps, const char *filename,//TIGER avformat_open_input 最重要的函数init_input ,其他一些函数处理metadata，mp3的一些信息
                         ff_const59 AVInputFormat *fmt, AVDictionary **options)
 {
     AVFormatContext *s = *ps;
@@ -643,7 +643,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         if (s->error_recognition & AV_EF_EXPLODE)
             return AVERROR_INVALIDDATA;
     }
-    //13.
+    //13. 读取mp3信息
     if (id3v2_extra_meta) {
         if (!strcmp(s->iformat->name, "mp3") || !strcmp(s->iformat->name, "aac") ||
             !strcmp(s->iformat->name, "tta") || !strcmp(s->iformat->name, "wav")) {//只有这些才有chapter等信息
@@ -665,9 +665,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
         s->internal->data_offset = avio_tell(s->pb);
     //15.不理解：
     s->internal->raw_packet_buffer_remaining_size = RAW_PACKET_BUFFER_SIZE;
-    //16.更新context
-    update_stream_avctx(s);//用avcodec_parameters_to_context更新
-    //17.更新orig_codec_id  ==> 不是很理解?
+    //16.更新context 
+    update_stream_avctx(s);//用avcodec_parameters_to_context更新: AVCodecParameters复制到st->codec和st->internal->avctx
+    //17.更新orig_codec_id  ==> 对比find_stream_info
     for (i = 0; i < s->nb_streams; i++)
         s->streams[i]->internal->orig_codec_id = s->streams[i]->codecpar->codec_id;//更新orig_codec_id
     //18.更新选项，如果原先有，则先释放
@@ -1227,7 +1227,7 @@ static void update_initial_durations(AVFormatContext *s, AVStream *st,
 
 static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
                                AVCodecParserContext *pc, AVPacket *pkt,
-                               int64_t next_dts, int64_t next_pts)//
+                               int64_t next_dts, int64_t next_pts)//tiger
 {
     int num, den, presentation_delayed, delay, i;
     int64_t offset;
@@ -1416,7 +1416,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
-void ff_packet_list_free(AVPacketList **pkt_buf, AVPacketList **pkt_buf_end)
+void ff_packet_list_free(AVPacketList **pkt_buf, AVPacketList **pkt_buf_end)//list删除比较慢
 {
     AVPacketList *tmp = *pkt_buf;
 
@@ -1452,27 +1452,27 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt, int stream_index)//TI
         compute_pkt_fields(s, st, st->parser, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);//超大函数
     }
     //02.需要解析
-    while (size > 0 || (pkt == &flush_pkt && got_output)) {
+    while (size > 0 || (pkt == &flush_pkt && got_output)) {//如果需要解析的size大于0，或者用的是堆栈上的AVPacket
         int len;
         int64_t next_pts = pkt->pts;
         int64_t next_dts = pkt->dts;
-        //02.01.
+        //02.01. 编码器解析av_parser_parse2
         av_init_packet(&out_pkt);
         len = av_parser_parse2(st->parser, st->internal->avctx,//av_read_frame-->read_frame_internal-->parse_packet-->av_parser_parse2-->h264_parse
                                &out_pkt.data, &out_pkt.size, data, size,
                                pkt->pts, pkt->dts, pkt->pos);
-        //02.02.
+        //02.02.初始化pts
         pkt->pts = pkt->dts = AV_NOPTS_VALUE;
         pkt->pos = -1;
         /* increment read pointer */
-        data += len;
+        data += len;//成功解析len长度，所以前进len
         size -= len;
-        //02.03.
+        //02.03. 如果size大于，就是得到输出了
         got_output = !!out_pkt.size;
-        //02.04.
+        //02.04.如果输出的长度为0，再次解析。
         if (!out_pkt.size)
             continue;
-        //02.05.
+        //02.05. 看注释 out_pkt.data 不指向parser's internal buffer==？
         if (pkt->buf && out_pkt.data == pkt->data) {
             /* reference pkt->buf only when out_pkt.data is guaranteed to point
              * to data in it and not in the parser's internal buffer. */
@@ -1549,7 +1549,7 @@ fail:
 
 int ff_packet_list_get(AVPacketList **pkt_buffer,
                        AVPacketList **pkt_buffer_end,
-                       AVPacket      *pkt)
+                       AVPacket      *pkt)//取单向列表第一个
 {
     AVPacketList *pktl;
     av_assert0(*pkt_buffer);
@@ -1562,7 +1562,7 @@ int ff_packet_list_get(AVPacketList **pkt_buffer,
     return 0;
 }
 
-static int64_t ts_to_samples(AVStream *st, int64_t ts)
+static int64_t ts_to_samples(AVStream *st, int64_t ts)//时间从AVStream的时间基准变为采样值
 {
     return av_rescale(ts, st->time_base.num * st->codecpar->sample_rate, st->time_base.den);
 }
@@ -1982,7 +1982,7 @@ int ff_add_index_entry(AVIndexEntry **index_entries,
                        int *nb_index_entries,
                        unsigned int *index_entries_allocated_size,
                        int64_t pos, int64_t timestamp,
-                       int size, int distance, int flags)
+                       int size, int distance, int flags)//TIGER 
 {
     AVIndexEntry *entries, *ie;
     int index;
@@ -2967,7 +2967,7 @@ static void estimate_timings(AVFormatContext *ic, int64_t old_offset)
     }
 }
 //返回0 是异常
-static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)
+static int has_codec_parameters(AVStream *st, const char **errmsg_ptr)//AVStream是否有足够的音频或视频参数
 {
     AVCodecContext *avctx = st->internal->avctx;
 

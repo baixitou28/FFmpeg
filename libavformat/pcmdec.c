@@ -32,7 +32,7 @@ typedef struct PCMAudioDemuxerContext {
     int channels;
 } PCMAudioDemuxerContext;
 //TIGER PCM
-static int pcm_read_header(AVFormatContext *s)
+static int pcm_read_header(AVFormatContext *s)//TIGER ic->iformat->read_header Read the format header and initialize the AVFormatContext structure
 {
     PCMAudioDemuxerContext *s1 = s->priv_data;
     AVStream *st;
@@ -111,7 +111,7 @@ static const AVClass name_ ## _demuxer_class = {            \
     .option     = pcm_options,                              \
     .version    = LIBAVUTIL_VERSION_INT,                    \
 };                                                          \
-AVInputFormat ff_pcm_ ## name_ ## _demuxer = {              \
+AVInputFormat ff_pcm_ ## name_ ## _demuxer = {              \//ff_pcm_alaw_demuxer  宏为什么不是ff_pcm_alaw__demuxer
     .name           = #name_,                               \
     .long_name      = NULL_IF_CONFIG_SMALL(long_name_),     \
     .priv_data_size = sizeof(PCMAudioDemuxerContext),       \//首先需要一个实例，来保存AVClass，sample_rate，channel
@@ -121,7 +121,7 @@ AVInputFormat ff_pcm_ ## name_ ## _demuxer = {              \
     .flags          = AVFMT_GENERIC_INDEX,                  \
     .extensions     = ext,                                  \
     .raw_codec_id   = codec,                                \//所有的
-    .priv_class     = &name_ ## _demuxer_class,             \
+    .priv_class     = &name_ ## _demuxer_class,             \//alaw_demuxer_class
     __VA_ARGS__                                             \
 };
 
