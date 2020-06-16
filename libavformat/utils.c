@@ -3074,7 +3074,7 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st, AVPacket *avpkt,//
            ret >= 0 &&
            (!has_codec_parameters(st, NULL) || !has_decode_delay_been_guessed(st) ||//举例：对于alaw has_codec_parameters(st, NULL) =1 ，has_decode_delay_been_guessed(st)=1
             (!st->codec_info_nb_frames &&
-             (avctx->codec->capabilities & AV_CODEC_CAP_CHANNEL_CONF)))) {
+             (avctx->codec->capabilities & AV_CODEC_CAP_CHANNEL_CONF)))) {//如果是要替代容器的配置的
         got_picture = 0;
         if (avctx->codec_type == AVMEDIA_TYPE_VIDEO ||
             avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -3897,13 +3897,13 @@ FF_ENABLE_DEPRECATION_WARNINGS
          * it takes longer and uses more memory. For MPEG-4, we need to
          * decompress for QuickTime.
          *
-         * If AV_CODEC_CAP_CHANNEL_CONF is set this will force decoding of at
+         * If AV_CODEC_CAP_CHANNEL_CONF is set this will force decoding of at //tiger program 至少解一帧
          * least one frame of codec data, this makes sure the codec initializes
-         * the channel configuration and does not only trust the values from
+         * the channel configuration and does not only trust the values from//TIGER 不相信容器的配置
          * the container. */
-        try_decode_frame(ic, st, pkt,//04.14如何理解
+        try_decode_frame(ic, st, pkt,//04.14 有什么用 ==>
                          (options && i < orig_nb_streams) ? &options[i] : NULL);
-
+        
         if (ic->flags & AVFMT_FLAG_NOBUFFER)//04.15也可以将分析过的数据释放掉的
             av_packet_unref(pkt);
 

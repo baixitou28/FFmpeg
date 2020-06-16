@@ -1030,7 +1030,7 @@ typedef struct RcOverride{
 /**
  * Codec should fill in channel configuration and samplerate instead of container
  */
-#define AV_CODEC_CAP_CHANNEL_CONF        (1 << 10)
+#define AV_CODEC_CAP_CHANNEL_CONF        (1 << 10)//TIGER PROGRAM
 /**
  * Codec supports frame-level multithreading.
  */
