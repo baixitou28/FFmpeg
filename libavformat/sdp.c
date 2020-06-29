@@ -151,7 +151,7 @@ static int sdp_get_address(char *dest_addr, int size, int *ttl, const char *url)
 }
 
 #define MAX_PSET_SIZE 1024
-static char *extradata2psets(AVFormatContext *s, AVCodecParameters *par)
+static char *extradata2psets(AVFormatContext *s, AVCodecParameters *par)//TIGER SPS //TIGER PPS 从现成的extradata中生成sdp内容
 {
     char *psets, *p;
     const uint8_t *r;
@@ -166,31 +166,31 @@ static char *extradata2psets(AVFormatContext *s, AVCodecParameters *par)
         av_log(s, AV_LOG_ERROR, "Too much extradata!\n");
 
         return NULL;
-    }
-    if (par->extradata[0] == 1) {//这是哪里设置？
-        if (ff_avc_write_annexb_extradata(par->extradata, &extradata,//可以把帧都放进去
+    }//01.par->extradata是否已经有数据
+    if (par->extradata[0] == 1) {//0x00000001的标记，网络序，应该是1开头
+        if (ff_avc_write_annexb_extradata(par->extradata, &extradata,//从par->extradata中生成固定的格式到extradata
                                           &extradata_size))
             return NULL;
         tmpbuf = extradata;
     }
-
+    //02.
     psets = av_mallocz(MAX_PSET_SIZE);
     if (!psets) {
         av_log(s, AV_LOG_ERROR, "Cannot allocate memory for the parameter sets.\n");
         av_free(tmpbuf);
         return NULL;
     }
-    memcpy(psets, pset_string, strlen(pset_string));
+    memcpy(psets, pset_string, strlen(pset_string));//03.sps 头
     p = psets + strlen(pset_string);
-    r = ff_avc_find_startcode(extradata, extradata + extradata_size);
+    r = ff_avc_find_startcode(extradata, extradata + extradata_size);//04.查找分隔符
     while (r < extradata + extradata_size) {
         const uint8_t *r1;
         uint8_t nal_type;
 
-        while (!*(r++));
-        nal_type = *r & 0x1f;
-        r1 = ff_avc_find_startcode(r, extradata + extradata_size);
-        if (nal_type != 7 && nal_type != 8) { /* Only output SPS and PPS */
+        while (!*(r++));//查找不为零的值
+        nal_type = *r & 0x1f;//第一个就是nal_type
+        r1 = ff_avc_find_startcode(r, extradata + extradata_size);//紧跟的是分隔符
+        if (nal_type != 7 && nal_type != 8) { /* Only output SPS and PPS *///仅仅处理sps和pps
             r = r1;
             continue;
         }
@@ -212,10 +212,10 @@ static char *extradata2psets(AVFormatContext *s, AVCodecParameters *par)
         p += strlen(p);
         r = r1;
     }
-    if (sps && sps_end - sps >= 4) {
-        memcpy(p, profile_string, strlen(profile_string));
+    if (sps && sps_end - sps >= 4) {//如果已经有sps了，开始填pps
+        memcpy(p, profile_string, strlen(profile_string));//pps 头
         p += strlen(p);
-        ff_data_to_hex(p, sps + 1, 3, 0);
+        ff_data_to_hex(p, sps + 1, 3, 0);//实际内容
         p[6] = '\0';
     }
     av_free(tmpbuf);
@@ -444,7 +444,7 @@ static int latm_context2profilelevel(AVCodecParameters *par)
     return profile_level;
 }
 
-static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)//TIGER RTP AAC CONFIG //TIGER RTP AAC CONFIG
+static char *latm_context2config(AVFormatContext *s, AVCodecParameters *par)//TIGER RTP AAC CONFIG //TIGER RTP AAC CONFIG //TIGER SDP
 {
     /* MP4A-LATM
      * The RTP payload format specification is described in RFC 3016
@@ -495,7 +495,7 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
                 av_opt_flag_is_set(fmt->priv_data, "rtpflags", "h264_mode0"))
                 mode = 0;
             if (p->extradata_size) {
-                config = extradata2psets(fmt, p);//TIGER SDP H264
+                config = extradata2psets(fmt, p);//TIGER SDP H264 //TIGER SPS
             }
             av_strlcatf(buff, size, "a=rtpmap:%d H264/90000\r\n" //tiger rtp rtpmap 打印 //TIGER H264 
                                     "a=fmtp:%d packetization-mode=%d%s\r\n",
@@ -769,7 +769,7 @@ void ff_sdp_write_media(char *buff, int size, AVStream *st, int idx,
     sdp_write_media_attributes(buff, size, st, payload_type, fmt);
 }
 
-int av_sdp_create(AVFormatContext *ac[], int n_files, char *buf, int size)
+int av_sdp_create(AVFormatContext *ac[], int n_files, char *buf, int size)//TIGER SDP 自动生成 包含了//TIGER SPS extra data
 {
     AVDictionaryEntry *title = av_dict_get(ac[0]->metadata, "title", NULL, 0);
     struct sdp_session_level s = { 0 };

@@ -2826,7 +2826,7 @@ static int read_thread(void *arg)
 
     if (!window_title && (t = av_dict_get(ic->metadata, "title", NULL, 0)))
         window_title = av_asprintf("%s - %s", t->value, input_filename);
-    //11.调到某个时间
+    //11.跳到某个时间
     /* if seeking requested, we execute it */
     if (start_time != AV_NOPTS_VALUE) {//是否要跳转到某个位置
         int64_t timestamp;

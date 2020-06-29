@@ -203,7 +203,7 @@ static int hevc_set_extradata(AVCodecContext *avctx, FFAMediaFormat *format)
     memset(&ps, 0, sizeof(ps));
     memset(&sei, 0, sizeof(sei));
 
-    ret = ff_hevc_decode_extradata(avctx->extradata, avctx->extradata_size,
+    ret = ff_hevc_decode_extradata(avctx->extradata, avctx->extradata_size,//tiger sps
                                    &ps, &sei, &is_nalff, &nal_length_size, 0, 1, avctx);
     if (ret < 0) {
         goto done;

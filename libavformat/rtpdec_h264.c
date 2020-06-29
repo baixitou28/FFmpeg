@@ -93,7 +93,7 @@ static void parse_profile_level_id(AVFormatContext *s,
     h264_data->level_idc   = level_idc;
 }
 
-int ff_h264_parse_sprop_parameter_sets(AVFormatContext *s,//TIGER SDP  //TIGER H264
+int ff_h264_parse_sprop_parameter_sets(AVFormatContext *s,//TIGER SDP  //TIGER H264 //TIGER SPS
                                        uint8_t **data_ptr, int *size_ptr,
                                        const char *value)
 {
@@ -141,7 +141,7 @@ int ff_h264_parse_sprop_parameter_sets(AVFormatContext *s,//TIGER SDP  //TIGER H
     return 0;
 }
 
-static int sdp_parse_fmtp_config_h264(AVFormatContext *s,//TIGER SDP //TIGER H264 a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z0LgHtoCwEkQ,aM4wpIA=; profile-level-id=42E01E
+static int sdp_parse_fmtp_config_h264(AVFormatContext *s,//TIGER SDP //tiger sps//TIGER H264 a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z0LgHtoCwEkQ,aM4wpIA=; profile-level-id=42E01E
                                       AVStream *stream,
                                       PayloadContext *h264_data,
                                       const char *attr, const char *value)
@@ -172,7 +172,7 @@ static int sdp_parse_fmtp_config_h264(AVFormatContext *s,//TIGER SDP //TIGER H26
         }
         par->extradata_size = 0;
         av_freep(&par->extradata);
-        ret = ff_h264_parse_sprop_parameter_sets(s, &par->extradata,
+        ret = ff_h264_parse_sprop_parameter_sets(s, &par->extradata,//tiger sps //tiger pps //tiger sdp
                                                  &par->extradata_size, value);
         av_log(s, AV_LOG_DEBUG, "Extradata set to %p (size: %d)\n",
                par->extradata, par->extradata_size);
@@ -332,7 +332,7 @@ static int h264_handle_packet(AVFormatContext *ctx, PayloadContext *data,
     switch (type) {
     case 0:                    // undefined, but pass them through
     case 1://02.01 单包
-        if ((result = av_new_packet(pkt, len + sizeof(start_sequence))) < 0)//多分配{ 0, 0, 0, 1 };
+        if ((result = av_new_packet(pkt, len + sizeof(start_sequence))) < 0)//预留{ 0, 0, 0, 1 };
             return result;
         memcpy(pkt->data, start_sequence, sizeof(start_sequence));//内部存储是带start_sequence头的
         memcpy(pkt->data + sizeof(start_sequence), buf, len);//后面才是rtp传过来的数据

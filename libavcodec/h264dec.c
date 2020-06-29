@@ -413,7 +413,7 @@ static av_cold int h264_decode_init(AVCodecContext *avctx)
     avctx->ticks_per_frame = 2;
 
     if (avctx->extradata_size > 0 && avctx->extradata) {
-        ret = ff_h264_decode_extradata(avctx->extradata, avctx->extradata_size,
+        ret = ff_h264_decode_extradata(avctx->extradata, avctx->extradata_size,//TIGER H264 EXTRADATA //TIGER EXTRADATA
                                        &h->ps, &h->is_avc, &h->nal_length_size,
                                        avctx->err_recognition, avctx);
         if (ret < 0) {

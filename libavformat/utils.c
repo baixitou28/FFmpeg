@@ -5311,7 +5311,7 @@ error:
 
 int ff_generate_avci_extradata(AVStream *st)//产生sps和pps
 {
-    static const uint8_t avci100_1080p_extradata[] = {
+    static const uint8_t avci100_1080p_extradata[] = {//tiger sps //TIGER PPS 模板
         // SPS
         0x00, 0x00, 0x00, 0x01, 0x67, 0x7a, 0x10, 0x29,
         0xb6, 0xd4, 0x20, 0x22, 0x33, 0x19, 0xc6, 0x63,

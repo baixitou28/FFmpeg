@@ -2316,11 +2316,11 @@ int av_demuxer_open(AVFormatContext *ic);
 
 /**
  * Read packets of a media file to get stream information. This
- * is useful for file formats with no headers such as MPEG. This
+ * is useful for file formats with no headers such as MPEG. This//TIGER 对于mpeg很重要，因为文件头没有包含相关编解码信息参看mpegps_read_header
  * function also computes the real framerate in case of MPEG-2 repeat
  * frame mode.
  * The logical file position is not changed by this function;
- * examined packets may be buffered for later processing.
+ * examined packets may be buffered for later processing.//TIGER 有内部队列，原先读取的数据，放入队列，使得能够重新使用一次
  *
  * @param ic media file handle
  * @param options  If non-NULL, an ic.nb_streams long array of pointers to

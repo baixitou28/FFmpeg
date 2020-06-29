@@ -195,7 +195,7 @@ fail:
     return ret;
 }
 
-int ff_avc_write_annexb_extradata(const uint8_t *in, uint8_t **buf, int *size)
+int ff_avc_write_annexb_extradata(const uint8_t *in, uint8_t **buf, int *size)//从par->extradata中复制pps和sps到buf中
 {
     uint16_t sps_size, pps_size;
     uint8_t *out;
@@ -207,20 +207,20 @@ int ff_avc_write_annexb_extradata(const uint8_t *in, uint8_t **buf, int *size)
     if (*size < 11 || in[0] != 1)
         return AVERROR_INVALIDDATA;
 
-    sps_size = AV_RB16(&in[6]);
+    sps_size = AV_RB16(&in[6]);//01.sps长度
     if (11 + sps_size > *size)
         return AVERROR_INVALIDDATA;
-    pps_size = AV_RB16(&in[9 + sps_size]);
+    pps_size = AV_RB16(&in[9 + sps_size]);//02.pps长度
     if (11 + sps_size + pps_size > *size)
         return AVERROR_INVALIDDATA;
-    out_size = 8 + sps_size + pps_size;
+    out_size = 8 + sps_size + pps_size;//03.内存
     out = av_mallocz(out_size + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!out)
         return AVERROR(ENOMEM);
-    AV_WB32(&out[0], 0x00000001);
+    AV_WB32(&out[0], 0x00000001);//04.先写分隔符，sps
     memcpy(out + 4, &in[8], sps_size);
-    AV_WB32(&out[4 + sps_size], 0x00000001);
-    memcpy(out + 8 + sps_size, &in[11 + sps_size], pps_size);
+    AV_WB32(&out[4 + sps_size], 0x00000001);//05.再写分隔符，pps
+    memcpy(out + 8 + sps_size, &in[11 + sps_size], pps_size);//为什么不直接复制呢？==>TIGER 应该是考虑0x00000001的字节序
     *buf = out;
     *size = out_size;
     return 0;

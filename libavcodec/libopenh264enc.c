@@ -306,7 +306,7 @@ static int svc_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     // frames have two layers, where the first layer contains the SPS/PPS.
     // If using global headers, don't include the SPS/PPS in the returned
     // packet - thus, only return one layer.
-    if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER)
+    if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER)//TIGER SPS
         first_layer = fbi.iLayerNum - 1;
 
     for (layer = first_layer; layer < fbi.iLayerNum; layer++) {

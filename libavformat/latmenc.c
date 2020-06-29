@@ -53,7 +53,7 @@ static const AVClass latm_muxer_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-static int latm_decode_extradata(LATMContext *ctx, uint8_t *buf, int size)
+static int latm_decode_extradata(LATMContext *ctx, uint8_t *buf, int size)//tiger aac ÎÄ¼þÍ·
 {
     MPEG4AudioConfig m4ac;
 
@@ -95,7 +95,7 @@ static int latm_write_header(AVFormatContext *s)
     }
 
     if (par->extradata_size > 0 &&
-        latm_decode_extradata(ctx, par->extradata, par->extradata_size) < 0)
+        latm_decode_extradata(ctx, par->extradata, par->extradata_size) < 0)//TIGER AAC EXTRADATA
         return AVERROR_INVALIDDATA;
 
     return 0;
@@ -170,7 +170,7 @@ static int latm_write_packet(AVFormatContext *s, AVPacket *pkt)
             side_data = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
                                                 &side_data_size);
             if (side_data_size) {
-                if (latm_decode_extradata(ctx, side_data, side_data_size) < 0)
+                if (latm_decode_extradata(ctx, side_data, side_data_size) < 0)//TIGER AAC EXTRADATA
                     return AVERROR_INVALIDDATA;
                 ret = ff_alloc_extradata(par, side_data_size);
                 if (ret < 0)

@@ -45,7 +45,7 @@ typedef struct ADTSContext {
 
 #define ADTS_MAX_FRAME_BYTES ((1 << 13) - 1)
 
-static int adts_decode_extradata(AVFormatContext *s, ADTSContext *adts, const uint8_t *buf, int size)
+static int adts_decode_extradata(AVFormatContext *s, ADTSContext *adts, const uint8_t *buf, int size)//TIGER AAC ADTS
 {
     GetBitContext gb;
     PutBitContext pb;
@@ -104,7 +104,7 @@ static int adts_init(AVFormatContext *s)
         return AVERROR(EINVAL);
     }
     if (par->extradata_size > 0)
-        return adts_decode_extradata(s, adts, par->extradata,
+        return adts_decode_extradata(s, adts, par->extradata,//TIGER AAC ADTS
                                      par->extradata_size);
 
     return 0;
@@ -174,7 +174,7 @@ static int adts_write_packet(AVFormatContext *s, AVPacket *pkt)
         side_data = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
                                             &side_data_size);
         if (side_data_size) {
-            ret = adts_decode_extradata(s, adts, side_data, side_data_size);
+            ret = adts_decode_extradata(s, adts, side_data, side_data_size);//TIGER AAC ADTS
             if (ret < 0)
                 return ret;
             ret = ff_alloc_extradata(par, side_data_size);
