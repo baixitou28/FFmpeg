@@ -729,7 +729,7 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
             av_strlcatf(buff, size, "a=rtpmap:%d opus/48000/2\r\n",
                                      payload_type);
             if (p->channels == 2) {
-                av_strlcatf(buff, size, "a=fmtp:%d sprop-stereo=1\r\n",
+                av_strlcatf(buff, size, "a=fmtp:%d sprop-stereo=1\r\n",//TIGER OPUS SDP
                                          payload_type);
             }
             break;
