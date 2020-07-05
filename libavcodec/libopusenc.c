@@ -539,7 +539,7 @@ static av_cold int libopus_encode_close(AVCodecContext *avctx)
 
 #define OFFSET(x) offsetof(LibopusEncContext, opts.x)
 #define FLAGS AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
-static const AVOption libopus_options[] = {
+static const AVOption libopus_options[] = {//tiger opus options
     { "application",    "Intended application type",           OFFSET(application),    AV_OPT_TYPE_INT,   { .i64 = OPUS_APPLICATION_AUDIO }, OPUS_APPLICATION_VOIP, OPUS_APPLICATION_RESTRICTED_LOWDELAY, FLAGS, "application" },
         { "voip",           "Favor improved speech intelligibility",   0, AV_OPT_TYPE_CONST, { .i64 = OPUS_APPLICATION_VOIP },                0, 0, FLAGS, "application" },
         { "audio",          "Favor faithfulness to the input",         0, AV_OPT_TYPE_CONST, { .i64 = OPUS_APPLICATION_AUDIO },               0, 0, FLAGS, "application" },
@@ -574,8 +574,8 @@ static const int libopus_sample_rates[] = {
     48000, 24000, 16000, 12000, 8000, 0,
 };
 
-AVCodec ff_libopus_encoder = {
-    .name            = "libopus",
+AVCodec ff_libopus_encoder = {//TIGER OPUS
+    .name            = "libopus",//因为是外部的编解码，所以命名为lib开头
     .long_name       = NULL_IF_CONFIG_SMALL("libopus Opus"),
     .type            = AVMEDIA_TYPE_AUDIO,
     .id              = AV_CODEC_ID_OPUS,
@@ -584,10 +584,10 @@ AVCodec ff_libopus_encoder = {
     .encode2         = libopus_encode,
     .close           = libopus_encode_close,
     .capabilities    = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_SMALL_LAST_FRAME,
-    .sample_fmts     = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
+    .sample_fmts     = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,//支持保存2种格式
                                                       AV_SAMPLE_FMT_FLT,
                                                       AV_SAMPLE_FMT_NONE },
-    .supported_samplerates = libopus_sample_rates,
+    .supported_samplerates = libopus_sample_rates,//采样率 //实际使用如何选  //avcodec_open2 中会验证avctx->sample_rate 在编码器的采样率 avctx->codec->supported_samplerates  中
     .priv_class      = &libopus_class,
     .defaults        = libopus_defaults,
     .wrapper_name    = "libopus",

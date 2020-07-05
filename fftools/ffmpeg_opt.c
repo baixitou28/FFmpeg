@@ -3016,7 +3016,7 @@ static int opt_bitrate(void *optctx, const char *opt, const char *arg)
     OptionsContext *o = optctx;
 
     if(!strcmp(opt, "ab")){
-        av_dict_set(&o->g->codec_opts, "b:a", arg, 0);
+        av_dict_set(&o->g->codec_opts, "b:a", arg, 0);//tiger b:a
         return 0;
     } else if(!strcmp(opt, "b")){
         av_log(NULL, AV_LOG_WARNING, "Please use -b:a or -b:v, -b is ambiguous\n");
@@ -3361,7 +3361,7 @@ static int opt_progress(void *optctx, const char *opt, const char *arg)
 }
 
 #define OFFSET(x) offsetof(OptionsContext, x)
-const OptionDef options[] = {//TIGER OPTIONS 
+const OptionDef options[] = {//TIGER OPTIONS //tiger ffmpeg options
     /* main options */
     CMDUTILS_COMMON_OPTIONS
     { "f",              HAS_ARG | OPT_STRING | OPT_OFFSET |
@@ -3543,13 +3543,13 @@ const OptionDef options[] = {//TIGER OPTIONS
     { "find_stream_info", OPT_BOOL | OPT_PERFILE | OPT_INPUT | OPT_EXPERT, { &find_stream_info },
         "read and decode the streams to fill missing information with heuristics" },
 
-    /* video options */
-    { "vframes",      OPT_VIDEO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_video_frames },
+    /* video options *///tiger options video
+    { "vframes",      OPT_VIDEO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_video_frames },//tiger vframe
         "set the number of video frames to output", "number" },
-    { "r",            OPT_VIDEO | HAS_ARG  | OPT_STRING | OPT_SPEC |
+    { "r",            OPT_VIDEO | HAS_ARG  | OPT_STRING | OPT_SPEC |//tiger r
                       OPT_INPUT | OPT_OUTPUT,                                    { .off = OFFSET(frame_rates) },
         "set frame rate (Hz value, fraction or abbreviation)", "rate" },
-    { "s",            OPT_VIDEO | HAS_ARG | OPT_SUBTITLE | OPT_STRING | OPT_SPEC |
+    { "s",            OPT_VIDEO | HAS_ARG | OPT_SUBTITLE | OPT_STRING | OPT_SPEC |//tiger s
                       OPT_INPUT | OPT_OUTPUT,                                    { .off = OFFSET(frame_sizes) },
         "set frame size (WxH or abbreviation)", "size" },
     { "aspect",       OPT_VIDEO | HAS_ARG  | OPT_STRING | OPT_SPEC |
@@ -3562,13 +3562,13 @@ const OptionDef options[] = {//TIGER OPTIONS
         "set the number of bits per raw sample", "number" },
     { "intra",        OPT_VIDEO | OPT_BOOL | OPT_EXPERT,                         { &intra_only },
         "deprecated use -g 1" },
-    { "vn",           OPT_VIDEO | OPT_BOOL  | OPT_OFFSET | OPT_INPUT | OPT_OUTPUT,{ .off = OFFSET(video_disable) },
+    { "vn",           OPT_VIDEO | OPT_BOOL  | OPT_OFFSET | OPT_INPUT | OPT_OUTPUT,{ .off = OFFSET(video_disable) },//tiger vn
         "disable video" },
     { "rc_override",  OPT_VIDEO | HAS_ARG | OPT_EXPERT  | OPT_STRING | OPT_SPEC |
                       OPT_OUTPUT,                                                { .off = OFFSET(rc_overrides) },
         "rate control override for specific intervals", "override" },
     { "vcodec",       OPT_VIDEO | HAS_ARG  | OPT_PERFILE | OPT_INPUT |
-                      OPT_OUTPUT,                                                { .func_arg = opt_video_codec },
+                      OPT_OUTPUT,                                                { .func_arg = opt_video_codec },//tiger vcodec
         "force video codec ('copy' to copy stream)", "codec" },
     { "sameq",        OPT_VIDEO | OPT_EXPERT ,                                   { .func_arg = opt_sameq },
         "Removed" },
@@ -3591,7 +3591,7 @@ const OptionDef options[] = {//TIGER OPTIONS
         "dump video coding statistics to file", "file" },
     { "vstats_version",  OPT_VIDEO | OPT_INT | HAS_ARG | OPT_EXPERT ,            { &vstats_version },
         "Version of the vstats format to use."},
-    { "vf",           OPT_VIDEO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_video_filters },
+    { "vf",           OPT_VIDEO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_video_filters },//tiger vf
         "set video filters", "filter_graph" },
     { "intra_matrix", OPT_VIDEO | HAS_ARG | OPT_EXPERT  | OPT_STRING | OPT_SPEC |
                       OPT_OUTPUT,                                                { .off = OFFSET(intra_matrices) },
@@ -3621,7 +3621,7 @@ const OptionDef options[] = {//TIGER OPTIONS
         "force key frames at specified timestamps", "timestamps" },
     { "ab",           OPT_VIDEO | HAS_ARG | OPT_PERFILE | OPT_OUTPUT,            { .func_arg = opt_bitrate },
         "audio bitrate (please use -b:a)", "bitrate" },
-    { "b",            OPT_VIDEO | HAS_ARG | OPT_PERFILE | OPT_OUTPUT,            { .func_arg = opt_bitrate },
+    { "b",            OPT_VIDEO | HAS_ARG | OPT_PERFILE | OPT_OUTPUT,            { .func_arg = opt_bitrate },//tiger b //tiger b:a
         "video bitrate (please use -b:v)", "bitrate" },
     { "hwaccel",          OPT_VIDEO | OPT_STRING | HAS_ARG | OPT_EXPERT |
                           OPT_SPEC | OPT_INPUT,                                  { .off = OFFSET(hwaccels) },
@@ -3641,21 +3641,21 @@ const OptionDef options[] = {//TIGER OPTIONS
                           OPT_EXPERT | OPT_INPUT,                                { .off = OFFSET(autorotate) },
         "automatically insert correct rotate filters" },
 
-    /* audio options */
-    { "aframes",        OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_frames },
+    /* audio options *///tiger option audio
+    { "aframes",        OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_frames },//tiger aframes
         "set the number of audio frames to output", "number" },
     { "aq",             OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_qscale },
         "set audio quality (codec-specific)", "quality", },
-    { "ar",             OPT_AUDIO | HAS_ARG  | OPT_INT | OPT_SPEC |
+    { "ar",             OPT_AUDIO | HAS_ARG  | OPT_INT | OPT_SPEC |//TIGER AAC ffmepg: -acodec aac -profile:a aac_main -ar:a 44100 //tiger ar
                         OPT_INPUT | OPT_OUTPUT,                                    { .off = OFFSET(audio_sample_rate) },
         "set audio sampling rate (in Hz)", "rate" },
-    { "ac",             OPT_AUDIO | HAS_ARG  | OPT_INT | OPT_SPEC |
+    { "ac",             OPT_AUDIO | HAS_ARG  | OPT_INT | OPT_SPEC |//tiger ac
                         OPT_INPUT | OPT_OUTPUT,                                    { .off = OFFSET(audio_channels) },
         "set number of audio channels", "channels" },
-    { "an",             OPT_AUDIO | OPT_BOOL | OPT_OFFSET | OPT_INPUT | OPT_OUTPUT,{ .off = OFFSET(audio_disable) },
+    { "an",             OPT_AUDIO | OPT_BOOL | OPT_OFFSET | OPT_INPUT | OPT_OUTPUT,{ .off = OFFSET(audio_disable) },//tiger an
         "disable audio" },
     { "acodec",         OPT_AUDIO | HAS_ARG  | OPT_PERFILE |
-                        OPT_INPUT | OPT_OUTPUT,                                    { .func_arg = opt_audio_codec },
+                        OPT_INPUT | OPT_OUTPUT,                                    { .func_arg = opt_audio_codec },//tiger acodec
         "force audio codec ('copy' to copy stream)", "codec" },
     { "atag",           OPT_AUDIO | HAS_ARG  | OPT_EXPERT | OPT_PERFILE |
                         OPT_OUTPUT,                                                { .func_arg = opt_old2new },
@@ -3663,12 +3663,12 @@ const OptionDef options[] = {//TIGER OPTIONS
     { "vol",            OPT_AUDIO | HAS_ARG  | OPT_INT,                            { &audio_volume },
         "change audio volume (256=normal)" , "volume" },
     { "sample_fmt",     OPT_AUDIO | HAS_ARG  | OPT_EXPERT | OPT_SPEC |
-                        OPT_STRING | OPT_INPUT | OPT_OUTPUT,                       { .off = OFFSET(sample_fmts) },
+                        OPT_STRING | OPT_INPUT | OPT_OUTPUT,                       { .off = OFFSET(sample_fmts) },//tiger fmt
         "set sample format", "format" },
     { "channel_layout", OPT_AUDIO | HAS_ARG  | OPT_EXPERT | OPT_PERFILE |
-                        OPT_INPUT | OPT_OUTPUT,                                    { .func_arg = opt_channel_layout },
+                        OPT_INPUT | OPT_OUTPUT,                                    { .func_arg = opt_channel_layout },//tiger layout
         "set channel layout", "layout" },
-    { "af",             OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_filters },
+    { "af",             OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_filters },//tiger af
         "set audio filters", "filter_graph" },
     { "guess_layout_max", OPT_AUDIO | HAS_ARG | OPT_INT | OPT_SPEC | OPT_EXPERT | OPT_INPUT, { .off = OFFSET(guess_layout_max) },
       "set the maximum number of channels to try to guess the channel layout" },
