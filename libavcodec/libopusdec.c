@@ -52,20 +52,20 @@ static av_cold int libopus_decode_init(AVCodecContext *avc)
     struct libopus_context *opus = avc->priv_data;
     int ret, channel_map = 0, gain_db = 0, nb_streams, nb_coupled;
     uint8_t mapping_arr[8] = { 0, 1 }, *mapping;
-
+    //01.默认声道数 2
     avc->channels = avc->extradata_size >= 10 ? avc->extradata[9] : (avc->channels == 1) ? 1 : 2;
     if (avc->channels <= 0) {
         av_log(avc, AV_LOG_WARNING,
                "Invalid number of channels %d, defaulting to stereo\n", avc->channels);
         avc->channels = 2;
     }
-
+    //02.采样率
     avc->sample_rate    = 48000;
-    avc->sample_fmt     = avc->request_sample_fmt == AV_SAMPLE_FMT_FLT ?
+    avc->sample_fmt     = avc->request_sample_fmt == AV_SAMPLE_FMT_FLT ?//03.采样保持格式
                           AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
-    avc->channel_layout = avc->channels > 8 ? 0 :
+    avc->channel_layout = avc->channels > 8 ? 0 ://04.声音layout
                           ff_vorbis_channel_layouts[avc->channels - 1];
-
+    //05.
     if (avc->extradata_size >= OPUS_HEAD_SIZE) {
         opus->pre_skip = AV_RL16(avc->extradata + 10);
         gain_db     = sign_extend(AV_RL16(avc->extradata + 16), 16);
@@ -97,7 +97,7 @@ static av_cold int libopus_decode_init(AVCodecContext *avc)
             mapping_arr[ch] = mapping[vorbis_offset[ch]];
         mapping = mapping_arr;
     }
-
+    //06.创建解码器
     opus->dec = opus_multistream_decoder_create(avc->sample_rate, avc->channels,
                                                 nb_streams, nb_coupled,
                                                 mapping, &ret);
@@ -113,7 +113,7 @@ static av_cold int libopus_decode_init(AVCodecContext *avc)
         av_log(avc, AV_LOG_WARNING, "Failed to set gain: %s\n",
                opus_strerror(ret));
 #else
-    {
+    {//07.增益?
         double gain_lin = ff_exp10(gain_db / (20.0 * 256));
         if (avc->sample_fmt == AV_SAMPLE_FMT_FLT)
             opus->gain.d = gain_lin;
@@ -130,7 +130,7 @@ static av_cold int libopus_decode_init(AVCodecContext *avc)
                "Unable to set phase inversion: %s\n",
                opus_strerror(ret));
 #endif
-
+    //08. 为什么要delay？
     /* Decoder delay (in samples) at 48kHz */
     avc->delay = avc->internal->skip_samples = opus->pre_skip;
 
@@ -156,11 +156,11 @@ static int libopus_decode(AVCodecContext *avc, void *data,
     struct libopus_context *opus = avc->priv_data;
     AVFrame *frame               = data;
     int ret, nb_samples;
-
+    //01.取一帧
     frame->nb_samples = MAX_FRAME_SIZE;
     if ((ret = ff_get_buffer(avc, frame, 0)) < 0)
         return ret;
-
+    //02.解码
     if (avc->sample_fmt == AV_SAMPLE_FMT_S16)
         nb_samples = opus_multistream_decode(opus->dec, pkt->data, pkt->size,
                                              (opus_int16 *)frame->data[0],
@@ -177,7 +177,7 @@ static int libopus_decode(AVCodecContext *avc, void *data,
     }
 
 #ifndef OPUS_SET_GAIN
-    {
+    {//03.
         int i = avc->channels * nb_samples;
         if (avc->sample_fmt == AV_SAMPLE_FMT_FLT) {
             float *pcm = (float *)frame->data[0];
@@ -186,7 +186,7 @@ static int libopus_decode(AVCodecContext *avc, void *data,
         } else {
             int16_t *pcm = (int16_t *)frame->data[0];
             for (; i > 0; i--, pcm++)
-                *pcm = av_clip_int16(((int64_t)opus->gain.i * *pcm) >> 16);
+                *pcm = av_clip_int16(((int64_t)opus->gain.i * *pcm) >> 16);//乘上增益，再右移16位？
         }
     }
 #endif
@@ -225,21 +225,29 @@ static const AVClass libopusdec_class = {
 };
 
 
-AVCodec ff_libopus_decoder = {
-    .name           = "libopus",
+AVCodec ff_libopus_decoder = {//TIGER OPUS
+    .name           = "libopus",//因为是外部的编解码，所以命名为lib开头
     .long_name      = NULL_IF_CONFIG_SMALL("libopus Opus"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_OPUS,
-    .priv_data_size = sizeof(struct libopus_context),
+    .priv_data_size = sizeof(struct libopus_context ),
     .init           = libopus_decode_init,
     .close          = libopus_decode_close,
     .decode         = libopus_decode,
     .flush          = libopus_flush,
     .capabilities   = AV_CODEC_CAP_DR1,
     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
-    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,
+    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,//支持保存2种格式
                                                      AV_SAMPLE_FMT_S16,
                                                      AV_SAMPLE_FMT_NONE },
     .priv_class     = &libopusdec_class,
     .wrapper_name   = "libopus",
 };
+
+//https://tools.ietf.org/html/rfc6716
+//https://tools.ietf.org/html/rfc8251
+//Opus：IETF低延迟音频编解码器:API和操作手册 https://www.zybuluo.com/khan-lau/note/383775
+//https://www.opus-codec.org/docs/html_api-1.1.0/group__opus__multistream.html
+//Opus is a totally open, royalty - free, highly versatile audio codec.Opus is unmatched for interactive speech and music 
+//transmission over the Internet, but is also intended for storage and streaming applications.It is standardized by the 
+//Internet Engineering Task Force(IETF) as RFC 6716 which incorporated technology from Skype’s SILK codec and Xiph.Org’s CELT codec.
