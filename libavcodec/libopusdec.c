@@ -61,7 +61,7 @@ static av_cold int libopus_decode_init(AVCodecContext *avc)
     }
     //02.采样率
     avc->sample_rate    = 48000;
-    avc->sample_fmt     = avc->request_sample_fmt == AV_SAMPLE_FMT_FLT ?//03.采样保持格式
+    avc->sample_fmt     = avc->request_sample_fmt == AV_SAMPLE_FMT_FLT ?//03.采样保存格式，默认是AV_SAMPLE_FMT_S16
                           AV_SAMPLE_FMT_FLT : AV_SAMPLE_FMT_S16;
     avc->channel_layout = avc->channels > 8 ? 0 ://04.声音layout
                           ff_vorbis_channel_layouts[avc->channels - 1];

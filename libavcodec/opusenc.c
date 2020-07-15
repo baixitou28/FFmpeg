@@ -718,7 +718,7 @@ static const AVCodecDefault opusenc_defaults[] = {
 };
 
 AVCodec ff_opus_encoder = {
-    .name           = "opus",
+    .name           = "opus",//TIGER OPUS 和libopus 不是同一个
     .long_name      = NULL_IF_CONFIG_SMALL("Opus"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_OPUS,

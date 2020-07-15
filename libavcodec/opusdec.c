@@ -727,7 +727,7 @@ static const AVClass opus_class = {
 };
 
 AVCodec ff_opus_decoder = {
-    .name            = "opus",
+    .name            = "opus",//TIGER OPUS 如果是深入，还需要看看，libopus 1.3 是一个提升
     .long_name       = NULL_IF_CONFIG_SMALL("Opus"),
     .priv_class      = &opus_class,
     .type            = AVMEDIA_TYPE_AUDIO,
