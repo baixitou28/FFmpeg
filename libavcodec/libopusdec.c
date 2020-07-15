@@ -246,6 +246,7 @@ AVCodec ff_libopus_decoder = {//TIGER OPUS
 
 //https://tools.ietf.org/html/rfc6716
 //https://tools.ietf.org/html/rfc8251
+//https://tools.ietf.org/html/rfc7587
 //Opus£ºIETFµÍÑÓ³ÙÒôÆµ±à½âÂëÆ÷:APIºÍ²Ù×÷ÊÖ²á https://www.zybuluo.com/khan-lau/note/383775
 //https://www.opus-codec.org/docs/html_api-1.1.0/group__opus__multistream.html
 //Opus is a totally open, royalty - free, highly versatile audio codec.Opus is unmatched for interactive speech and music 
