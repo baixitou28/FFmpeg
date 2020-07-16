@@ -501,7 +501,7 @@ static int ogg_init(AVFormatContext *s)
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             if (st->codecpar->codec_id == AV_CODEC_ID_OPUS)
                 /* Opus requires a fixed 48kHz clock */
-                avpriv_set_pts_info(st, 64, 1, 48000);
+                avpriv_set_pts_info(st, 64, 1, 48000);//opus 设置为固定的48000
             else
                 avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
         }
@@ -852,7 +852,7 @@ AVOutputFormat ff_spx_muxer = {
 #if CONFIG_OPUS_MUXER
 OGG_CLASS(opus, Ogg Opus)
 AVOutputFormat ff_opus_muxer = {
-    .name              = "opus",
+    .name              = "opus",//TIGER OPUS
     .long_name         = NULL_IF_CONFIG_SMALL("Ogg Opus"),
     .mime_type         = "audio/ogg",
     .extensions        = "opus",

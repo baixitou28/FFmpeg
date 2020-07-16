@@ -943,13 +943,13 @@ static int ogg_read_seek(AVFormatContext *s, int stream_index,
 
 static int ogg_probe(const AVProbeData *p)
 {
-    if (!memcmp("OggS", p->buf, 5) && p->buf[5] <= 0x7)
+    if (!memcmp("OggS", p->buf, 5) && p->buf[5] <= 0x7)//文件头，或者说magic word
         return AVPROBE_SCORE_MAX;
     return 0;
 }
 
 AVInputFormat ff_ogg_demuxer = {
-    .name           = "ogg",
+    .name           = "ogg",//TIGER OGG OPUS的一个存放方式
     .long_name      = NULL_IF_CONFIG_SMALL("Ogg"),
     .priv_data_size = sizeof(struct ogg),
     .read_probe     = ogg_probe,
