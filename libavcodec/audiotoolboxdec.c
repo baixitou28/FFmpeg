@@ -600,11 +600,11 @@ static av_cold int ffat_close_decoder(AVCodecContext *avctx)
         .wrapper_name   = "at", \
     };
 
-FFAT_DEC(aac,          AV_CODEC_ID_AAC, "aac_adtstoasc")
+FFAT_DEC(aac,          AV_CODEC_ID_AAC, "aac_adtstoasc")//TIGER aac
 FFAT_DEC(ac3,          AV_CODEC_ID_AC3, NULL)
 FFAT_DEC(adpcm_ima_qt, AV_CODEC_ID_ADPCM_IMA_QT, NULL)
 FFAT_DEC(alac,         AV_CODEC_ID_ALAC, NULL)
-FFAT_DEC(amr_nb,       AV_CODEC_ID_AMR_NB, NULL)
+FFAT_DEC(amr_nb,       AV_CODEC_ID_AMR_NB, NULL)//TIGER AMR 这个audiotoolboxdec.c也能解
 FFAT_DEC(eac3,         AV_CODEC_ID_EAC3, NULL)
 FFAT_DEC(gsm_ms,       AV_CODEC_ID_GSM_MS, NULL)
 FFAT_DEC(ilbc,         AV_CODEC_ID_ILBC, NULL)

@@ -39,10 +39,10 @@ static const char AMR_header[]   = "#!AMR\n";
 static const char AMRWB_header[] = "#!AMR-WB\n";
 
 static const uint8_t amrnb_packed_size[16] = {
-    13, 14, 16, 18, 20, 21, 27, 32, 6, 1, 1, 1, 1, 1, 1, 1
+    13, 14, 16, 18, 20, 21, 27, 32, 6, 1, 1, 1, 1, 1, 1, 1//这里是32 和rtpdec.C不符合
 };
 static const uint8_t amrwb_packed_size[16] = {
-    18, 24, 33, 37, 41, 47, 51, 59, 61, 6, 1, 1, 1, 1, 1, 1
+    18, 24, 33, 37, 41, 47, 51, 59, 61, 6, 1, 1, 1, 1, 1, 1//这里是61 和rtpdec.C符合
 };
 
 #if CONFIG_AMR_MUXER
@@ -52,7 +52,7 @@ static int amr_write_header(AVFormatContext *s)
     AVCodecParameters *par = s->streams[0]->codecpar;
 
     s->priv_data = NULL;
-
+    //写AMR固定头,来标识文件类型
     if (par->codec_id == AV_CODEC_ID_AMR_NB) {
         avio_write(pb, AMR_header,   sizeof(AMR_header)   - 1); /* magic number */
     } else if (par->codec_id == AV_CODEC_ID_AMR_WB) {
@@ -76,7 +76,7 @@ static int amr_probe(const AVProbeData *p)
     // Only check for "#!AMR" which could be amr-wb, amr-nb.
     // This will also trigger multichannel files: "#!AMR_MC1.0\n" and
     // "#!AMR-WB_MC1.0\n" (not supported)
-
+    //仅仅判断文件头即可
     if (!memcmp(p->buf, AMR_header, 5))
         return AVPROBE_SCORE_MAX;
     else
@@ -95,24 +95,24 @@ static int amr_read_header(AVFormatContext *s)
     st = avformat_new_stream(s, NULL);
     if (!st)
         return AVERROR(ENOMEM);
-    if (memcmp(header, AMR_header, 6)) {
+    if (memcmp(header, AMR_header, 6)) {//根据头特征，来判断类型
         avio_read(pb, header + 6, 3);
         if (memcmp(header, AMRWB_header, 9)) {
             return -1;
         }
-
+        
         st->codecpar->codec_tag   = MKTAG('s', 'a', 'w', 'b');
         st->codecpar->codec_id    = AV_CODEC_ID_AMR_WB;
-        st->codecpar->sample_rate = 16000;
+        st->codecpar->sample_rate = 16000;//采样率是固定的
     } else {
         st->codecpar->codec_tag   = MKTAG('s', 'a', 'm', 'r');
         st->codecpar->codec_id    = AV_CODEC_ID_AMR_NB;
         st->codecpar->sample_rate = 8000;
     }
-    st->codecpar->channels   = 1;
+    st->codecpar->channels   = 1;//只有单声道
     st->codecpar->channel_layout = AV_CH_LAYOUT_MONO;
     st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
-    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
+    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);//pts_wrap_bits 正常都是64，只有H264 RTP里面是33
 
     return 0;
 }
@@ -141,23 +141,23 @@ static int amr_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (!size || av_new_packet(pkt, size))
         return AVERROR(EIO);
 
-    if (amr->cumulated_size < UINT64_MAX - size) {
+    if (amr->cumulated_size < UINT64_MAX - size) {//UINT64_MAX 是奇数，一般不会出现
         amr->cumulated_size += size;
-        /* Both AMR formats have 50 frames per second */
+        /* Both AMR formats have 50 frames per second */ //tiger 验证了帧的duration是20ms，如果nb rtp时间戳是160
         s->streams[0]->codecpar->bit_rate = amr->cumulated_size / ++amr->block_count * 8 * 50;
     }
 
     pkt->stream_index = 0;
     pkt->pos          = pos;
     pkt->data[0]      = toc;
-    pkt->duration     = par->codec_id == AV_CODEC_ID_AMR_NB ? 160 : 320;
-    read              = avio_read(s->pb, pkt->data + 1, size - 1);
+    pkt->duration     = par->codec_id == AV_CODEC_ID_AMR_NB ? 160 : 320;//这里填的是rtp的时间戳
+    read              = avio_read(s->pb, pkt->data + 1, size - 1);//读取第一位toc后的数据，相当于body
 
-    if (read != size - 1) {
+    if (read != size - 1) {//如果长度不够，返回错误
         av_packet_unref(pkt);
         if (read < 0)
-            return read;
-        return AVERROR(EIO);
+            return read;//长度为负数，则是读入异常
+        return AVERROR(EIO);//因为toc只是用指针，所以不需要回退
     }
 
     return 0;
@@ -289,7 +289,7 @@ AVInputFormat ff_amrwb_demuxer = {
 
 #if CONFIG_AMR_MUXER
 AVOutputFormat ff_amr_muxer = {
-    .name              = "amr",
+    .name              = "amr",//TIGER AMR 混
     .long_name         = NULL_IF_CONFIG_SMALL("3GPP AMR"),
     .mime_type         = "audio/amr",
     .extensions        = "amr",

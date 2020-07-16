@@ -4395,7 +4395,7 @@ static int process_input(int file_index)
         ist->wrap_correction_done = 1;
 
         if(stime2 > stime && pkt.dts != AV_NOPTS_VALUE && pkt.dts > stime + (1LL<<(ist->st->pts_wrap_bits-1))) {
-            pkt.dts -= 1ULL<<ist->st->pts_wrap_bits;
+            pkt.dts -= 1ULL<<ist->st->pts_wrap_bits;//长度溢出了，先减一下，后面来处理
             ist->wrap_correction_done = 0;
         }
         if(stime2 > stime && pkt.pts != AV_NOPTS_VALUE && pkt.pts > stime + (1LL<<(ist->st->pts_wrap_bits-1))) {

@@ -603,13 +603,13 @@ static char *sdp_write_media_attributes(char *buff, int size, AVStream *st, int 
                                          payload_type,
                                          p->sample_rate, p->channels);
             break;
-        case AV_CODEC_ID_AMR_NB:
+        case AV_CODEC_ID_AMR_NB://tiger amr sdp 关注的几个变量
             av_strlcatf(buff, size, "a=rtpmap:%d AMR/%d/%d\r\n"
                                     "a=fmtp:%d octet-align=1\r\n",
                                      payload_type, p->sample_rate, p->channels,
                                      payload_type);
             break;
-        case AV_CODEC_ID_AMR_WB:
+        case AV_CODEC_ID_AMR_WB://tiger amr sdp 关注的几个变量
             av_strlcatf(buff, size, "a=rtpmap:%d AMR-WB/%d/%d\r\n"
                                     "a=fmtp:%d octet-align=1\r\n",
                                      payload_type, p->sample_rate, p->channels,

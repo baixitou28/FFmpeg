@@ -167,10 +167,10 @@ static av_cold int amrnb_decode_init(AVCodecContext *avctx)
         return AVERROR_PATCHWELCOME;
     }
 
-    avctx->channels       = 1;
+    avctx->channels       = 1;//只有单声道
     avctx->channel_layout = AV_CH_LAYOUT_MONO;
     if (!avctx->sample_rate)
-        avctx->sample_rate = 8000;
+        avctx->sample_rate = 8000;//默认8k
     avctx->sample_fmt     = AV_SAMPLE_FMT_FLT;
 
     // p->excitation always points to the same position in p->excitation_buf
@@ -1081,14 +1081,14 @@ static int amrnb_decode_frame(AVCodecContext *avctx, void *data,
 
 
 AVCodec ff_amrnb_decoder = {
-    .name           = "amrnb",
+    .name           = "amrnb",//TIGER AMR NB 只有解码，没有编码
     .long_name      = NULL_IF_CONFIG_SMALL("AMR-NB (Adaptive Multi-Rate NarrowBand)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_AMR_NB,
     .priv_data_size = sizeof(AMRContext),
-    .init           = amrnb_decode_init,
+    .init           = amrnb_decode_init,//采样率可设
     .decode         = amrnb_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,
+    .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,//浮点
                                                      AV_SAMPLE_FMT_NONE },
 };

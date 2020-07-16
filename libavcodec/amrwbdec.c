@@ -1268,7 +1268,7 @@ static int amrwb_decode_frame(AVCodecContext *avctx, void *data,
 }
 
 AVCodec ff_amrwb_decoder = {
-    .name           = "amrwb",
+    .name           = "amrwb",//TIGER AMR WB Ö»ÓÐ½âÂë
     .long_name      = NULL_IF_CONFIG_SMALL("AMR-WB (Adaptive Multi-Rate WideBand)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_AMR_WB,

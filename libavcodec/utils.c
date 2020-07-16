@@ -1557,7 +1557,7 @@ static int get_audio_frame_duration(enum AVCodecID id, int sr, int ch, int ba,
 
     /* codecs with an exact constant bits per sample */
     if (bps > 0 && ch > 0 && frame_bytes > 0 && ch < 32768 && bps < 32768)
-        return (frame_bytes * 8LL) / (bps * ch);//awaw: 320
+        return (frame_bytes * 8LL) / (bps * ch);//awaw: 320 40ms
     bps = bits_per_coded_sample;
 
     /* codecs with a fixed packet duration */
@@ -1565,7 +1565,7 @@ static int get_audio_frame_duration(enum AVCodecID id, int sr, int ch, int ba,
     case AV_CODEC_ID_ADPCM_ADX:    return   32;
     case AV_CODEC_ID_ADPCM_IMA_QT: return   64;
     case AV_CODEC_ID_ADPCM_EA_XAS: return  128;
-    case AV_CODEC_ID_AMR_NB:
+    case AV_CODEC_ID_AMR_NB://TIGER AMR ¹Ì¶¨Ê±³¤ 20ms
     case AV_CODEC_ID_EVRC:
     case AV_CODEC_ID_GSM:
     case AV_CODEC_ID_QCELP:

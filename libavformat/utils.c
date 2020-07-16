@@ -1279,10 +1279,10 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
         presentation_delayed = 1;
     //06.不理解 //tiger todo
     if (pkt->pts != AV_NOPTS_VALUE && pkt->dts != AV_NOPTS_VALUE &&
-        st->pts_wrap_bits < 63 &&//举例 alaw ：st->pts_wrap_bits =64
+        st->pts_wrap_bits < 63 &&//举例 alaw ：st->pts_wrap_bits =64， 不存在H264视频 33位情况
         pkt->dts - (1LL << (st->pts_wrap_bits - 1)) > pkt->pts) {
         if (is_relative(st->cur_dts) || pkt->dts - (1LL<<(st->pts_wrap_bits - 1)) > st->cur_dts) {
-            pkt->dts -= 1LL << st->pts_wrap_bits;
+            pkt->dts -= 1LL << st->pts_wrap_bits;//先减
         } else
             pkt->pts += 1LL << st->pts_wrap_bits;
     }
@@ -4885,10 +4885,10 @@ int ff_hex_to_data(uint8_t *data, const char *p)//16进制字符转数字
 }
 
 void avpriv_set_pts_info(AVStream *s, int pts_wrap_bits,
-                         unsigned int pts_num, unsigned int pts_den)
+                         unsigned int pts_num, unsigned int pts_den)//TIGER 
 {
     AVRational new_tb;
-    if (av_reduce(&new_tb.num, &new_tb.den, pts_num, pts_den, INT_MAX)) {
+    if (av_reduce(&new_tb.num, &new_tb.den, pts_num, pts_den, INT_MAX)) {//TIGER pts_num和pts_den可能含最大公约数
         if (new_tb.num != pts_num)
             av_log(NULL, AV_LOG_DEBUG,
                    "st:%d removing common factor %d from timebase\n",
@@ -4911,7 +4911,7 @@ FF_DISABLE_DEPRECATION_WARNINGS
 FF_ENABLE_DEPRECATION_WARNINGS
 #endif
     s->internal->avctx->pkt_timebase = new_tb;
-    s->pts_wrap_bits = pts_wrap_bits;
+    s->pts_wrap_bits = pts_wrap_bits;//设置pts最大值的位数
 }
 
 void ff_parse_key_value(const char *str, ff_parse_key_val_cb callback_get_buf,//解析

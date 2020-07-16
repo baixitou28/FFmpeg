@@ -1061,7 +1061,7 @@ typedef struct AVStream {//TIGER AVStream
 
     } *info;//为avformat_find_stream_info定制的
 
-    int pts_wrap_bits; /**< number of bits in pts (used for wrapping control) *///avpriv_set_pts_info(st, 33, 1, 90000);
+    int pts_wrap_bits; /**< number of bits in pts (used for wrapping control) *///一共有几位，满了就要翻转，正常都是64居多，RTP H264 里 avpriv_set_pts_info(st, 33, 1, 90000);
 
     // Timestamp generation support:
     /**

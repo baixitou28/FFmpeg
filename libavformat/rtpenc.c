@@ -253,8 +253,8 @@ static int rtp_write_header(AVFormatContext *s1)//tiger rtp 在发送包以前，做一些
     case AV_CODEC_ID_AMR_NB:
     case AV_CODEC_ID_AMR_WB:
         s->max_frames_per_packet = 50;
-        if (st->codecpar->codec_id == AV_CODEC_ID_AMR_NB)
-            n = 31;
+        if (st->codecpar->codec_id == AV_CODEC_ID_AMR_NB)//tiger amr rtp
+            n = 31;//nb真的好小
         else
             n = 61;
         /* max_header_toc_size + the largest AMR payload must fit */
@@ -262,7 +262,7 @@ static int rtp_write_header(AVFormatContext *s1)//tiger rtp 在发送包以前，做一些
             av_log(s1, AV_LOG_ERROR, "RTP max payload size too small for AMR\n");
             goto fail;
         }
-        if (st->codecpar->channels != 1) {
+        if (st->codecpar->channels != 1) {//只有单声道
             av_log(s1, AV_LOG_ERROR, "Only mono is supported\n");
             goto fail;
         }
@@ -565,15 +565,15 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
     case AV_CODEC_ID_MPEG2VIDEO:
         ff_rtp_send_mpegvideo(s1, pkt->data, size);
         break;
-    case AV_CODEC_ID_AAC://aac 的2种rtp sdp模式
+    case AV_CODEC_ID_AAC://tiger aac 的2种rtp sdp模式
         if (s->flags & FF_RTP_FLAG_MP4A_LATM)
-            ff_rtp_send_latm(s1, pkt->data, size);
+            ff_rtp_send_latm(s1, pkt->data, size);//TIGER AAC 发送latm的形式
         else
             ff_rtp_send_aac(s1, pkt->data, size);
         break;
     case AV_CODEC_ID_AMR_NB:
     case AV_CODEC_ID_AMR_WB:
-        ff_rtp_send_amr(s1, pkt->data, size);
+        ff_rtp_send_amr(s1, pkt->data, size);//TIGER AMR RTP 如何发送amr
         break;
     case AV_CODEC_ID_MPEG2TS:
         rtp_send_mpegts_raw(s1, pkt->data, size);

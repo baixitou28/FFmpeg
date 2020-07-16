@@ -25,10 +25,10 @@
 #include "libavutil/avstring.h"
 
 static const uint8_t frame_sizes_nb[16] = {
-    12, 13, 15, 17, 19, 20, 26, 31, 5, 0, 0, 0, 0, 0, 0, 0
+    12, 13, 15, 17, 19, 20, 26, 31, 5, 0, 0, 0, 0, 0, 0, 0//TIGER AMR 最大值和rtpenc.c 31对应
 };
 static const uint8_t frame_sizes_wb[16] = {
-    17, 23, 32, 36, 40, 46, 50, 58, 60, 5, 5, 0, 0, 0, 0, 0
+    17, 23, 32, 36, 40, 46, 50, 58, 60, 5, 5, 0, 0, 0, 0, 0//TIGER AMR 最大值和rtpenc.c 61不对应
 };
 
 struct PayloadContext {
@@ -185,7 +185,7 @@ static int amr_parse_sdp_line(AVFormatContext *s, int st_index,
 const RTPDynamicProtocolHandler ff_amr_nb_dynamic_handler = {
     .enc_name         = "AMR",
     .codec_type       = AVMEDIA_TYPE_AUDIO,
-    .codec_id         = AV_CODEC_ID_AMR_NB,
+    .codec_id         = AV_CODEC_ID_AMR_NB,//TIGER AMR SDP PARSE
     .priv_data_size   = sizeof(PayloadContext),
     .init             = amr_init,
     .parse_sdp_a_line = amr_parse_sdp_line,

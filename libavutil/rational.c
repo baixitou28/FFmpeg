@@ -33,12 +33,12 @@
 #include "rational.h"
 
 int av_reduce(int *dst_num, int *dst_den,
-              int64_t num, int64_t den, int64_t max)
+              int64_t num, int64_t den, int64_t max)//TIGER num和den可能含最大公约数
 {
     AVRational a0 = { 0, 1 }, a1 = { 1, 0 };
     int sign = (num < 0) ^ (den < 0);
     int64_t gcd = av_gcd(FFABS(num), FFABS(den));
-
+    //去除最大公约数
     if (gcd) {
         num = FFABS(num) / gcd;
         den = FFABS(den) / gcd;
@@ -47,7 +47,7 @@ int av_reduce(int *dst_num, int *dst_den,
         a1 = (AVRational) { num, den };
         den = 0;
     }
-
+    //02. 不明白
     while (den) {
         uint64_t x        = num / den;
         int64_t next_den  = num - den * x;
