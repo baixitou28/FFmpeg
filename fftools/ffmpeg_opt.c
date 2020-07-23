@@ -89,7 +89,7 @@ float dts_error_threshold   = 3600*30;
 
 int audio_volume      = 256;
 int audio_sync_method = 0;
-int video_sync_method = VSYNC_AUTO;
+int video_sync_method = VSYNC_AUTO;//TIGER SYNC
 float frame_drop_threshold = 0;
 int do_deinterlace    = 0;
 int do_benchmark      = 0;
@@ -3456,7 +3456,7 @@ const OptionDef options[] = {//TIGER OPTIONS //tiger ffmpeg options
         "video sync method", "" },
     { "frame_drop_threshold", HAS_ARG | OPT_FLOAT | OPT_EXPERT,      { &frame_drop_threshold },
         "frame drop threshold", "" },
-    { "async",          HAS_ARG | OPT_INT | OPT_EXPERT,              { &audio_sync_method },
+    { "async",          HAS_ARG | OPT_INT | OPT_EXPERT,              { &audio_sync_method },//tiger sync
         "audio sync method", "" },
     { "adrift_threshold", HAS_ARG | OPT_FLOAT | OPT_EXPERT,          { &audio_drift_threshold },
         "audio drift threshold", "threshold" },

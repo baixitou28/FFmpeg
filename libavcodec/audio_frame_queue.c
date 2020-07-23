@@ -72,7 +72,7 @@ int ff_af_queue_add(AudioFrameQueue *afq, const AVFrame *f)
     return 0;
 }
 
-void ff_af_queue_remove(AudioFrameQueue *afq, int nb_samples, int64_t *pts,
+void ff_af_queue_remove(AudioFrameQueue *afq, int nb_samples, int64_t *pts,//TIGER 取队列中所有的frame，拼装成
                         int64_t *duration)
 {
     int64_t out_pts = AV_NOPTS_VALUE;
@@ -83,13 +83,13 @@ void ff_af_queue_remove(AudioFrameQueue *afq, int nb_samples, int64_t *pts,
         if (afq->frames->pts != AV_NOPTS_VALUE)
             out_pts = afq->frames->pts;
     }
-    if(!afq->frame_count)
+    if(!afq->frame_count)//如果一帧都没，报错
         av_log(afq->avctx, AV_LOG_WARNING, "Trying to remove %d samples, but the queue is empty\n", nb_samples);
     if (pts)
         *pts = ff_samples_to_time_base(afq->avctx, out_pts);
 
-    for(i=0; nb_samples && i<afq->frame_count; i++){
-        int n= FFMIN(afq->frames[i].duration, nb_samples);
+    for(i=0; nb_samples && i<afq->frame_count; i++){//叠加所有帧的时间
+        int n= FFMIN(afq->frames[i].duration, nb_samples);//取每帧的时间
         afq->frames[i].duration -= n;
         nb_samples              -= n;
         removed_samples         += n;
@@ -109,5 +109,5 @@ void ff_af_queue_remove(AudioFrameQueue *afq, int nb_samples, int64_t *pts,
         av_log(afq->avctx, AV_LOG_DEBUG, "Trying to remove %d more samples than there are in the queue\n", nb_samples);
     }
     if (duration)
-        *duration = ff_samples_to_time_base(afq->avctx, removed_samples);
+        *duration = ff_samples_to_time_base(afq->avctx, removed_samples);//计算时长
 }

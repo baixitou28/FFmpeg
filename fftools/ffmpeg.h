@@ -45,7 +45,7 @@
 #include "libavutil/threadmessage.h"
 
 #include "libswresample/swresample.h"
-
+//TIGER SYNC
 #define VSYNC_AUTO       -1
 #define VSYNC_PASSTHROUGH 0
 #define VSYNC_CFR         1
