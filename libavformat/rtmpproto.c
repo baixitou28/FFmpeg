@@ -2210,28 +2210,29 @@ static int append_flv_data(RTMPContext *rt, RTMPPacket *pkt, int skip)
     const uint8_t *data = pkt->data + skip;
     const int size      = pkt->size - skip;
     uint32_t ts         = pkt->timestamp;
-
+    //标记是否有音视频
     if (pkt->type == RTMP_PT_AUDIO) {
         rt->has_audio = 1;
     } else if (pkt->type == RTMP_PT_VIDEO) {
         rt->has_video = 1;
     }
 
-    old_flv_size = update_offset(rt, size + 15);
-
+    old_flv_size = update_offset(rt, size + 15);//15 == 11(RTMP HEADER) + 4 (DataOffset)
+    //内存
     if ((ret = av_reallocp(&rt->flv_data, rt->flv_size)) < 0) {
         rt->flv_size = rt->flv_off = 0;
         return ret;
     }
-    bytestream2_init_writer(&pbc, rt->flv_data, rt->flv_size);
-    bytestream2_skip_p(&pbc, old_flv_size);
-    bytestream2_put_byte(&pbc, pkt->type);
-    bytestream2_put_be24(&pbc, size);
-    bytestream2_put_be24(&pbc, ts);
-    bytestream2_put_byte(&pbc, ts >> 24);
-    bytestream2_put_be24(&pbc, 0);
-    bytestream2_put_buffer(&pbc, data, size);
-    bytestream2_put_be32(&pbc, size + RTMP_HEADER);
+    bytestream2_init_writer(&pbc, rt->flv_data, rt->flv_size);//6.1.1. Message Header
+
+    bytestream2_skip_p(&pbc, old_flv_size);//?
+    bytestream2_put_byte(&pbc, pkt->type);//类型
+    bytestream2_put_be24(&pbc, size);//长度
+    bytestream2_put_be24(&pbc, ts);//时间戳
+    bytestream2_put_byte(&pbc, ts >> 24);//诡异的时间戳格式
+    bytestream2_put_be24(&pbc, 0);//填充0
+    bytestream2_put_buffer(&pbc, data, size);//写入数据
+    bytestream2_put_be32(&pbc, size + RTMP_HEADER);//写入总长
 
     return 0;
 }
@@ -2299,7 +2300,7 @@ static int handle_notify(URLContext *s, RTMPPacket *pkt)
  * @return 0 for no errors, negative values for serious errors which prevent
  *         further communications, positive values for uncritical errors
  */
-static int rtmp_parse_result(URLContext *s, RTMPContext *rt, RTMPPacket *pkt)
+static int rtmp_parse_result(URLContext *s, RTMPContext *rt, RTMPPacket *pkt)//注释已经说得很白了，处理底层协议，但音视频数据让上层来处理
 {
     int ret;
 
@@ -2331,7 +2332,7 @@ static int rtmp_parse_result(URLContext *s, RTMPContext *rt, RTMPPacket *pkt)
         if ((ret = handle_invoke(s, pkt)) < 0)
             return ret;
         break;
-    case RTMP_PT_VIDEO:
+    case RTMP_PT_VIDEO://音视频数据让上层来处理
     case RTMP_PT_AUDIO:
     case RTMP_PT_METADATA:
     case RTMP_PT_NOTIFY:
@@ -2410,12 +2411,12 @@ static int get_packet(URLContext *s, int for_header)
     RTMPContext *rt = s->priv_data;
     int ret;
 
-    if (rt->state == STATE_STOPPED)
+    if (rt->state == STATE_STOPPED)//判断状态
         return AVERROR_EOF;
 
     for (;;) {
         RTMPPacket rpkt = { 0 };
-        if ((ret = ff_rtmp_packet_read(rt->stream, &rpkt,
+        if ((ret = ff_rtmp_packet_read(rt->stream, &rpkt,//尝试读
                                        rt->in_chunk_size, &rt->prev_pkt[0],
                                        &rt->nb_prev_pkt[0])) <= 0) {
             if (ret == 0) {
@@ -2428,17 +2429,17 @@ static int get_packet(URLContext *s, int for_header)
         // Track timestamp for later use
         rt->last_timestamp = rpkt.timestamp;
 
-        rt->bytes_read += ret;
+        rt->bytes_read += ret;//实际读入
         if (rt->bytes_read - rt->last_bytes_read > rt->receive_report_size) {
             av_log(s, AV_LOG_DEBUG, "Sending bytes read report\n");
-            if ((ret = gen_bytes_read(s, rt, rpkt.timestamp + 1)) < 0) {
+            if ((ret = gen_bytes_read(s, rt, rpkt.timestamp + 1)) < 0) {//发送已收到的
                 ff_rtmp_packet_destroy(&rpkt);
                 return ret;
             }
             rt->last_bytes_read = rt->bytes_read;
         }
 
-        ret = rtmp_parse_result(s, rt, &rpkt);
+        ret = rtmp_parse_result(s, rt, &rpkt);//rtmp_parse_result处理底层协议，但A和V，metadata等数据，本函数处理，处理完就返回
 
         // At this point we must check if we are in the seek state and continue
         // with the next packet. handle_invoke will get us out of this state
@@ -2473,7 +2474,7 @@ static int get_packet(URLContext *s, int for_header)
             ff_rtmp_packet_destroy(&rpkt);
             continue;
         }
-        if (rpkt.type == RTMP_PT_VIDEO || rpkt.type == RTMP_PT_AUDIO) {
+        if (rpkt.type == RTMP_PT_VIDEO || rpkt.type == RTMP_PT_AUDIO) {//处理第一帧音视频，就直接返回
             ret = append_flv_data(rt, &rpkt, 0);
             ff_rtmp_packet_destroy(&rpkt);
             return ret;
@@ -2481,7 +2482,7 @@ static int get_packet(URLContext *s, int for_header)
             ret = handle_notify(s, &rpkt);
             ff_rtmp_packet_destroy(&rpkt);
             return ret;
-        } else if (rpkt.type == RTMP_PT_METADATA) {
+        } else if (rpkt.type == RTMP_PT_METADATA) {//处理meta也可以直接返回
             ret = handle_metadata(rt, &rpkt);
             ff_rtmp_packet_destroy(&rpkt);
             return ret;
@@ -2839,14 +2840,14 @@ reconnect:
         if ((ret = av_reallocp(&rt->flv_data, rt->flv_size)) < 0)
             goto fail;
         rt->flv_off  = 0;
-        memcpy(rt->flv_data, "FLV\1\0\0\0\0\011\0\0\0\0", rt->flv_size);
+        memcpy(rt->flv_data, "FLV\1\0\0\0\0\011\0\0\0\0", rt->flv_size);//初始化 参看video_file_format_spec_v10.pdf the FLV header
 
         // Read packets until we reach the first A/V packet or read metadata.
         // If there was a metadata package in front of the A/V packets, we can
         // build the FLV header from this. If we do not receive any metadata,
         // the FLV decoder will allocate the needed streams when their first
         // audio or video packet arrives.
-        while (!rt->has_audio && !rt->has_video && !rt->received_metadata) {
+        while (!rt->has_audio && !rt->has_video && !rt->received_metadata) {//看注释
             if ((ret = get_packet(s, 0)) < 0)
                goto fail;
         }
@@ -2855,10 +2856,10 @@ reconnect:
         // first packet of an A/V stream, we have a better knowledge about the
         // streams, so set the FLV header accordingly.
         if (rt->has_audio) {
-            rt->flv_data[4] |= FLV_HEADER_FLAG_HASAUDIO;
+            rt->flv_data[4] |= FLV_HEADER_FLAG_HASAUDIO;//开启音频
         }
         if (rt->has_video) {
-            rt->flv_data[4] |= FLV_HEADER_FLAG_HASVIDEO;
+            rt->flv_data[4] |= FLV_HEADER_FLAG_HASVIDEO;//开启视频 参看
         }
 
         // If we received the first packet of an A/V stream and no metadata but
@@ -2894,19 +2895,19 @@ static int rtmp_read(URLContext *s, uint8_t *buf, int size)
     while (size > 0) {
         int data_left = rt->flv_size - rt->flv_off;
 
-        if (data_left >= size) {
+        if (data_left >= size) {//如果太大，取size大小
             memcpy(buf, rt->flv_data + rt->flv_off, size);
             rt->flv_off += size;
             return orig_size;
         }
-        if (data_left > 0) {
+        if (data_left > 0) {//如果数据较少，取所有
             memcpy(buf, rt->flv_data + rt->flv_off, data_left);
             buf  += data_left;
             size -= data_left;
             rt->flv_off = rt->flv_size;
             return data_left;
         }
-        if ((ret = get_packet(s, 0)) < 0)
+        if ((ret = get_packet(s, 0)) < 0)//
            return ret;
     }
     return orig_size;

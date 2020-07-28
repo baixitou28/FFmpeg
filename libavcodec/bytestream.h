@@ -122,7 +122,7 @@ DEF(unsigned int, byte, 1, AV_RB8 , AV_WB8)
 #   define bytestream2_get_ne64u bytestream2_get_le64u
 #   define bytestream2_put_ne16  bytestream2_put_le16
 #   define bytestream2_put_ne24  bytestream2_put_le24
-#   define bytestream2_put_ne32  bytestream2_put_le32
+#   define bytestream2_put_ne32  bytestream2_put_le32//参见前面的 DEF(unsigned int, le32, 4, AV_RL32, AV_WL32)
 #   define bytestream2_put_ne64  bytestream2_put_le64
 #   define bytestream2_peek_ne16 bytestream2_peek_le16
 #   define bytestream2_peek_ne24 bytestream2_peek_le24
