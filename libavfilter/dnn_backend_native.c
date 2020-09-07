@@ -221,7 +221,7 @@ DNNModel *ff_dnn_load_model_native(const char *model_filename)
         return NULL;
     }
 
-    model->set_input_output = &set_input_output_native;
+    model->set_input_output = &set_input_output_native;//加载
 
     return model;
 }
@@ -262,19 +262,19 @@ static void convolve(const float *input, float *output, const ConvolutionalParam
                         }
                     }
                 }
-                switch (conv_params->activation){
-                case RELU:
+                switch (conv_params->activation){//激活函数
+                case RELU://Rectified Linear Unit线性整流函数
                     output[n_filter] = FFMAX(output[n_filter], 0.0);
                     break;
-                case TANH:
+                case TANH://双曲正切
                     output[n_filter] = 2.0f  / (1.0f + exp(-2.0f * output[n_filter])) - 1.0f;
                     break;
-                case SIGMOID:
+                case SIGMOID://S型函数
                     output[n_filter] = 1.0f / (1.0f + exp(-output[n_filter]));
                     break;
                 case NONE:
                     break;
-                case LEAKY_RELU:
+                case LEAKY_RELU://带泄露线性整流
                     output[n_filter] = FFMAX(output[n_filter], 0.0) + 0.2 * FFMIN(output[n_filter], 0.0);
                 }
             }
@@ -348,7 +348,7 @@ DNNReturnType ff_dnn_execute_model_native(const DNNModel *model, DNNData *output
             cur_width *= depth_to_space_params->block_size;
             cur_channels /= depth_to_space_params->block_size * depth_to_space_params->block_size;
             break;
-        case INPUT:
+        case INPUT://未实现
             return DNN_ERROR;
         }
     }

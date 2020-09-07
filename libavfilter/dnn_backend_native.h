@@ -32,7 +32,7 @@
 
 typedef enum {INPUT, CONV, DEPTH_TO_SPACE} DNNLayerType;
 
-typedef enum {RELU, TANH, SIGMOID, NONE, LEAKY_RELU} DNNActivationFunc;
+typedef enum {RELU, TANH, SIGMOID, NONE, LEAKY_RELU} DNNActivationFunc;//激活函数
 
 typedef enum {VALID, SAME, SAME_CLAMP_TO_EDGE} DNNConvPaddingParam;
 
@@ -51,7 +51,7 @@ typedef struct ConvolutionalParams{
     float *biases;
 } ConvolutionalParams;
 
-typedef struct InputParams{
+typedef struct InputParams{//输入参数
     int height, width, channels;
 } InputParams;
 
@@ -64,7 +64,7 @@ typedef struct ConvolutionalNetwork{
     Layer *layers;
     int32_t layers_num;
 } ConvolutionalNetwork;
-
+//native的三个接口函数：加载模块、执行、释放
 DNNModel *ff_dnn_load_model_native(const char *model_filename);
 
 DNNReturnType ff_dnn_execute_model_native(const DNNModel *model, DNNData *outputs, uint32_t nb_output);

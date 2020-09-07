@@ -34,7 +34,7 @@ typedef enum {DNN_NATIVE, DNN_TF} DNNBackendType;
 
 typedef enum {DNN_FLOAT, DNN_UINT8} DNNDataType;
 
-typedef struct DNNInputData{
+typedef struct DNNInputData{//输入数据
     void *data;
     DNNDataType dt;
     int width, height, channels;
@@ -45,7 +45,7 @@ typedef struct DNNData{
     int width, height, channels;
 } DNNData;
 
-typedef struct DNNModel{
+typedef struct DNNModel{//模型？
     // Stores model that can be different for different backends.
     void *model;
     // Sets model input and output.
@@ -54,7 +54,7 @@ typedef struct DNNModel{
 } DNNModel;
 
 // Stores pointers to functions for loading, executing, freeing DNN models for one of the backends.
-typedef struct DNNModule{
+typedef struct DNNModule{//模块的三个接口函数
     // Loads model and parameters from given file. Returns NULL if it is not possible.
     DNNModel *(*load_model)(const char *model_filename);
     // Executes model with specified input and output. Returns DNN_ERROR otherwise.

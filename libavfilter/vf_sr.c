@@ -67,7 +67,7 @@ static av_cold int init(AVFilterContext *context)
 {
     SRContext *sr_context = context->priv;
 
-    sr_context->dnn_module = ff_get_dnn_module(sr_context->backend_type);
+    sr_context->dnn_module = ff_get_dnn_module(sr_context->backend_type);//¼ÓÔØÄ£¿é
     if (!sr_context->dnn_module){
         av_log(context, AV_LOG_ERROR, "could not create DNN module for requested backend\n");
         return AVERROR(ENOMEM);
@@ -307,7 +307,7 @@ static const AVFilterPad sr_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_sr = {
+AVFilter ff_vf_sr = {//TIGER DNN Àý×Ó
     .name          = "sr",
     .description   = NULL_IF_CONFIG_SMALL("Apply DNN-based image super resolution to the input."),
     .priv_size     = sizeof(SRContext),

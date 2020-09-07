@@ -147,7 +147,7 @@ static av_cold int init(AVFilterContext *ctx)
     DRContext *dr_context = ctx->priv;
 
     dr_context->input.dt = DNN_FLOAT;
-    dr_context->dnn_module = ff_get_dnn_module(dr_context->backend_type);
+    dr_context->dnn_module = ff_get_dnn_module(dr_context->backend_type);//加载
     if (!dr_context->dnn_module) {
         av_log(ctx, AV_LOG_ERROR, "could not create DNN module for requested backend\n");
         return AVERROR(ENOMEM);
@@ -198,7 +198,7 @@ static const AVFilterPad derain_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_derain = {
+AVFilter ff_vf_derain = {//TIGER DNN 的一个例子
     .name          = "derain",
     .description   = NULL_IF_CONFIG_SMALL("Apply derain filter to the input."),
     .priv_size     = sizeof(DRContext),

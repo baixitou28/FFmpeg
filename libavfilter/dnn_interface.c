@@ -27,7 +27,7 @@
 #include "dnn_backend_native.h"
 #include "dnn_backend_tf.h"
 #include "libavutil/mem.h"
-
+//加载模块，指定对应函数
 DNNModule *ff_get_dnn_module(DNNBackendType backend_type)
 {
     DNNModule *dnn_module;
@@ -38,12 +38,12 @@ DNNModule *ff_get_dnn_module(DNNBackendType backend_type)
     }
 
     switch(backend_type){
-    case DNN_NATIVE:
+    case DNN_NATIVE://native模式
         dnn_module->load_model = &ff_dnn_load_model_native;
         dnn_module->execute_model = &ff_dnn_execute_model_native;
         dnn_module->free_model = &ff_dnn_free_model_native;
         break;
-    case DNN_TF:
+    case DNN_TF://TensorFlow 模式
     #if (CONFIG_LIBTENSORFLOW == 1)
         dnn_module->load_model = &ff_dnn_load_model_tf;
         dnn_module->execute_model = &ff_dnn_execute_model_tf;

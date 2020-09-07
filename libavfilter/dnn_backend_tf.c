@@ -500,12 +500,12 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
 
     return DNN_SUCCESS;
 }
-
+//加载
 DNNModel *ff_dnn_load_model_tf(const char *model_filename)
 {
     DNNModel *model = NULL;
     TFModel *tf_model = NULL;
-
+    //01. DNNModel和TFModel各选一个
     model = av_malloc(sizeof(DNNModel));
     if (!model){
         return NULL;
@@ -516,31 +516,31 @@ DNNModel *ff_dnn_load_model_tf(const char *model_filename)
         av_freep(&model);
         return NULL;
     }
-
-    if (load_tf_model(tf_model, model_filename) != DNN_SUCCESS){
-        if (load_native_model(tf_model, model_filename) != DNN_SUCCESS){
+    //02.加载文件
+    if (load_tf_model(tf_model, model_filename) != DNN_SUCCESS){//读文件
+        if (load_native_model(tf_model, model_filename) != DNN_SUCCESS){//用native方式读
             av_freep(&tf_model);
             av_freep(&model);
 
             return NULL;
         }
     }
-
-    model->model = (void *)tf_model;
-    model->set_input_output = &set_input_output_tf;
+    
+    model->model = (void *)tf_model;//03.
+    model->set_input_output = &set_input_output_tf;//04.如何处理输入文件？
 
     return model;
 }
 
 
-
+//主函数
 DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, uint32_t nb_output)
 {
     TFModel *tf_model = (TFModel *)model->model;
     uint32_t nb = FFMIN(nb_output, tf_model->nb_output);
     if (nb == 0)
         return DNN_ERROR;
-
+    //01.
     av_assert0(tf_model->output_tensors);
     for (uint32_t i = 0; i < tf_model->nb_output; ++i) {
         if (tf_model->output_tensors[i]) {
@@ -548,7 +548,7 @@ DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, u
             tf_model->output_tensors[i] = NULL;
         }
     }
-
+    //02.
     TF_SessionRun(tf_model->session, NULL,
                   &tf_model->input, &tf_model->input_tensor, 1,
                   tf_model->outputs, tf_model->output_tensors, nb,
@@ -557,7 +557,7 @@ DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, u
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //03.
     for (uint32_t i = 0; i < nb; ++i) {
         outputs[i].height = TF_Dim(tf_model->output_tensors[i], 1);
         outputs[i].width = TF_Dim(tf_model->output_tensors[i], 2);
