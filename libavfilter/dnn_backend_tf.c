@@ -30,7 +30,7 @@
 
 #include <tensorflow/c/c_api.h>
 
-typedef struct TFModel{
+typedef struct TFModel{ //模型
     TF_Graph *graph;
     TF_Session *session;
     TF_Status *status;
@@ -52,7 +52,7 @@ static TF_Buffer *read_graph(const char *model_filename)
     unsigned char *graph_data = NULL;
     AVIOContext *model_file_context;
     long size, bytes_read;
-
+    //01.打开模型文件
     if (avio_open(&model_file_context, model_filename, AVIO_FLAG_READ) < 0){
         return NULL;
     }
@@ -64,7 +64,7 @@ static TF_Buffer *read_graph(const char *model_filename)
         avio_closep(&model_file_context);
         return NULL;
     }
-    bytes_read = avio_read(model_file_context, graph_data, size);
+    bytes_read = avio_read(model_file_context, graph_data, size);//02.读取所有
     avio_closep(&model_file_context);
     if (bytes_read != size){
         av_freep(&graph_data);
@@ -72,19 +72,19 @@ static TF_Buffer *read_graph(const char *model_filename)
     }
 
     graph_buf = TF_NewBuffer();
-    graph_buf->data = (void *)graph_data;
+    graph_buf->data = (void *)graph_data;//03.放入结构
     graph_buf->length = size;
     graph_buf->data_deallocator = free_buffer;
 
     return graph_buf;
 }
-
+//分配tensor
 static TF_Tensor *allocate_input_tensor(const DNNInputData *input)
 {
     TF_DataType dt;
     size_t size;
     int64_t input_dims[] = {1, input->height, input->width, input->channels};
-    switch (input->dt) {
+    switch (input->dt) {//是否用浮点数
     case DNN_FLOAT:
         dt = TF_FLOAT;
         size = sizeof(float);
@@ -98,17 +98,17 @@ static TF_Tensor *allocate_input_tensor(const DNNInputData *input)
     }
 
     return TF_AllocateTensor(dt, input_dims, 4,
-                             input_dims[1] * input_dims[2] * input_dims[3] * size);
+                             input_dims[1] * input_dims[2] * input_dims[3] * size);//分配tensor
 }
 
 static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const char *input_name, const char **output_names, uint32_t nb_output)
 {
     TFModel *tf_model = (TFModel *)model;
     TF_SessionOptions *sess_opts;
-    const TF_Operation *init_op = TF_GraphOperationByName(tf_model->graph, "init");
+    const TF_Operation *init_op = TF_GraphOperationByName(tf_model->graph, "init");//查找init函数
 
     // Input operation
-    tf_model->input.oper = TF_GraphOperationByName(tf_model->graph, input_name);
+    tf_model->input.oper = TF_GraphOperationByName(tf_model->graph, input_name);//查找input_name函数
     if (!tf_model->input.oper){
         return DNN_ERROR;
     }
@@ -116,11 +116,11 @@ static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const
     if (tf_model->input_tensor){
         TF_DeleteTensor(tf_model->input_tensor);
     }
-    tf_model->input_tensor = allocate_input_tensor(input);
+    tf_model->input_tensor = allocate_input_tensor(input);//按浮点数或者int创建tensor
     if (!tf_model->input_tensor){
         return DNN_ERROR;
     }
-    input->data = (float *)TF_TensorData(tf_model->input_tensor);
+    input->data = (float *)TF_TensorData(tf_model->input_tensor);//copy输入结构
 
     // Output operation
     if (nb_output == 0)
@@ -131,7 +131,7 @@ static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const
     if (!tf_model->outputs)
         return DNN_ERROR;
     for (int i = 0; i < nb_output; ++i) {
-        tf_model->outputs[i].oper = TF_GraphOperationByName(tf_model->graph, output_names[i]);
+        tf_model->outputs[i].oper = TF_GraphOperationByName(tf_model->graph, output_names[i]);//用output_names[i]查找输出函数
         if (!tf_model->outputs[i].oper){
             av_freep(&tf_model->outputs);
             return DNN_ERROR;
@@ -148,7 +148,7 @@ static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const
         }
     }
     av_freep(&tf_model->output_tensors);
-    tf_model->output_tensors = av_mallocz_array(nb_output, sizeof(*tf_model->output_tensors));
+    tf_model->output_tensors = av_mallocz_array(nb_output, sizeof(*tf_model->output_tensors));//分配空间
     if (!tf_model->output_tensors) {
         av_freep(&tf_model->outputs);
         return DNN_ERROR;
@@ -162,7 +162,7 @@ static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const
     }
 
     sess_opts = TF_NewSessionOptions();
-    tf_model->session = TF_NewSession(tf_model->graph, sess_opts, tf_model->status);
+    tf_model->session = TF_NewSession(tf_model->graph, sess_opts, tf_model->status);//创建session
     TF_DeleteSessionOptions(sess_opts);
     if (TF_GetCode(tf_model->status) != TF_OK)
     {
@@ -174,7 +174,7 @@ static DNNReturnType set_input_output_tf(void *model, DNNInputData *input, const
         TF_SessionRun(tf_model->session, NULL,
                       NULL, NULL, 0,
                       NULL, NULL, 0,
-                      &init_op, 1, NULL, tf_model->status);
+                      &init_op, 1, NULL, tf_model->status);//运行init_op
         if (TF_GetCode(tf_model->status) != TF_OK)
         {
             return DNN_ERROR;
@@ -188,17 +188,17 @@ static DNNReturnType load_tf_model(TFModel *tf_model, const char *model_filename
 {
     TF_Buffer *graph_def;
     TF_ImportGraphDefOptions *graph_opts;
-
+    //01.加载模型文件
     graph_def = read_graph(model_filename);
     if (!graph_def){
         return DNN_ERROR;
     }
-    tf_model->graph = TF_NewGraph();
-    tf_model->status = TF_NewStatus();
-    graph_opts = TF_NewImportGraphDefOptions();
-    TF_GraphImportGraphDef(tf_model->graph, graph_def, graph_opts, tf_model->status);
-    TF_DeleteImportGraphDefOptions(graph_opts);
-    TF_DeleteBuffer(graph_def);
+    tf_model->graph = TF_NewGraph();//分配一个结构
+    tf_model->status = TF_NewStatus();//分配一个结构
+    graph_opts = TF_NewImportGraphDefOptions();//创建选项
+    TF_GraphImportGraphDef(tf_model->graph, graph_def, graph_opts, tf_model->status);//倒入选项
+    TF_DeleteImportGraphDefOptions(graph_opts);//用不着了
+    TF_DeleteBuffer(graph_def);//用不着了
     if (TF_GetCode(tf_model->status) != TF_OK){
         TF_DeleteGraph(tf_model->graph);
         TF_DeleteStatus(tf_model->status);
@@ -225,7 +225,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
 
     size = params->input_num * params->output_num * params->kernel_size * params->kernel_size;
     input.index = 0;
-
+    //01. 执行Const
     snprintf(name_buffer, NAME_BUFFER_SIZE, "conv_kernel%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "Const", name_buffer);
     TF_SetAttrType(op_desc, "dtype", TF_FLOAT);
@@ -244,7 +244,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //02.执行Transpose
     snprintf(name_buffer, NAME_BUFFER_SIZE, "transpose%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "Transpose", name_buffer);
     input.oper = op;
@@ -257,7 +257,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //03.执行Conv2D
     snprintf(name_buffer, NAME_BUFFER_SIZE, "conv2d%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "Conv2D", name_buffer);
     input.oper = *cur_op;
@@ -271,7 +271,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //04.执行Const
     snprintf(name_buffer, NAME_BUFFER_SIZE, "conv_biases%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "Const", name_buffer);
     TF_SetAttrType(op_desc, "dtype", TF_FLOAT);
@@ -287,7 +287,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //05.执行BiasAdd
     snprintf(name_buffer, NAME_BUFFER_SIZE, "bias_add%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "BiasAdd", name_buffer);
     input.oper = *cur_op;
@@ -299,7 +299,7 @@ static DNNReturnType add_conv_layer(TFModel *tf_model, TF_Operation *transpose_o
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //06.执行Relu
     snprintf(name_buffer, NAME_BUFFER_SIZE, "activation%d", layer);
     switch (params->activation){
     case RELU:
@@ -331,7 +331,7 @@ static DNNReturnType add_depth_to_space_layer(TFModel *tf_model, TF_Operation **
     TF_OperationDescription *op_desc;
     TF_Output input;
     char name_buffer[NAME_BUFFER_SIZE];
-
+    //01.执行DepthToSpace
     snprintf(name_buffer, NAME_BUFFER_SIZE, "depth_to_space%d", layer);
     op_desc = TF_NewOperation(tf_model->graph, "DepthToSpace", name_buffer);
     input.oper = *cur_op;
@@ -355,7 +355,7 @@ static int calculate_pad(const ConvolutionalNetwork *conv_network)
 
     for (layer = 0; layer < conv_network->layers_num; ++layer){
         if (conv_network->layers[layer].type == CONV){
-            params = (ConvolutionalParams *)conv_network->layers[layer].params;
+            params = (ConvolutionalParams *)conv_network->layers[layer].params;//这个值不理解
             pad += params->kernel_size >> 1;
         }
     }
@@ -373,13 +373,13 @@ static DNNReturnType add_pad_op(TFModel *tf_model, TF_Operation **cur_op, const 
     int64_t pads_shape[] = {4, 2};
 
     input.index = 0;
-
+    //01. 执行Const pads
     op_desc = TF_NewOperation(tf_model->graph, "Const", "pads");
     TF_SetAttrType(op_desc, "dtype", TF_INT32);
     tensor = TF_AllocateTensor(TF_INT32, pads_shape, 2, 4 * 2 * sizeof(int32_t));
     pads = (int32_t *)TF_TensorData(tensor);
     pads[0] = 0;   pads[1] = 0;
-    pads[2] = pad; pads[3] = pad;
+    pads[2] = pad; pads[3] = pad;//为什么是中间4个？
     pads[4] = pad; pads[5] = pad;
     pads[6] = 0;   pads[7] = 0;
     TF_SetAttrTensor(op_desc, "value", tensor, tf_model->status);
@@ -390,7 +390,7 @@ static DNNReturnType add_pad_op(TFModel *tf_model, TF_Operation **cur_op, const 
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-
+    //02. 执行MirrorPad mirror_pad
     op_desc = TF_NewOperation(tf_model->graph, "MirrorPad", "mirror_pad");
     input.oper = *cur_op;
     TF_AddInput(op_desc, input);
@@ -422,12 +422,12 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
     DNNReturnType layer_add_res;
     DNNModel *native_model = NULL;
     ConvolutionalNetwork *conv_network;
-
+    //01.加载navtive模块
     native_model = ff_dnn_load_model_native(model_filename);
     if (!native_model){
         return DNN_ERROR;
     }
-
+    //02.计算pad
     conv_network = (ConvolutionalNetwork *)native_model->model;
     pad = calculate_pad(conv_network);
     tf_model->graph = TF_NewGraph();
@@ -439,7 +439,7 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
         TF_DeleteStatus(tf_model->status); \
         return DNN_ERROR; \
     }
-
+    //03. 执行Placeholder x
     op_desc = TF_NewOperation(tf_model->graph, "Placeholder", "x");
     TF_SetAttrType(op_desc, "dtype", TF_FLOAT);
     TF_SetAttrShape(op_desc, "shape", input_shape, 4);
@@ -447,11 +447,11 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
     if (TF_GetCode(tf_model->status) != TF_OK){
         CLEANUP_ON_ERROR(tf_model);
     }
-
+    //04.加入
     if (add_pad_op(tf_model, &op, pad) != DNN_SUCCESS){
         CLEANUP_ON_ERROR(tf_model);
     }
-
+    //05.执行Const transpose_perm
     op_desc = TF_NewOperation(tf_model->graph, "Const", "transpose_perm");
     TF_SetAttrType(op_desc, "dtype", TF_INT32);
     tensor = TF_AllocateTensor(TF_INT32, transpose_perm_shape, 1, 4 * sizeof(int32_t));
@@ -465,7 +465,7 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
         CLEANUP_ON_ERROR(tf_model);
     }
     transpose_op = TF_FinishOperation(op_desc, tf_model->status);
-
+    //06. 加入层
     for (layer = 0; layer < conv_network->layers_num; ++layer){
         switch (conv_network->layers[layer].type){
         case INPUT:
@@ -487,7 +487,7 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
             CLEANUP_ON_ERROR(tf_model);
         }
     }
-
+    //07.执行Identity y
     op_desc = TF_NewOperation(tf_model->graph, "Identity", "y");
     input.oper = op;
     TF_AddInput(op_desc, input);
@@ -495,8 +495,8 @@ static DNNReturnType load_native_model(TFModel *tf_model, const char *model_file
     if (TF_GetCode(tf_model->status) != TF_OK){
         CLEANUP_ON_ERROR(tf_model);
     }
-
-    ff_dnn_free_model_native(&native_model);
+    //08.释放
+    ff_dnn_free_model_native(&native_model);//释放不会出错？
 
     return DNN_SUCCESS;
 }
@@ -540,7 +540,7 @@ DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, u
     uint32_t nb = FFMIN(nb_output, tf_model->nb_output);
     if (nb == 0)
         return DNN_ERROR;
-    //01.
+    //01.检查输出tensor是否存在
     av_assert0(tf_model->output_tensors);
     for (uint32_t i = 0; i < tf_model->nb_output; ++i) {
         if (tf_model->output_tensors[i]) {
@@ -548,7 +548,7 @@ DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, u
             tf_model->output_tensors[i] = NULL;
         }
     }
-    //02.
+    //02.执行一次
     TF_SessionRun(tf_model->session, NULL,
                   &tf_model->input, &tf_model->input_tensor, 1,
                   tf_model->outputs, tf_model->output_tensors, nb,
@@ -557,12 +557,12 @@ DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, u
     if (TF_GetCode(tf_model->status) != TF_OK){
         return DNN_ERROR;
     }
-    //03.
+    //03.输出结果
     for (uint32_t i = 0; i < nb; ++i) {
-        outputs[i].height = TF_Dim(tf_model->output_tensors[i], 1);
+        outputs[i].height = TF_Dim(tf_model->output_tensors[i], 1);//Dimension相关
         outputs[i].width = TF_Dim(tf_model->output_tensors[i], 2);
         outputs[i].channels = TF_Dim(tf_model->output_tensors[i], 3);
-        outputs[i].data = TF_TensorData(tf_model->output_tensors[i]);
+        outputs[i].data = TF_TensorData(tf_model->output_tensors[i]);//数据相关
     }
 
     return DNN_SUCCESS;
@@ -572,7 +572,7 @@ void ff_dnn_free_model_tf(DNNModel **model)
 {
     TFModel *tf_model;
 
-    if (*model){
+    if (*model){//如果模型存在，删除所有模型相关内容
         tf_model = (TFModel *)(*model)->model;
         if (tf_model->graph){
             TF_DeleteGraph(tf_model->graph);

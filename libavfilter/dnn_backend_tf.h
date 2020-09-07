@@ -28,7 +28,7 @@
 #define AVFILTER_DNN_BACKEND_TF_H
 
 #include "dnn_interface.h"
-//tensorflow的三个接口函数
+//tensorflow的三个接口函数：加载模块、执行、释放
 DNNModel *ff_dnn_load_model_tf(const char *model_filename);
 
 DNNReturnType ff_dnn_execute_model_tf(const DNNModel *model, DNNData *outputs, uint32_t nb_output);
