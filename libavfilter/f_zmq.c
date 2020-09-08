@@ -270,5 +270,32 @@ AVFilter ff_af_azmq = {//TIGER MQ的一个示例
     .outputs     = azmq_outputs,
     .priv_class  = &azmq_class,
 };
+/*
+https://blog.csdn.net/weixin_33970449/article/details/93743539?utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~all~first_rank_v2~rank_v25-1-93743539.nonecase&utm_term=ffmpeg%E4%BD%BF%E7%94%A8zmq
 
+编译 FFmpeg 时，配置中添加 --enable-libzmq 就可以通过 tcp 通讯给 FFmpeg 发送命令
+
+Usage: zmqsend [-h ip:port] TARGET COMMAND ARG
+  Receive commands sent through a libzmq client, and forward them to filters in the filtergraph.
+  default host is localhost:5555
+    The send message must be in the form:
+      TARGET COMMAND [ARG]
+    Depending on the result, the filter will send a reply to the client, adopting the format:
+      ERROR_CODE ERROR_REASON MESSAGE
+
+  Examples
+    zmqsend hue h 90
+    zmqsend hue H PI/2
+    zmqsend hue s 1
+    zmqsend hue b 0
+
+    zmqsend eq contrast 0.0
+    zmqsend eq brightness 1.0
+    zmqsend eq saturation 1.0
+    zmqsend eq gamma 1.0
+    zmqsend eq gamma_r 1.0
+    zmqsend eq gamma_g 1.0
+    zmqsend eq gamma_b 1.0
+    zmqsend eq gamma_weight 1.0
+*/
 #endif

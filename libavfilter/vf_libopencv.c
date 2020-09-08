@@ -438,4 +438,12 @@ AVFilter ff_vf_ocv = {//tiger opencv 使用范例，将图像进行相关处理
     .inputs        = avfilter_vf_ocv_inputs,
     .outputs       = avfilter_vf_ocv_outputs,
 };
+
+//腐蚀与膨胀(Eroding and Dilating)  http://www.opencv.org.cn/opencvdoc/2.3.2/html/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
+
+imgproc 模块. 图像处理 http://www.opencv.org.cn/opencvdoc/2.3.2/html/doc/tutorials/imgproc/table_of_content_imgproc/table_of_content_imgproc.html
+
+OpenCV 2.3.2 教程 http://www.opencv.org.cn/opencvdoc/2.3.2/html/doc/tutorials/tutorials.html
+//http://wiki.opencv.org.cn/images/4/41/Opencv-ref-man-2.3.1.pdf
+
 //高级图像处理初步 http://wiki.opencv.org.cn/index.php/%E9%AB%98%E7%BA%A7%E5%9B%BE%E5%83%8F%E5%A4%84%E7%90%86%E5%88%9D%E6%AD%A5
