@@ -77,8 +77,8 @@ static int config_inputs(AVFilterLink *inlink)
     const char *model_output_name = "y";
     DNNReturnType result;
 
-    dr_context->input.width    = inlink->w;//实时的宽
-    dr_context->input.height   = inlink->h;//实时的高
+    dr_context->input.width    = inlink->w;//输入的宽
+    dr_context->input.height   = inlink->h;//输入的高
     dr_context->input.channels = 3;//为什么是3？
     //设置
     result = (dr_context->model->set_input_output)(dr_context->model->model, &dr_context->input, "x", &model_output_name, 1);
@@ -210,3 +210,7 @@ AVFilter ff_vf_derain = {//TIGER DNN 的一个例子
     .priv_class    = &derain_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };
+//TIGER 参看
+//FFmpeg深度学习模块2019年小结 https://blog.csdn.net/yjguo2004/article/details/104459983/
+//Recurrent Squeeze - and -Excitation Context Aggregation Net(RESCAN).See http ://openaccess.thecvf.com/content_ECCV_2018/papers/Xia_Li_Recurrent_Squeeze-and-Excitation_Context_ECCV_2018_paper.pdf.
+//Training scripts as well as scripts for model generation are provided in the repository at https ://github.com/XueweiMeng/derain_filter.git.
