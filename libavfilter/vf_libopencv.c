@@ -323,7 +323,7 @@ static void erode_end_frame_filter(AVFilterContext *ctx, IplImage *inimg, IplIma
 {
     OCVContext *s = ctx->priv;
     DilateContext *dilate = s->priv;
-    cvErode(inimg, outimg, dilate->kernel, dilate->nb_iterations);//主要函数
+    cvErode(inimg, outimg, dilate->kernel, dilate->nb_iterations);//主要函数 ，参看https://blog.csdn.net/qq_41553038/article/details/80048510
 }
 
 typedef struct OCVFilterEntry {
@@ -334,7 +334,7 @@ typedef struct OCVFilterEntry {
     void (*end_frame_filter)(AVFilterContext *ctx, IplImage *inimg, IplImage *outimg);
 } OCVFilterEntry;
 
-static const OCVFilterEntry ocv_filter_entries[] = {//三种方式的初始化，主函数，析构
+static const OCVFilterEntry ocv_filter_entries[] = {//三种方式的名称，初始化，释放，主函数
     { "dilate", sizeof(DilateContext), dilate_init, dilate_uninit, dilate_end_frame_filter },
     { "erode",  sizeof(DilateContext), dilate_init, dilate_uninit, erode_end_frame_filter  },
     { "smooth", sizeof(SmoothContext), smooth_init, NULL, smooth_end_frame_filter },
@@ -390,10 +390,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
     av_frame_copy_props(out, in);//复制属性
 
-    fill_iplimage_from_frame(&inimg , in , inlink->format);//03.输入
-    fill_iplimage_from_frame(&outimg, out, inlink->format);//04.输出
+    fill_iplimage_from_frame(&inimg , in , inlink->format);//03.输入转化为ipl
+    fill_iplimage_from_frame(&outimg, out, inlink->format);//04.输出转化为ipl
     s->end_frame_filter(ctx, &inimg, &outimg);//05.执行cvSmooth
-    fill_frame_from_iplimage(out, &outimg, inlink->format);//06.输出
+    fill_frame_from_iplimage(out, &outimg, inlink->format);//06.输出ipl转化为frame
     //07.释放
     av_frame_free(&in);
     //08.
@@ -427,7 +427,7 @@ static const AVFilterPad avfilter_vf_ocv_outputs[] = {//tiger output没有filter_f
     { NULL }
 };
 
-AVFilter ff_vf_ocv = {//tiger opencv
+AVFilter ff_vf_ocv = {//tiger opencv 使用范例，将图像进行相关处理
     .name          = "ocv",
     .description   = NULL_IF_CONFIG_SMALL("Apply transform using libopencv."),
     .priv_size     = sizeof(OCVContext),
