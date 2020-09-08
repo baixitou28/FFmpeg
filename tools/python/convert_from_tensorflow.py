@@ -27,7 +27,7 @@ __all__ = ['convert_from_tensorflow']
 # it will be refined step by step.
 
 class TFConverter:
-    def __init__(self, graph_def, nodes, outfile):
+    def __init__(self, graph_def, nodes, outfile):#初始化
         self.graph_def = graph_def
         self.nodes = nodes
         self.outfile = outfile
@@ -115,9 +115,9 @@ class TFConverter:
             if node.name in self.converted_nodes:
                 continue
             if node.op == 'Conv2D':
-                self.dump_conv2d_to_file(node, f)
+                self.dump_conv2d_to_file(node, f)#实际使用的主函数
             elif node.op == 'DepthToSpace':
-                self.dump_depth2space_to_file(node, f)
+                self.dump_depth2space_to_file(node, f)#实际使用的主函数
 
 
     def dump_to_file(self):
@@ -189,9 +189,9 @@ class TFConverter:
 
         self.dump_to_file()
 
-
+#主函数
 def convert_from_tensorflow(infile, outfile):
-    with open(infile, 'rb') as f:
+    with open(infile, 'rb') as f:#打开文件
         # read the file in .proto format
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())

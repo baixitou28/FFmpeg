@@ -20,7 +20,7 @@
 # verified with Python 3.5.2 on Ubuntu 16.04
 import argparse
 import os
-from convert_from_tensorflow import *
+from convert_from_tensorflow import *#从另外的文件读取
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='generate native mode model with weights from deep learning model')
@@ -29,7 +29,7 @@ def get_arguments():
     parser.add_argument('infile', help='path to the deep learning model with weights')
 
     return parser.parse_args()
-
+# tiger 转化
 def main():
     args = get_arguments()
 
@@ -46,7 +46,7 @@ def main():
     outfile = os.path.join(args.outdir, basefile) + '.model'
 
     if args.infmt == 'tensorflow':
-        convert_from_tensorflow(args.infile, outfile)
+        convert_from_tensorflow(args.infile, outfile)#实际的函数
 
 if __name__ == '__main__':
     main()

@@ -198,7 +198,7 @@ static const AVFilterPad derain_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_vf_derain = {//TIGER DNN 的一个例子
+AVFilter ff_vf_derain = {//TIGER DNN 的一个例子 ,具体命令参见https://github.com/XueweiMeng/derain_filter
     .name          = "derain",
     .description   = NULL_IF_CONFIG_SMALL("Apply derain filter to the input."),
     .priv_size     = sizeof(DRContext),
@@ -211,6 +211,7 @@ AVFilter ff_vf_derain = {//TIGER DNN 的一个例子
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };
 //TIGER 参看
+//FFmpeg图像处理深度应用https://zhuanlan.zhihu.com/p/106192748
 //FFmpeg深度学习模块2019年小结 https://blog.csdn.net/yjguo2004/article/details/104459983/
 //Recurrent Squeeze - and -Excitation Context Aggregation Net(RESCAN).See http ://openaccess.thecvf.com/content_ECCV_2018/papers/Xia_Li_Recurrent_Squeeze-and-Excitation_Context_ECCV_2018_paper.pdf.
 //Training scripts as well as scripts for model generation are provided in the repository at https ://github.com/XueweiMeng/derain_filter.git.

@@ -34,7 +34,7 @@
 #include "libswscale/swscale.h"
 #include "dnn_interface.h"
 
-typedef struct SRContext {
+typedef struct SRContext {//tiger sr context
     const AVClass *class;
 
     char *model_filename;
@@ -72,7 +72,7 @@ static av_cold int init(AVFilterContext *context)
         av_log(context, AV_LOG_ERROR, "could not create DNN module for requested backend\n");
         return AVERROR(ENOMEM);
     }
-
+    //验证
     if (!sr_context->model_filename){
         av_log(context, AV_LOG_ERROR, "model file for network was not specified\n");
         return AVERROR(EIO);
@@ -99,7 +99,7 @@ static int query_formats(AVFilterContext *context)
 {
     const enum AVPixelFormat pixel_formats[] = {AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P, AV_PIX_FMT_YUV444P,
                                                 AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P, AV_PIX_FMT_GRAY8,
-                                                AV_PIX_FMT_NONE};
+                                                AV_PIX_FMT_NONE};//支持格式
     AVFilterFormats *formats_list;
 
     formats_list = ff_make_format_list(pixel_formats);
@@ -119,17 +119,17 @@ static int config_props(AVFilterLink *inlink)
     DNNReturnType result;
     int sws_src_h, sws_src_w, sws_dst_h, sws_dst_w;
     const char *model_output_name = "y";
-
+    //初始化
     sr_context->input.width = inlink->w * sr_context->scale_factor;
     sr_context->input.height = inlink->h * sr_context->scale_factor;
     sr_context->input.channels = 1;
-
+    //设置
     result = (sr_context->model->set_input_output)(sr_context->model->model, &sr_context->input, "x", &model_output_name, 1);
     if (result != DNN_SUCCESS){
         av_log(context, AV_LOG_ERROR, "could not set input and output for the model\n");
         return AVERROR(EIO);
     }
-
+    //执行
     result = (sr_context->dnn_module->execute_model)(sr_context->model, &sr_context->output, 1);
     if (result != DNN_SUCCESS){
         av_log(context, AV_LOG_ERROR, "failed to execute loaded model\n");
@@ -229,7 +229,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     AVFilterContext *context = inlink->dst;
     SRContext *sr_context = context->priv;
     AVFilterLink *outlink = context->outputs[0];
-    AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
+    AVFrame *out = ff_get_video_buffer(outlink, outlink->w, outlink->h);//01.取一帧
     DNNReturnType dnn_result;
 
     if (!out){
@@ -237,10 +237,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
         av_frame_free(&in);
         return AVERROR(ENOMEM);
     }
-    av_frame_copy_props(out, in);
+    av_frame_copy_props(out, in);//02.复制
     out->height = sr_context->output.height;
     out->width = sr_context->output.width;
-    if (sr_context->scale_factor){
+    if (sr_context->scale_factor){//03.缩放
         sws_scale(sr_context->sws_contexts[0], (const uint8_t **)in->data, in->linesize,
                   0, sr_context->sws_slice_h, out->data, out->linesize);
 
@@ -260,17 +260,17 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
                   (const int [4]){sr_context->sws_input_linesize, 0, 0, 0});
     }
     av_frame_free(&in);
-
+    //04.执行
     dnn_result = (sr_context->dnn_module->execute_model)(sr_context->model, &sr_context->output, 1);
     if (dnn_result != DNN_SUCCESS){
         av_log(context, AV_LOG_ERROR, "failed to execute loaded model\n");
         return AVERROR(EIO);
     }
-
+    //缩放
     sws_scale(sr_context->sws_contexts[2], (const uint8_t *[4]){(const uint8_t *)sr_context->output.data, 0, 0, 0},
               (const int[4]){sr_context->sws_output_linesize, 0, 0, 0},
               0, out->height, (uint8_t * const*)out->data, out->linesize);
-
+    //输出
     return ff_filter_frame(outlink, out);
 }
 
