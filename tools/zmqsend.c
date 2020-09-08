@@ -38,7 +38,7 @@
  * zmq message sender example, meant to be used with the zmq filters
  */
 
-static void usage(void)
+static void usage(void)//TIGER 示例看filter.texi 中的 an example of a zmq client which can be used to send commands processed by these filters.
 {
     printf("send message to ZMQ recipient, to use with the zmq filters\n");
     printf("usage: zmqsend [OPTIONS]\n");
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     const char *infilename = NULL;
     FILE *infile = NULL;
     zmq_msg_t msg;
-
+    //01.参数
     while ((c = getopt(argc, argv, "b:hi:")) != -1) {
         switch (c) {
         case 'b':
@@ -88,14 +88,14 @@ int main(int argc, char **argv)
                "Impossible to open input file '%s': %s\n", infilename, strerror(errno));
         return 1;
     }
-
+    //创建zmq context
     zmq_ctx = zmq_ctx_new();
     if (!zmq_ctx) {
         av_log(NULL, AV_LOG_ERROR,
                "Could not create ZMQ context: %s\n", zmq_strerror(errno));
         return 1;
     }
-
+    //创建socket
     socket = zmq_socket(zmq_ctx, ZMQ_REQ);
     if (!socket) {
         av_log(NULL, AV_LOG_ERROR,
@@ -103,14 +103,14 @@ int main(int argc, char **argv)
         ret = 1;
         goto end;
     }
-
+    //连接
     if (zmq_connect(socket, bind_address) == -1) {
         av_log(NULL, AV_LOG_ERROR, "Could not bind ZMQ responder to address '%s': %s\n",
                bind_address, zmq_strerror(errno));
         ret = 1;
         goto end;
     }
-
+    //读取
     /* grab the input and store it in src */
     av_bprint_init(&src, 1, AV_BPRINT_SIZE_UNLIMITED);
     while ((c = fgetc(infile)) != EOF)
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
         goto end;
     }
     av_bprint_finalize(&src, &src_buf);
-
+    //发送
     if (zmq_send(socket, src_buf, strlen(src_buf), 0) == -1) {
         av_log(NULL, AV_LOG_ERROR, "Could not send message: %s\n", zmq_strerror(errno));
         ret = 1;
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
         ret = 1;
         goto end;
     }
-
+    //接收
     if (zmq_msg_recv(&msg, socket, 0) == -1) {
         av_log(NULL, AV_LOG_ERROR,
                "Could not receive message: %s\n", zmq_strerror(errno));

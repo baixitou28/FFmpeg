@@ -42,7 +42,7 @@ typedef struct ZMQContext {
 
 #define OFFSET(x) offsetof(ZMQContext, x)
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_VIDEO_PARAM
-static const AVOption options[] = {
+static const AVOption options[] = {//参数
     { "bind_address", "set bind address", OFFSET(bind_address), AV_OPT_TYPE_STRING, {.str = "tcp://*:5555"}, 0, 0, FLAGS },
     { "b",            "set bind address", OFFSET(bind_address), AV_OPT_TYPE_STRING, {.str = "tcp://*:5555"}, 0, 0, FLAGS },
     { NULL }
@@ -51,21 +51,21 @@ static const AVOption options[] = {
 static av_cold int init(AVFilterContext *ctx)
 {
     ZMQContext *zmq = ctx->priv;
-
+    //01.
     zmq->zmq = zmq_ctx_new();
     if (!zmq->zmq) {
         av_log(ctx, AV_LOG_ERROR,
                "Could not create ZMQ context: %s\n", zmq_strerror(errno));
         return AVERROR_EXTERNAL;
     }
-
+    //02.
     zmq->responder = zmq_socket(zmq->zmq, ZMQ_REP);
     if (!zmq->responder) {
         av_log(ctx, AV_LOG_ERROR,
                "Could not create ZMQ socket: %s\n", zmq_strerror(errno));
         return AVERROR_EXTERNAL;
     }
-
+    //03.
     if (zmq_bind(zmq->responder, zmq->bind_address) == -1) {
         av_log(ctx, AV_LOG_ERROR,
                "Could not bind ZMQ socket to address '%s': %s\n",
@@ -94,21 +94,21 @@ typedef struct Command {
 static int parse_command(Command *cmd, const char *command_str, void *log_ctx)
 {
     const char **buf = &command_str;
-
+    //01. 对象
     cmd->target = av_get_token(buf, SPACES);
     if (!cmd->target || !cmd->target[0]) {
         av_log(log_ctx, AV_LOG_ERROR,
                "No target specified in command '%s'\n", command_str);
         return AVERROR(EINVAL);
     }
-
+    //02. 命令
     cmd->command = av_get_token(buf, SPACES);
     if (!cmd->command || !cmd->command[0]) {
         av_log(log_ctx, AV_LOG_ERROR,
                "No command specified in command '%s'\n", command_str);
         return AVERROR(EINVAL);
     }
-
+    //03. 参数
     cmd->arg = av_get_token(buf, SPACES);
     return 0;
 }
@@ -118,13 +118,13 @@ static int recv_msg(AVFilterContext *ctx, char **buf, int *buf_size)
     ZMQContext *zmq = ctx->priv;
     zmq_msg_t msg;
     int ret = 0;
-
+    //01.初始化消息
     if (zmq_msg_init(&msg) == -1) {
         av_log(ctx, AV_LOG_WARNING,
                "Could not initialize receive message: %s\n", zmq_strerror(errno));
         return AVERROR_EXTERNAL;
     }
-
+    //02.非阻塞获取
     if (zmq_msg_recv(&msg, zmq->responder, ZMQ_DONTWAIT) == -1) {
         if (errno != EAGAIN)
             av_log(ctx, AV_LOG_WARNING,
@@ -152,24 +152,24 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *ref)
     AVFilterContext *ctx = inlink->dst;
     ZMQContext *zmq = ctx->priv;
 
-    while (1) {
+    while (1) {//死循环
         char cmd_buf[1024];
         char *recv_buf, *send_buf;
         int recv_buf_size;
         Command cmd = {0};
         int ret;
-
+        //01.获取消息
         /* receive command */
         if (recv_msg(ctx, &recv_buf, &recv_buf_size) < 0)
             break;
         zmq->command_count++;
-
+        //02.解析消息
         /* parse command */
         if (parse_command(&cmd, recv_buf, ctx) < 0) {
             av_log(ctx, AV_LOG_ERROR, "Could not parse command #%d\n", zmq->command_count);
             goto end;
         }
-
+        //03.处理命令
         /* process command */
         av_log(ctx, AV_LOG_VERBOSE,
                "Processing command #%d target:%s command:%s arg:%s\n",
@@ -187,7 +187,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *ref)
         av_log(ctx, AV_LOG_VERBOSE,
                "Sending command reply for command #%d:\n%s\n",
                zmq->command_count, send_buf);
-        if (zmq_send(zmq->responder, send_buf, strlen(send_buf), 0) == -1)
+        if (zmq_send(zmq->responder, send_buf, strlen(send_buf), 0) == -1)//04.发送执行结果
             av_log(ctx, AV_LOG_ERROR, "Failed to send reply for command #%d: %s\n",
                    zmq->command_count, zmq_strerror(ret));
 
@@ -260,7 +260,7 @@ static const AVFilterPad azmq_outputs[] = {
     { NULL }
 };
 
-AVFilter ff_af_azmq = {
+AVFilter ff_af_azmq = {//TIGER MQ的一个示例
     .name        = "azmq",
     .description = NULL_IF_CONFIG_SMALL("Receive commands through ZMQ and broker them to filters."),
     .init        = init,
