@@ -263,7 +263,7 @@ typedef struct AVRegionOfInterest {
 } AVRegionOfInterest;
 
 /**
- * This structure describes decoded (raw) audio or video data.
+ * This structure describes decoded (raw) audio or video data. 注释里是raw
  *
  * AVFrame must be allocated using av_frame_alloc(). Note that this only
  * allocates the AVFrame itself, the buffers for the data must be managed
@@ -292,7 +292,7 @@ typedef struct AVRegionOfInterest {
  * C structure field name for fields accessible through AVOptions. The AVClass
  * for AVFrame can be obtained from avcodec_get_frame_class()//tiger 这个函数没有使用范例
  */
-typedef struct AVFrame {
+typedef struct AVFrame {//存储非压缩的数据（视频对应RGB/YUV像素数据，音频对应PCM采样数据）
 #define AV_NUM_DATA_POINTERS 8
     /**
      * pointer to the picture/channel planes.
@@ -375,7 +375,7 @@ typedef struct AVFrame {
     /**
      * Picture type of the frame.
      */
-    enum AVPictureType pict_type;
+    enum AVPictureType pict_type;//I帧B帧等
 
     /**
      * Sample aspect ratio for the video frame, 0/1 if unknown/unspecified.

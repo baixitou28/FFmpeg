@@ -1989,7 +1989,7 @@ static int check_output_constraints(InputStream *ist, OutputStream *ost)
     return 1;
 }
 
-static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *pkt)
+static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *pkt)//仅仅copy 不需要解压缩，直接使用AVPacket
 {
     OutputFile *of = output_files[ost->file_index];
     InputFile   *f = input_files [ist->file_index];
