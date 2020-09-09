@@ -1451,7 +1451,7 @@ typedef struct AVPacketSideData {
  * @see av_packet_ref
  * @see av_packet_unref
  */
-typedef struct AVPacket {
+typedef struct AVPacket {//AVPacket：存储压缩数据（视频对应H.264等码流数据，音频对应AAC/MP3等码流数据）
     /**
      * A reference to the reference-counted buffer where the packet data is
      * stored.
