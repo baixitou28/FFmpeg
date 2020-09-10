@@ -1456,8 +1456,8 @@ typedef struct AVPacket {//AVPacket：存储压缩数据（视频对应H.264等码流数据，音频
      * A reference to the reference-counted buffer where the packet data is
      * stored.
      * May be NULL, then the packet data is not reference-counted.
-     */
-    AVBufferRef *buf;//实际分配的内存
+     *///经过长时间资料搜索发现，FLV，MP4这些属于“特殊容器”，需要经过以下处理才能得到可播放的H.264码流：     1.第一次存储AVPacket之前需要在前面加上H.264的SPS和PPS。这些信息存储在AVCodecContext的extradata里面。       并且需要使用FFMPEG中的名为"h264_mp4toannexb"的bitstream filter 进行处理。  然后将处理后的extradata存入文件
+    AVBufferRef *buf;//实际分配的内存 //http://www.aiuxian.com/article/p-1713290.html AVPacket中的数据起始处没有分隔符(0x00000001), 也不是0x65、0x67、0x68、0x41等字节，所以可以AVPacket肯定这不是标准的nalu。其实，AVPacket前4个字表示的是nalu的长度，从第5个字节开始才是nalu的数据。所以直接将AVPacket前4个字节替换为0x00000001即可得到标准的nalu数据。
     /**
      * Presentation timestamp in AVStream->time_base units; the time at which
      * the decompressed packet will be presented to the user.
