@@ -1988,7 +1988,7 @@ static int check_output_constraints(InputStream *ist, OutputStream *ost)
 
     return 1;
 }
-
+//tiger 重要 理解copy
 static void do_streamcopy(InputStream *ist, OutputStream *ost, const AVPacket *pkt)//仅仅copy 不需要解压缩，直接使用AVPacket
 {
     OutputFile *of = output_files[ost->file_index];
@@ -2572,7 +2572,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
     int ret = 0, i;
     int repeating = 0;
     int eof_reached = 0;
-    //01.
+    //01. 计算时间戳
     AVPacket avpkt;
     if (!ist->saw_first_ts) {
         ist->dts = ist->st->avg_frame_rate.num ? - ist->dec_ctx->has_b_frames * AV_TIME_BASE / av_q2d(ist->st->avg_frame_rate) : 0;
@@ -2588,7 +2588,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         ist->next_dts = ist->dts;
     if (ist->next_pts == AV_NOPTS_VALUE)
         ist->next_pts = ist->pts;
-    //02.
+    //02.处理结束
     if (!pkt) {
         /* EOF handling */
         av_init_packet(&avpkt);
@@ -2603,7 +2603,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
         if (ist->dec_ctx->codec_type != AVMEDIA_TYPE_VIDEO || !ist->decoding_needed)
             ist->next_pts = ist->pts = ist->dts;
     }
-    //03.
+    //03.需要解码(vs copy模式)
     // while we have more to decode or while the decoder did output something on EOF
     while (ist->decoding_needed) {
         int64_t duration_dts = 0;
@@ -2704,7 +2704,7 @@ static int process_input_packet(InputStream *ist, const AVPacket *pkt, int no_eo
             exit_program(1);
         }
     }
-    //05. 仅复制模式，处理时间错
+    //05. 仅复制模式，处理时间戳
     /* handle stream copy */
     if (!ist->decoding_needed && pkt) {
         ist->dts = ist->next_dts;
@@ -4264,7 +4264,7 @@ static int process_input(int file_index)
     int64_t pkt_dts;
 
     is  = ifile->ctx;
-    ret = get_input_packet(ifile, &pkt);
+    ret = get_input_packet(ifile, &pkt);//get_input_packet-->av_read_frame-->read_frame_internal -->ff_read_packet -->ff_rtsp_fetch_packet.....
 
     if (ret == AVERROR(EAGAIN)) {
         ifile->eagain = 1;
@@ -4275,8 +4275,8 @@ static int process_input(int file_index)
         for (i = 0; i < ifile->nb_streams; i++) {
             ist = input_streams[ifile->ist_index + i];
             avctx = ist->dec_ctx;
-            if (ist->decoding_needed) {
-                ret = process_input_packet(ist, NULL, 1);//
+            if (ist->decoding_needed) {//如果需要解码？ 什么时候不需要？
+                ret = process_input_packet(ist, NULL, 1);//transcode_step--> process_input--> process_input_packet--> decode_video--> send_frame_to_filter--> ifilter_send_frame--> av_buffersrc_add_frame_flags--> av_buffersrc_add_frame_internal--> request_frame + ff_filter_activate
                 if (ret>0)
                     return 0;
                 avcodec_flush_buffers(avctx);
