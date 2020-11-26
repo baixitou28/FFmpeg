@@ -306,7 +306,7 @@ typedef struct AVFrame {//存储非压缩的数据（视频对应RGB/YUV像素数据，音频对应PCM
      * NOTE: Except for hwaccel formats, pointers not needed by the format
      * MUST be set to NULL.
      */
-    uint8_t *data[AV_NUM_DATA_POINTERS];
+    uint8_t *data[AV_NUM_DATA_POINTERS];//音频采样数据一般用data[0]形式
 
     /**
      * For video, size in bytes of each picture line.

@@ -153,7 +153,7 @@ static double compute_rms(SilenceRemoveContext *s, double sample)
 
     new_sum  = s->sum;
     new_sum -= *s->window_current;
-    new_sum += sample * sample;
+    new_sum += sample * sample;//Æ½·½
 
     return sqrt(new_sum / s->window_size);
 }
