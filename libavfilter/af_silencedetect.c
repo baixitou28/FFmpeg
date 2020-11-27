@@ -52,7 +52,7 @@ typedef struct SilenceDetectContext {
 
 #define OFFSET(x) offsetof(SilenceDetectContext, x)
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_AUDIO_PARAM
-static const AVOption silencedetect_options[] = {//TODO:dB解析需要调试才能看，查代码不知道在哪里解析和转换
+static const AVOption silencedetect_options[] = {//TODO:dB解析需要调试才能看，查代码不知道在哪里解析和转换 -60dB到0.001
     { "n",         "set noise tolerance",              OFFSET(noise),     AV_OPT_TYPE_DOUBLE, {.dbl=0.001},          0, DBL_MAX,  FLAGS },//默认Default is -60dB, or 0.001 即log10((10^-3)*(10^-3))//示例参数是 -af silencedetect=n=-50dB:d=1 ，为什么是dB
     { "noise",     "set noise tolerance",              OFFSET(noise),     AV_OPT_TYPE_DOUBLE, {.dbl=0.001},          0, DBL_MAX,  FLAGS },
     { "d",         "set minimum duration in seconds",  OFFSET(duration),  AV_OPT_TYPE_DOUBLE, {.dbl=2.},             0, 24*60*60, FLAGS },//默认2秒，最大24小时
@@ -80,7 +80,7 @@ static av_always_inline void update(SilenceDetectContext *s, AVFrame *insamples,
 {
     int channel = current_sample % s->independent_channels;
     if (is_silence) {//静音判断标志silencedetect_xxx关键函数*p < noise && *p > -noise ==> 比如默认设置的0.001，则 [-0.001*2^15,0.001*2^15](16位为例)或[-33，33] 都会被认为静音
-        if (s->start[channel] == INT64_MIN) {//判断条件不是很明白  ==> 如果没有，即开始该功能
+        if (s->start[channel] == INT64_MIN) {//判断条件不是很明白  ==> 如果是初始化的INT64_MIN，填入silence_start开始的相对时间
             s->nb_null_samples[channel]++;
             if (s->nb_null_samples[channel] >= nb_samples_notify) {
                 s->start[channel] = insamples->pts + av_rescale_q(current_sample / s->channels + 1 - nb_samples_notify * s->independent_channels / s->channels,
@@ -94,8 +94,8 @@ static av_always_inline void update(SilenceDetectContext *s, AVFrame *insamples,
             }
         }
     } else {
-        if (s->start[channel] > INT64_MIN) {
-            int64_t end_pts = insamples ? insamples->pts + av_rescale_q(current_sample / s->channels,
+        if (s->start[channel] > INT64_MIN) {//显然silence_start已经有了，才会需要end
+            int64_t end_pts = insamples ? insamples->pts + av_rescale_q(current_sample / s->channels,//观察这里时间计算的方式
                     (AVRational){ 1, s->last_sample_rate }, time_base)
                     : s->frame_end;
             int64_t duration_ts = end_pts - s->start[channel];
@@ -198,11 +198,11 @@ static int query_formats(AVFilterContext *ctx)
 {
     AVFilterFormats *formats = NULL;
     AVFilterChannelLayouts *layouts = NULL;
-    static const enum AVSampleFormat sample_fmts[] = {
+    static const enum AVSampleFormat sample_fmts[] = {//支持的格式，有符号，无符号，32位，16位都可以
         AV_SAMPLE_FMT_DBL,
         AV_SAMPLE_FMT_FLT,
         AV_SAMPLE_FMT_S32,
-        AV_SAMPLE_FMT_S16,
+        AV_SAMPLE_FMT_S16,//在另外一个模块volumedetecct，只支持S16格式
         AV_SAMPLE_FMT_NONE
     };
     int ret;
@@ -244,7 +244,7 @@ static const AVFilterPad silencedetect_inputs[] = {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = config_input,
-        .filter_frame = filter_frame,
+        .filter_frame = filter_frame,//统计
     },
     { NULL }
 };
@@ -256,14 +256,14 @@ static const AVFilterPad silencedetect_outputs[] = {
     },
     { NULL }
 };
-
+//默认0.001倍的最高声音的以下认为是静音，将默认静音超过2秒的以打印日志的方式输出
 AVFilter ff_af_silencedetect = {
     .name          = "silencedetect",
     .description   = NULL_IF_CONFIG_SMALL("Detect silence."),
     .priv_size     = sizeof(SilenceDetectContext),
-    .query_formats = query_formats,
+    .query_formats = query_formats,//01.最重要的入口1：支持的格式
     .uninit        = uninit,
-    .inputs        = silencedetect_inputs,
-    .outputs       = silencedetect_outputs,
-    .priv_class    = &silencedetect_class,
+    .inputs        = silencedetect_inputs,//02.最重要的入口2：输入的入口
+    .outputs       = silencedetect_outputs,//03.最重要的入口3：什么也不做
+    .priv_class    = &silencedetect_class,//04.每个模块都要有个自己的状态
 };
