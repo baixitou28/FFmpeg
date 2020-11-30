@@ -41,9 +41,9 @@ enum ThresholdMode {
 };
 
 enum SilenceMode {
-    SILENCE_TRIM,
+    SILENCE_TRIM,//需要删除silence
     SILENCE_TRIM_FLUSH,
-    SILENCE_COPY,
+    SILENCE_COPY,//复制silence
     SILENCE_COPY_FLUSH,
     SILENCE_STOP
 };
@@ -155,7 +155,7 @@ static double compute_rms(SilenceRemoveContext *s, double sample)
     new_sum -= *s->window_current;
     new_sum += sample * sample;//平方
 
-    return sqrt(new_sum / s->window_size);
+    return sqrt(new_sum / s->window_size);//不理解window_size
 }
 
 static void update_rms(SilenceRemoveContext *s, double sample)
@@ -201,7 +201,7 @@ static void clear_window(SilenceRemoveContext *s)
     s->sum = 0;
 }
 
-static int config_input(AVFilterLink *inlink)
+static int config_input(AVFilterLink *inlink)//第一次参数设置
 {
     AVFilterContext *ctx = inlink->dst;
     SilenceRemoveContext *s = ctx->priv;
@@ -213,7 +213,7 @@ static int config_input(AVFilterLink *inlink)
         return AVERROR(ENOMEM);
 
     clear_window(s);
-
+    //把配置的时间，转化为对应的采样基准的时间
     s->start_duration = av_rescale(s->start_duration_opt, inlink->sample_rate,
                                    AV_TIME_BASE);
     s->start_silence  = av_rescale(s->start_silence_opt, inlink->sample_rate,
@@ -222,40 +222,40 @@ static int config_input(AVFilterLink *inlink)
                                    AV_TIME_BASE);
     s->stop_silence   = av_rescale(s->stop_silence_opt, inlink->sample_rate,
                                    AV_TIME_BASE);
-
+    //分配内存
     s->start_holdoff = av_malloc_array(FFMAX(s->start_duration, 1),
                                        sizeof(*s->start_holdoff) *
                                        inlink->channels);
     if (!s->start_holdoff)
         return AVERROR(ENOMEM);
-
+    //分配内存
     s->start_silence_hold = av_malloc_array(FFMAX(s->start_silence, 1),
                                             sizeof(*s->start_silence_hold) *
                                             inlink->channels);
     if (!s->start_silence_hold)
         return AVERROR(ENOMEM);
-
+    //初始化
     s->start_holdoff_offset = 0;
     s->start_holdoff_end    = 0;
     s->start_found_periods  = 0;
-
+    //分配内存
     s->stop_holdoff = av_malloc_array(FFMAX(s->stop_duration, 1),
                                       sizeof(*s->stop_holdoff) *
                                       inlink->channels);
     if (!s->stop_holdoff)
         return AVERROR(ENOMEM);
-
+    //分配内存
     s->stop_silence_hold = av_malloc_array(FFMAX(s->stop_silence, 1),
                                            sizeof(*s->stop_silence_hold) *
                                            inlink->channels);
     if (!s->stop_silence_hold)
         return AVERROR(ENOMEM);
-
+    //初始化
     s->stop_holdoff_offset = 0;
     s->stop_holdoff_end    = 0;
     s->stop_found_periods  = 0;
 
-    if (s->start_periods)
+    if (s->start_periods)//默认是9000是rtp的视频常数吗？
         s->mode = SILENCE_TRIM;
     else
         s->mode = SILENCE_COPY;
@@ -268,7 +268,7 @@ static void flush(SilenceRemoveContext *s,
                   int *nb_samples_written, int *ret, int flush_silence)
 {
     AVFrame *silence;
-
+    //01.
     if (*nb_samples_written) {
         out->nb_samples = *nb_samples_written / outlink->channels;
 
@@ -284,28 +284,28 @@ static void flush(SilenceRemoveContext *s,
     } else {
         av_frame_free(&out);
     }
-
+    //02.
     if (s->stop_silence_end <= 0 || !flush_silence)
         return;
-
+    //03.
     silence = ff_get_audio_buffer(outlink, s->stop_silence_end / outlink->channels);
     if (!silence) {
         *ret = AVERROR(ENOMEM);
         return;
     }
-
+    //04.
     if (s->stop_silence_offset < s->stop_silence_end) {
         memcpy(silence->data[0],
                &s->stop_silence_hold[s->stop_silence_offset],
                (s->stop_silence_end - s->stop_silence_offset) * sizeof(double));
     }
-
+    //05.
     if (s->stop_silence_offset > 0) {
         memcpy(silence->data[0] + (s->stop_silence_end - s->stop_silence_offset) * sizeof(double),
                &s->stop_silence_hold[0],
                s->stop_silence_offset * sizeof(double));
     }
-
+    //06.
     s->stop_silence_offset = 0;
     s->stop_silence_end = 0;
 
@@ -313,7 +313,7 @@ static void flush(SilenceRemoveContext *s,
     s->next_pts += av_rescale_q(silence->nb_samples,
                                 (AVRational){1, outlink->sample_rate},
                                 outlink->time_base);
-
+    //07.
     *ret = ff_filter_frame(outlink, silence);
 }
 
@@ -335,32 +335,32 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     switch (s->mode) {
     case SILENCE_TRIM:
 silence_trim:
-        nbs = in->nb_samples - nb_samples_read / outlink->channels;
+        nbs = in->nb_samples - nb_samples_read / outlink->channels;//采样数
         if (!nbs)
-            break;
+            break;//没有数据
 
         for (i = 0; i < nbs; i++) {
             if (s->start_mode == T_ANY) {
                 threshold = 0;
                 for (j = 0; j < outlink->channels; j++) {
-                    threshold |= s->compute(s, ibuf[j]) > s->start_threshold;
+                    threshold |= s->compute(s, ibuf[j]) > s->start_threshold;//如compute_rms等，是否有一次超过start_threshold：threshold为1
                 }
             } else {
                 threshold = 1;
                 for (j = 0; j < outlink->channels; j++) {
-                    threshold &= s->compute(s, ibuf[j]) > s->start_threshold;
+                    threshold &= s->compute(s, ibuf[j]) > s->start_threshold;//是否有一次小于start_threshold：设置threshold 为0
                 }
             }
 
             if (threshold) {
                 for (j = 0; j < outlink->channels; j++) {
-                    s->update(s, *ibuf);
+                    s->update(s, *ibuf);//更新
                     s->start_holdoff[s->start_holdoff_end++] = *ibuf++;
                 }
                 nb_samples_read += outlink->channels;
 
-                if (s->start_holdoff_end >= s->start_duration * outlink->channels) {
-                    if (++s->start_found_periods >= s->start_periods) {
+                if (s->start_holdoff_end >= s->start_duration * outlink->channels) {//若时长足够
+                    if (++s->start_found_periods >= s->start_periods) {//
                         s->mode = SILENCE_TRIM_FLUSH;
                         goto silence_trim_flush;
                     }
@@ -453,7 +453,7 @@ silence_copy:
         }
         obuf = (double *)out->data[0];
 
-        if (s->stop_periods) {
+        if (s->stop_periods) {//
             for (i = 0; i < nbs; i++) {
                 if (s->stop_mode == T_ANY) {
                     threshold = 0;
@@ -526,7 +526,7 @@ silence_copy:
             memcpy(obuf, ibuf, sizeof(double) * nbs * outlink->channels);
 
             out->pts = s->next_pts;
-            s->next_pts += av_rescale_q(out->nb_samples,
+            s->next_pts += av_rescale_q(out->nb_samples,//跳过静音nb_samples
                                         (AVRational){1, outlink->sample_rate},
                                         outlink->time_base);
 
@@ -584,24 +584,24 @@ static int request_frame(AVFilterLink *outlink)
     int ret;
 
     ret = ff_request_frame(ctx->inputs[0]);
-    if (ret == AVERROR_EOF && (s->mode == SILENCE_COPY_FLUSH ||
+    if (ret == AVERROR_EOF && (s->mode == SILENCE_COPY_FLUSH ||//复制模式 //TODO不理解后面的函数==>AVERROR_EOF应该是将静音部分放到末尾？
                                s->mode == SILENCE_COPY)) {
         int nbs = s->stop_holdoff_end - s->stop_holdoff_offset;
         if (nbs) {
             AVFrame *frame;
-
+            //01.取
             frame = ff_get_audio_buffer(outlink, nbs / outlink->channels);
             if (!frame)
                 return AVERROR(ENOMEM);
-
+            //02.复制
             memcpy(frame->data[0], &s->stop_holdoff[s->stop_holdoff_offset],
                    nbs * sizeof(double));
-
+            //03.计算当前pts和下一个pts
             frame->pts = s->next_pts;
             s->next_pts += av_rescale_q(frame->nb_samples,
                                         (AVRational){1, outlink->sample_rate},
                                         outlink->time_base);
-
+            //04.
             ret = ff_filter_frame(outlink, frame);
         }
         s->mode = SILENCE_STOP;
@@ -609,11 +609,11 @@ static int request_frame(AVFilterLink *outlink)
     return ret;
 }
 
-static int query_formats(AVFilterContext *ctx)
+static int query_formats(AVFilterContext *ctx)//支持格式
 {
     AVFilterFormats *formats = NULL;
     AVFilterChannelLayouts *layouts = NULL;
-    static const enum AVSampleFormat sample_fmts[] = {
+    static const enum AVSampleFormat sample_fmts[] = {//为什么只支持AV_SAMPLE_FMT_DBL？
         AV_SAMPLE_FMT_DBL, AV_SAMPLE_FMT_NONE
     };
     int ret;
@@ -638,7 +638,7 @@ static int query_formats(AVFilterContext *ctx)
     return ff_set_common_samplerates(ctx, formats);
 }
 
-static av_cold void uninit(AVFilterContext *ctx)
+static av_cold void uninit(AVFilterContext *ctx)//主要是释放内存
 {
     SilenceRemoveContext *s = ctx->priv;
 
@@ -653,8 +653,8 @@ static const AVFilterPad silenceremove_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_AUDIO,
-        .config_props = config_input,
-        .filter_frame = filter_frame,
+        .config_props = config_input,//参数设置
+        .filter_frame = filter_frame,//输入处理
     },
     { NULL }
 };
@@ -663,7 +663,7 @@ static const AVFilterPad silenceremove_outputs[] = {
     {
         .name          = "default",
         .type          = AVMEDIA_TYPE_AUDIO,
-        .request_frame = request_frame,
+        .request_frame = request_frame,//处理输出
     },
     { NULL }
 };
@@ -675,7 +675,7 @@ AVFilter ff_af_silenceremove = {
     .priv_class    = &silenceremove_class,
     .init          = init,
     .uninit        = uninit,
-    .query_formats = query_formats,
+    .query_formats = query_formats,//只支持AV_SAMPLE_FMT_DBL
     .inputs        = silenceremove_inputs,
     .outputs       = silenceremove_outputs,
 };
