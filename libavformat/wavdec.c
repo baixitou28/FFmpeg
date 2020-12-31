@@ -327,7 +327,7 @@ static const AVMetadataConv wav_metadata_conv[] = {
 };
 
 /* wav input */
-static int wav_read_header(AVFormatContext *s)
+static int wav_read_header(AVFormatContext *s)//TIGER WAVE 头文件，tag一般都是4位的字符，没有，一般会填充
 {
     int64_t size, av_uninit(data_size);
     int64_t sample_count = 0;
@@ -344,7 +344,7 @@ static int wav_read_header(AVFormatContext *s)
     wav->smv_data_ofs = -1;
 
     /* read chunk ID */
-    tag = avio_rl32(pb);
+    tag = avio_rl32(pb);//头一般是RIFF
     switch (tag) {
     case MKTAG('R', 'I', 'F', 'F'):
         break;
@@ -364,7 +364,7 @@ static int wav_read_header(AVFormatContext *s)
     avio_rl32(pb);
 
     /* read format */
-    if (avio_rl32(pb) != MKTAG('W', 'A', 'V', 'E')) {
+    if (avio_rl32(pb) != MKTAG('W', 'A', 'V', 'E')) {//wave格式
         av_log(s, AV_LOG_ERROR, "invalid format in RIFF header\n");
         return AVERROR_INVALIDDATA;
     }
