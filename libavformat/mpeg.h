@@ -25,8 +25,8 @@
 #include <stdint.h>
 #include "libavutil/intreadwrite.h"
 
-#define PACK_START_CODE             ((unsigned int)0x000001ba)
-#define SYSTEM_HEADER_START_CODE    ((unsigned int)0x000001bb)
+#define PACK_START_CODE             ((unsigned int)0x000001ba) //包起始码字段
+#define SYSTEM_HEADER_START_CODE    ((unsigned int)0x000001bb) //系统标题起始码字段
 #define SEQUENCE_END_CODE           ((unsigned int)0x000001b7)
 #define PACKET_START_CODE_MASK      ((unsigned int)0xffffff00)
 #define PACKET_START_CODE_PREFIX    ((unsigned int)0x00000100)

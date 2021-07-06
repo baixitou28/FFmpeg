@@ -162,7 +162,7 @@ static int amr_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     return 0;
 }
-
+//tiger 条件编译：一般情况下amr的format是不编译的。 注意：这里的amr是format格式3GPP AMR，而不是解码器decode
 #if CONFIG_AMR_DEMUXER
 AVInputFormat ff_amr_demuxer = {
     .name           = "amr",
